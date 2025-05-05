@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("JenianAPI")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cdcabdbdef3f3d7666036d1846d4e81a2c41f30c")]
 [assembly: System.Reflection.AssemblyProductAttribute("JenianAPI")]
 [assembly: System.Reflection.AssemblyTitleAttribute("JenianAPI")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
