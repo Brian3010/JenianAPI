@@ -5,15 +5,16 @@ using System.Text;
 
 namespace JenianAPI.Configurations
 {
-  public class JwtBearerConfigurationOptions : IConfigureOptions<JwtBearerOptions>
+  public class JwtBearerConfigurationOptions : IConfigureNamedOptions<JwtBearerOptions>
   {
     private readonly IConfiguration _configuration;
 
     public JwtBearerConfigurationOptions(IConfiguration configuration) {
       _configuration = configuration;
     }
-    public void Configure(JwtBearerOptions options) {
 
+
+    public void Configure(string? name, JwtBearerOptions options) {
       var jwt = _configuration.GetSection("jwt");
 
       options.TokenValidationParameters = new TokenValidationParameters {
@@ -26,5 +27,7 @@ namespace JenianAPI.Configurations
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Key"]!))
       };
     }
+
+    public void Configure(JwtBearerOptions options) => Configure(Options.DefaultName, options);
   }
 }

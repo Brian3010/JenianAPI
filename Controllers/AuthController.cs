@@ -1,4 +1,5 @@
 ﻿using JenianAPI.Dtos;
+using JenianAPI.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,9 +10,11 @@ namespace JenianAPI.Controllers
   public class AuthController : ControllerBase
   {
     private readonly UserManager<IdentityUser> _userManager;
+    private readonly IJwtTokenManager _jwtTokenManager;
 
-    public AuthController(UserManager<IdentityUser> userManager) {
+    public AuthController(UserManager<IdentityUser> userManager, IJwtTokenManager jwtTokenManager) {
       _userManager = userManager;
+      _jwtTokenManager = jwtTokenManager;
     }
 
 
@@ -41,16 +44,20 @@ namespace JenianAPI.Controllers
     public async Task<IActionResult> Login([FromBody] LoginRequestDto loginRequest) {
       var user = await _userManager.FindByEmailAsync(loginRequest.Email);
 
+      // Check valid user
       if (user == null || !await _userManager.CheckPasswordAsync(user, loginRequest.Password)) {
         return Unauthorized("Invalid username or password");
       }
+
+      // Generate accessToken
+      var accessToken = _jwtTokenManager.GenerateJwtToken(user, 5);
 
 
       // Create a response
       var response = new {
         Message = "Login Successfully",
-        //AccessToken = accessToken,
-        //User = new UserDto { Id = user.Id, Email = user.Email, UserName = user.UserName },
+        AccessToken = accessToken,
+        User = new UserDto { Id = user.Id, Email = user.Email, UserName = user.UserName },
         //role = roles
       };
 

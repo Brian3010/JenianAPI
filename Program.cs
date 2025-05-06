@@ -1,9 +1,12 @@
 
 using JenianAPI.Configurations;
 using JenianAPI.Data;
+using JenianAPI.Services;
+using JenianAPI.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
 
 namespace JenianAPI
 {
@@ -17,7 +20,33 @@ namespace JenianAPI
       builder.Services.AddControllers();
       // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
       builder.Services.AddEndpointsApiExplorer();
-      builder.Services.AddSwaggerGen();
+      builder.Services.AddSwaggerGen(options => {
+        options.SwaggerDoc("v1", new OpenApiInfo { Title = "Jenian APIs", Version = "V1" });
+        options.AddSecurityDefinition(JwtBearerDefaults.AuthenticationScheme, new OpenApiSecurityScheme {
+          Name = "Authorization",
+          Description = "Enter 'Bearer' following by space and JWT.",
+          In = ParameterLocation.Header,
+          Type = SecuritySchemeType.ApiKey,
+          Scheme = "bearer",
+        });
+        options.AddSecurityRequirement(new OpenApiSecurityRequirement {
+          {
+            new OpenApiSecurityScheme {
+              Reference = new OpenApiReference{Type = ReferenceType.SecurityScheme, Id = JwtBearerDefaults.AuthenticationScheme },
+              Scheme ="Oauth2",
+              Name = JwtBearerDefaults.AuthenticationScheme,
+              In = ParameterLocation.Header
+            },
+             new List<string>()
+          }
+        });
+      });
+
+      // DbContexts
+      builder.Services.AddDbContext<JenianAuthDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("JenianAuthConnection")));
+
+      // Add life-time services
+      builder.Services.AddScoped<IJwtTokenManager, JwtTokenManager>();
 
 
       // Add Identity system to the ASP.NET Core service container
@@ -36,13 +65,9 @@ namespace JenianAPI
         options.User.RequireUniqueEmail = true;
       });
 
+
       // JWT Bearers
-      builder.Services.ConfigureOptions<JwtBearerConfigurationOptions>().AddAuthentication(JwtBearerDefaults.AuthenticationScheme);
-
-      // DbContexts
-      builder.Services.AddDbContext<JenianAuthDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("JenianAuthConnection")));
-
-      //
+      builder.Services.ConfigureOptions<JwtBearerConfigurationOptions>().AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
 
       var app = builder.Build();
 
