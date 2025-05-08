@@ -2,6 +2,7 @@
 using JenianAPI.Models.AuthModels;
 using JenianAPI.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
@@ -57,6 +58,15 @@ namespace JenianAPI.Services
       return result.ToString();
     }
 
+    public async Task<bool> IsRefreshTokenExists(string refreshToken, string? deviceName, string deviceIpAddress, string userId) {
+
+      deviceName ??= "Unknown Device";
+
+      var foundToken = await _dbContext.RefreshTokens.FirstOrDefaultAsync(rf => rf.UserId == userId && rf.DeviceName == deviceName && rf.DeviceIpAddress == deviceIpAddress);
+
+      return foundToken != null;
+    }
+
     public async Task StoreRefreshToken(string refreshToken, string? deviceName, string? deviceIpAddress, string userId) {
 
       _dbContext.RefreshTokens.Add(new RefreshToken {
@@ -75,7 +85,16 @@ namespace JenianAPI.Services
     }
 
     public Task UpdateRefreshToken(string refreshToken, string? deviceName, string? deviceIpAddress, string userId) {
+
+
+
+      //
+
+
       throw new NotImplementedException();
     }
+
+
+
   }
 }

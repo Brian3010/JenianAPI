@@ -54,9 +54,15 @@ namespace JenianAPI.Controllers
       var ipAddress = Request.Headers["X-Forwarded-For"].FirstOrDefault() ?? HttpContext.Connection.RemoteIpAddress?.ToString();
 
 
+
+
       // Generate accessToken and refreshToken
       var accessToken = _jwtTokenManager.GenerateJwtToken(user, 5);
       var refreshToken = _jwtTokenManager.GenerateRefreshToken();
+
+      // check if deviceName and deviceIpAddress exist
+      // if exist, Update it with the new refreshToken
+      // if not, StoreRefreshToken
 
       // Store refresh-token to database
       await _jwtTokenManager.StoreRefreshToken(refreshToken, null, ipAddress, user.Id);
