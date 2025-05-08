@@ -1,4 +1,5 @@
 ﻿using JenianAPI.Dtos;
+using JenianAPI.Models.AuthModels;
 using JenianAPI.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -9,10 +10,10 @@ namespace JenianAPI.Controllers
   [ApiController]
   public class AuthController : ControllerBase
   {
-    private readonly UserManager<IdentityUser> _userManager;
+    private readonly UserManager<ApplicationUser> _userManager;
     private readonly IJwtTokenManager _jwtTokenManager;
 
-    public AuthController(UserManager<IdentityUser> userManager, IJwtTokenManager jwtTokenManager) {
+    public AuthController(UserManager<ApplicationUser> userManager, IJwtTokenManager jwtTokenManager) {
       _userManager = userManager;
       _jwtTokenManager = jwtTokenManager;
     }
@@ -26,7 +27,7 @@ namespace JenianAPI.Controllers
       }
 
 
-      var newUser = new IdentityUser() {
+      var newUser = new ApplicationUser() {
         UserName = registerRequest.Email,
         Email = registerRequest.Email,
       };
@@ -49,16 +50,35 @@ namespace JenianAPI.Controllers
         return Unauthorized("Invalid username or password");
       }
 
-      // Generate accessToken
-      var accessToken = _jwtTokenManager.GenerateJwtToken(user, 5);
+      // Device information
+      var ipAddress = Request.Headers["X-Forwarded-For"].FirstOrDefault() ?? HttpContext.Connection.RemoteIpAddress?.ToString();
 
+
+      // Generate accessToken and refreshToken
+      var accessToken = _jwtTokenManager.GenerateJwtToken(user, 5);
+      var refreshToken = _jwtTokenManager.GenerateRefreshToken();
+
+      // Store refresh-token to database
+      await _jwtTokenManager.StoreRefreshToken(refreshToken, null, ipAddress, user.Id);
+
+
+
+      // Set HttpOnly cookie
+      var cookieOptions = new CookieOptions {
+        HttpOnly = true,
+        Secure = true, // only over HTTPS
+        SameSite = SameSiteMode.Strict,
+        Expires = DateTime.UtcNow.AddDays(7),
+        //Path = "/api/auth/refresh" // Optional: limit path
+      };
+
+      Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
 
       // Create a response
       var response = new {
         Message = "Login Successfully",
         AccessToken = accessToken,
         User = new UserDto { Id = user.Id, Email = user.Email, UserName = user.UserName },
-        //role = roles
       };
 
       return Ok(response);
@@ -66,7 +86,10 @@ namespace JenianAPI.Controllers
     }
 
 
+    //[HttpPost("logout")]
+    //public async Task<IActionResult> Logout() {
 
+    //}
 
 
 

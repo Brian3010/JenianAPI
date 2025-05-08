@@ -1,6 +1,7 @@
 
 using JenianAPI.Configurations;
 using JenianAPI.Data;
+using JenianAPI.Models.AuthModels;
 using JenianAPI.Services;
 using JenianAPI.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -50,7 +51,8 @@ namespace JenianAPI
 
 
       // Add Identity system to the ASP.NET Core service container
-      builder.Services.AddIdentityCore<IdentityUser>().AddEntityFrameworkStores<JenianAuthDbContext>();
+      builder.Services.AddIdentityCore<ApplicationUser>().AddEntityFrameworkStores<JenianAuthDbContext>()
+        .AddDefaultTokenProviders(); // <-- required for reset/confirm tokens;
 
       builder.Services.Configure<IdentityOptions>(options => {
         // Password settings.

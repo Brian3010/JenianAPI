@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using JenianAPI.Models.AuthModels;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,12 +12,29 @@ namespace JenianAPI.Data
    *  Work with ASP.NET Identity tables
    * 
    */
-  public class JenianAuthDbContext : IdentityDbContext<IdentityUser>
+  public class JenianAuthDbContext : IdentityDbContext<ApplicationUser>
 
   {
 
     public JenianAuthDbContext(DbContextOptions<JenianAuthDbContext> options) : base(options) {
 
     }
+
+
+    // Create tables
+    public DbSet<RefreshToken> RefreshTokens { get; set; }
+
+
+    protected override void OnModelCreating(ModelBuilder builder) {
+      base.OnModelCreating(builder);
+
+      builder.Entity<RefreshToken>()
+            .HasOne(rt => rt.User)
+            .WithMany(u => u.RefreshTokens)
+            .HasForeignKey(rt => rt.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+
+
   }
 }

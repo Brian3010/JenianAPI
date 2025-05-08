@@ -9,7 +9,9 @@ namespace JenianAPI.Services.Interfaces
 
     public string GenerateRefreshToken();
 
-    // Working on Genereate JWT Bearer token
+    public Task StoreRefreshToken(string refreshToken, string? deviceName, string? deviceIpAddress, string userId);
 
+
+    public Task UpdateRefreshToken(string refreshToken, string? deviceName, string? deviceIpAddress, string userId);
   }
 }

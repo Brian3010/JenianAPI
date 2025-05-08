@@ -14,5 +14,8 @@ namespace JenianAPI.Dtos
     {
       get; set;
     }
+
+    public string? DeviceName { get; set; }         // Optional for now
+    //public string? DeviceIpAddress { get; set; }    // Optional
   }
 }
