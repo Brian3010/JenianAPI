@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+using Serilog;
 
 namespace JenianAPI
 {
@@ -15,6 +16,24 @@ namespace JenianAPI
   {
     public static void Main(string[] args) {
       var builder = WebApplication.CreateBuilder(args);
+
+      // Configure Serilog Provider
+      Log.Logger = new LoggerConfiguration()
+        .WriteTo.Console()
+        //.WriteTo.File("Logs/log-.txt", rollingInterval: RollingInterval.Day)
+        .Enrich.FromLogContext()
+        .MinimumLevel.Information()
+        .CreateLogger();
+
+      Log.Logger = new LoggerConfiguration()
+        .ReadFrom.Configuration(builder.Configuration)
+        .CreateLogger();
+
+      // Replace built-in logger with Serilog
+      builder.Host.UseSerilog();
+      Log.Logger.Information("Serilog starting");
+      Log.Logger.Information($"Host: {builder.Host}");
+      Log.Logger.Information($"Total services: {builder.Services.Count}");
 
       // Add services to the container.
 

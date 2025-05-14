@@ -12,10 +12,12 @@ namespace JenianAPI.Controllers
   {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IJwtTokenManager _jwtTokenManager;
+    private readonly ILogger<AuthController> _logger;
 
-    public AuthController(UserManager<ApplicationUser> userManager, IJwtTokenManager jwtTokenManager) {
+    public AuthController(UserManager<ApplicationUser> userManager, IJwtTokenManager jwtTokenManager, ILogger<AuthController> logger) {
       _userManager = userManager;
       _jwtTokenManager = jwtTokenManager;
+      _logger = logger;
     }
 
 
@@ -61,8 +63,10 @@ namespace JenianAPI.Controllers
       var refreshToken = _jwtTokenManager.GenerateRefreshToken();
 
       // check if deviceName and deviceIpAddress exist
+      var isRfToken = _jwtTokenManager.IsRefreshTokenExists()
       // if exist, Update it with the new refreshToken
       // if not, StoreRefreshToken
+
 
       // Store refresh-token to database
       await _jwtTokenManager.StoreRefreshToken(refreshToken, null, ipAddress, user.Id);
