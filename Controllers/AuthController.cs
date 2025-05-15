@@ -52,9 +52,9 @@ namespace JenianAPI.Controllers
         return Unauthorized("Invalid username or password");
       }
 
-      // Device information
+      // Ip Address
       var ipAddress = Request.Headers["X-Forwarded-For"].FirstOrDefault() ?? HttpContext.Connection.RemoteIpAddress?.ToString();
-
+      _logger.LogInformation("ipAddress: {0}", ipAddress);
 
 
 
@@ -62,16 +62,7 @@ namespace JenianAPI.Controllers
       var accessToken = _jwtTokenManager.GenerateJwtToken(user, 5);
       var refreshToken = _jwtTokenManager.GenerateRefreshToken();
 
-      // check if deviceName and deviceIpAddress exist
-      var isRfToken = _jwtTokenManager.IsRefreshTokenExists()
-      // if exist, Update it with the new refreshToken
-      // if not, StoreRefreshToken
-
-
-      // Store refresh-token to database
-      await _jwtTokenManager.StoreRefreshToken(refreshToken, null, ipAddress, user.Id);
-
-
+      await _jwtTokenManager.UpdateOrStoreRefreshtoken(refreshToken, loginRequest.DeviceName, ipAddress, user.Id);
 
       // Set HttpOnly cookie
       var cookieOptions = new CookieOptions {
@@ -96,10 +87,20 @@ namespace JenianAPI.Controllers
     }
 
 
-    //[HttpPost("logout")]
-    //public async Task<IActionResult> Logout() {
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout([FromBody] LogoutRequestDto logoutRequest) {
 
-    //}
+      /**
+       * revoke refresh token
+       * delete cookies
+       */
+
+      _jwtTokenManager.RevokeRefreshToken()
+
+
+
+
+    }
 
 
 

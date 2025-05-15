@@ -58,16 +58,40 @@ namespace JenianAPI.Services
       return result.ToString();
     }
 
-    public async Task<bool> IsRefreshTokenExists(string refreshToken, string? deviceName, string deviceIpAddress, string userId) {
+    public async Task RevokeRefreshToken(string refreshToken, string deviceName, string deviceIpAddress, string userId) {
+
+      // Find the token
+      var rfToken = await _dbContext.RefreshTokens.SingleOrDefaultAsync(r => r.DeviceName == deviceName && r.DeviceIpAddress == deviceIpAddress && r.UserId == userId && r.Token == refreshToken);
+
+      if (rfToken != null) {
+        rfToken.IsRevoked = true;
+        rfToken.RevokedAt = DateTime.Now;
+      }
+    }
+
+    public async Task UpdateOrStoreRefreshtoken(string refreshToken, string deviceName, string deviceIpAddress, string userId) {
+
+      // Check if token exists with deviceName, deviceIpAddress, userId
+      if (await IsRefreshTokenExists(refreshToken, deviceName, deviceIpAddress, userId)) {
+        // Update
+        await UpdateRefreshToken(refreshToken, deviceName, deviceIpAddress, userId);
+      } else {
+        // Store
+        await StoreRefreshToken(refreshToken, deviceName, deviceIpAddress, userId);
+      }
+
+    }
+
+    private async Task<bool> IsRefreshTokenExists(string refreshToken, string deviceName, string deviceIpAddress, string userId) {
 
       deviceName ??= "Unknown Device";
 
-      var foundToken = await _dbContext.RefreshTokens.FirstOrDefaultAsync(rf => rf.UserId == userId && rf.DeviceName == deviceName && rf.DeviceIpAddress == deviceIpAddress);
+      var foundToken = await _dbContext.RefreshTokens.FirstOrDefaultAsync(rf => rf.UserId == userId && rf.DeviceName == deviceName && rf.DeviceIpAddress == deviceIpAddress && !rf.IsRevoked);
 
       return foundToken != null;
     }
 
-    public async Task StoreRefreshToken(string refreshToken, string? deviceName, string? deviceIpAddress, string userId) {
+    private async Task StoreRefreshToken(string refreshToken, string deviceName, string deviceIpAddress, string userId) {
 
       _dbContext.RefreshTokens.Add(new RefreshToken {
         Id = new Guid(),
@@ -84,14 +108,13 @@ namespace JenianAPI.Services
       await _dbContext.SaveChangesAsync();
     }
 
-    public Task UpdateRefreshToken(string refreshToken, string? deviceName, string? deviceIpAddress, string userId) {
+    private async Task UpdateRefreshToken(string refreshToken, string deviceName, string deviceIpAddress, string userId) {
+      var rfToken = await _dbContext.RefreshTokens.SingleOrDefaultAsync(r => r.DeviceName == deviceName && r.DeviceIpAddress == deviceIpAddress && r.UserId == userId);
 
-
-
-      //
-
-
-      throw new NotImplementedException();
+      if (rfToken != null) {
+        rfToken.Token = refreshToken;
+      }
+      await _dbContext.SaveChangesAsync();
     }
 
 

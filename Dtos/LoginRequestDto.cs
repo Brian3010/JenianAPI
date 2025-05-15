@@ -15,7 +15,10 @@ namespace JenianAPI.Dtos
       get; set;
     }
 
-    public string? DeviceName { get; set; }         // Optional for now
-    //public string? DeviceIpAddress { get; set; }    // Optional
+    [Required]
+    public required string DeviceName { get; set; } // get this from Frontend (best practice)
+
+
+    //public string? DeviceIpAddress { get; set; }    
   }
 }
