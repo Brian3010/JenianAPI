@@ -89,21 +89,42 @@ namespace JenianAPI.Controllers
 
     [HttpPost("logout")]
     public async Task<IActionResult> Logout([FromBody] LogoutRequestDto logoutRequest) {
-
       /**
        * revoke refresh token
        * delete cookies
        */
 
-      _jwtTokenManager.RevokeRefreshToken()
+      // Refresh token from cookie
+      var refreshToken = Request.Cookies["refreshToken"];
+      if (string.IsNullOrEmpty(refreshToken)) return Unauthorized("Refresh token not found");
 
+      // IP Address
+      var ipAddress = Request.Headers["X-Forwarded-For"].FirstOrDefault() ?? HttpContext.Connection.RemoteIpAddress?.ToString();
+
+      // Check if token exist before continure proceed
+      if (!await _jwtTokenManager.IsRefreshTokenExists(refreshToken, logoutRequest.DeviceName, ipAddress!, logoutRequest.UserId)) {
+        return Unauthorized("Some values not exist");
+      }
+
+      await _jwtTokenManager.RevokeRefreshToken(refreshToken, logoutRequest.DeviceName, ipAddress!, logoutRequest.UserId);
+
+
+      Response.Cookies.Append("refreshToken", "", new CookieOptions {
+        HttpOnly = true,
+        Secure = true,
+        SameSite = SameSiteMode.Strict,
+        Expires = DateTime.UtcNow.AddDays(-1), // Set expiration in the past
+      });
+
+      return Ok("Logged out successfully.");
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword() {
 
 
 
     }
-
-
-
 
 
 

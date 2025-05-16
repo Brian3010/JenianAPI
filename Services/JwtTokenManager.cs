@@ -15,10 +15,12 @@ namespace JenianAPI.Services
   {
     private readonly IConfiguration _configuration;
     private readonly JenianAuthDbContext _dbContext;
+    private readonly ILogger<JwtTokenManager> _logger;
 
-    public JwtTokenManager(IConfiguration configuration, JenianAuthDbContext dbContext) {
+    public JwtTokenManager(IConfiguration configuration, JenianAuthDbContext dbContext, ILogger<JwtTokenManager> logger) {
       _configuration = configuration;
       _dbContext = dbContext;
+      _logger = logger;
     }
     public string GenerateJwtToken(IdentityUser user, int TTLInMinute = 5) {
 
@@ -61,12 +63,16 @@ namespace JenianAPI.Services
     public async Task RevokeRefreshToken(string refreshToken, string deviceName, string deviceIpAddress, string userId) {
 
       // Find the token
-      var rfToken = await _dbContext.RefreshTokens.SingleOrDefaultAsync(r => r.DeviceName == deviceName && r.DeviceIpAddress == deviceIpAddress && r.UserId == userId && r.Token == refreshToken);
+      var rfToken = await _dbContext.RefreshTokens.FirstOrDefaultAsync(r => r.DeviceName == deviceName && r.DeviceIpAddress == deviceIpAddress && r.UserId == userId && r.Token == refreshToken && !r.IsRevoked);
+      _logger.LogInformation("rfToken: {rfToken}", rfToken);
+
 
       if (rfToken != null) {
         rfToken.IsRevoked = true;
         rfToken.RevokedAt = DateTime.Now;
       }
+
+      await _dbContext.SaveChangesAsync();
     }
 
     public async Task UpdateOrStoreRefreshtoken(string refreshToken, string deviceName, string deviceIpAddress, string userId) {
@@ -82,7 +88,7 @@ namespace JenianAPI.Services
 
     }
 
-    private async Task<bool> IsRefreshTokenExists(string refreshToken, string deviceName, string deviceIpAddress, string userId) {
+    public async Task<bool> IsRefreshTokenExists(string refreshToken, string deviceName, string deviceIpAddress, string userId) {
 
       deviceName ??= "Unknown Device";
 
@@ -109,7 +115,7 @@ namespace JenianAPI.Services
     }
 
     private async Task UpdateRefreshToken(string refreshToken, string deviceName, string deviceIpAddress, string userId) {
-      var rfToken = await _dbContext.RefreshTokens.SingleOrDefaultAsync(r => r.DeviceName == deviceName && r.DeviceIpAddress == deviceIpAddress && r.UserId == userId);
+      var rfToken = await _dbContext.RefreshTokens.FirstOrDefaultAsync(r => r.DeviceName == deviceName && r.DeviceIpAddress == deviceIpAddress && r.UserId == userId && !r.IsRevoked);
 
       if (rfToken != null) {
         rfToken.Token = refreshToken;

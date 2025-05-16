@@ -11,7 +11,5 @@ namespace JenianAPI.Dtos
     [Required]
     public required string UserId { get; set; }
 
-
-
   }
 }
