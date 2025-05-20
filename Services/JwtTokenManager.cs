@@ -114,16 +114,26 @@ namespace JenianAPI.Services
       await _dbContext.SaveChangesAsync();
     }
 
-    private async Task UpdateRefreshToken(string refreshToken, string deviceName, string deviceIpAddress, string userId) {
+    public async Task UpdateRefreshToken(string refreshToken, string deviceName, string deviceIpAddress, string userId) {
       var rfToken = await _dbContext.RefreshTokens.FirstOrDefaultAsync(r => r.DeviceName == deviceName && r.DeviceIpAddress == deviceIpAddress && r.UserId == userId && !r.IsRevoked);
 
       if (rfToken != null) {
         rfToken.Token = refreshToken;
+        rfToken.IsRevoked = false;
       }
       await _dbContext.SaveChangesAsync();
     }
 
+    //public async Task<bool> IsValidRefreshToken(string refreshToken, string deviceName, string deviceIpAddress, string userId) {
+
+    //  if (!await IsRefreshTokenExists(refreshToken, deviceName, deviceIpAddress, userId){
+    //    return false;
+    //  }
 
 
+
+
+    //  return true;
+    //}
   }
 }

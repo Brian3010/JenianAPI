@@ -1,8 +1,11 @@
 ﻿using JenianAPI.Dtos;
+using JenianAPI.Helpers;
 using JenianAPI.Models.AuthModels;
 using JenianAPI.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using System.Web;
 
 namespace JenianAPI.Controllers
 {
@@ -52,9 +55,8 @@ namespace JenianAPI.Controllers
         return Unauthorized("Invalid username or password");
       }
 
-      // Ip Address
-      var ipAddress = Request.Headers["X-Forwarded-For"].FirstOrDefault() ?? HttpContext.Connection.RemoteIpAddress?.ToString();
-      _logger.LogInformation("ipAddress: {0}", ipAddress);
+      // IP Address
+      var ipAddress = IpHelper.GetClientIp(HttpContext);
 
 
 
@@ -86,7 +88,7 @@ namespace JenianAPI.Controllers
 
     }
 
-
+    [Authorize]
     [HttpPost("logout")]
     public async Task<IActionResult> Logout([FromBody] LogoutRequestDto logoutRequest) {
       /**
@@ -99,7 +101,7 @@ namespace JenianAPI.Controllers
       if (string.IsNullOrEmpty(refreshToken)) return Unauthorized("Refresh token not found");
 
       // IP Address
-      var ipAddress = Request.Headers["X-Forwarded-For"].FirstOrDefault() ?? HttpContext.Connection.RemoteIpAddress?.ToString();
+      var ipAddress = IpHelper.GetClientIp(HttpContext);
 
       // Check if token exist before continure proceed
       if (!await _jwtTokenManager.IsRefreshTokenExists(refreshToken, logoutRequest.DeviceName, ipAddress!, logoutRequest.UserId)) {
@@ -119,14 +121,94 @@ namespace JenianAPI.Controllers
       return Ok("Logged out successfully.");
     }
 
+    [HttpPost("request-password-reset")]
+    public async Task<IActionResult> RequestPasswordReset([FromBody] string email) {
+
+      var user = await _userManager.FindByEmailAsync(email);
+      if (user == null) return NotFound("User not found");
+
+      var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+
+      var encodedToken = HttpUtility.UrlEncode(token);
+
+      /* //TODO: Will need to send a link via email asking user to fill a form and hit POST reset-password
+       * to reset password
+       * 
+       * For now, This API will send back the token to use for reseting password
+       */
+
+      return Ok(new { ResetToken = encodedToken });
+      ;
+
+    }
+
     [HttpPost("reset-password")]
-    public async Task<IActionResult> ResetPassword() {
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequestDto resetPasswordRequestDto) {
+      /*
+       * Find the user email in the database -> wait for confirmation email
+       * return not found user
+       * 
+       * replace password
+       */
+      var userEmail = resetPasswordRequestDto.UserEmail;
 
+      var user = await _userManager.FindByEmailAsync(userEmail);
 
+      if (user == null) {
+        return NotFound("User Not Found");
+      }
+
+      // Can decode from Frontend
+      var decodedToken = HttpUtility.UrlDecode(resetPasswordRequestDto.EmailToken);
+
+      var res = await _userManager.ResetPasswordAsync(user, decodedToken, resetPasswordRequestDto.NewPassword);
+
+      if (!res.Succeeded)
+        return BadRequest(res.Errors);
+
+      return Ok("Password has been reset successfully.");
 
     }
 
 
+    [HttpPost("refresh-token")]
+    public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequestDto refreshTokenRequestDto) {
+      /** Check if refresh token is revoked 
+       * if yes, return invalid token.
+       * 
+       * If no,
+       * Generate a new accessToken
+       * Return same repsonse as the log-in API
+       */
+
+      // IP Address
+      var ipAddress = IpHelper.GetClientIp(HttpContext);
+      //_logger.LogInformation("ipAddress: {ipAddress} ", ipAddress);
+
+      var refreshToken = Request.Cookies["refreshToken"];
+      if (refreshToken == null) return NotFound("Cannot find refresh token");
+
+      if (!await _jwtTokenManager.IsRefreshTokenExists(refreshToken, refreshTokenRequestDto.DeviceName, ipAddress, refreshTokenRequestDto.UserId)) {
+        return Unauthorized("Invalid Refresh Token");
+      }
+
+      var user = await _userManager.FindByIdAsync(refreshTokenRequestDto.UserId);
+      if (user == null) return NotFound("User not exist");
+
+      var newAccessToken = _jwtTokenManager.GenerateJwtToken(user);
+
+
+      // Create a response
+      var response = new {
+        Message = "Login Successfully",
+        AccessToken = newAccessToken,
+        User = new UserDto { Id = user.Id, Email = user.Email, UserName = user.UserName },
+      };
+
+      return Ok(response);
+    }
+
+    // GET /api/auth/sessions	- List all active sessions/devices (from refresh tokens)
 
 
 
