@@ -134,7 +134,7 @@ namespace JenianAPI.Controllers
       /* //TODO: Will need to send a link via email asking user to fill a form and hit POST reset-password
        * to reset password
        * 
-       * For now, This API will send back the token to use for reseting password
+       * For now, This API will send back a random token to use for reseting password
        */
 
       return Ok(new { ResetToken = encodedToken });
