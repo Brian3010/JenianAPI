@@ -1,4 +1,4 @@
-﻿using JenianAPI.Dtos;
+﻿using JenianAPI.Dtos.AuthDtos;
 using JenianAPI.Helpers;
 using JenianAPI.Models.AuthModels;
 using JenianAPI.Services.Interfaces;

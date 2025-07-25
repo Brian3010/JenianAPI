@@ -1,4 +1,4 @@
-﻿namespace JenianAPI.Dtos
+﻿namespace JenianAPI.Dtos.AuthDtos
 {
   public class RefreshTokenRequestDto
   {

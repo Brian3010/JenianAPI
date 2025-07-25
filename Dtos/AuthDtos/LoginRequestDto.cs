@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace JenianAPI.Dtos
+namespace JenianAPI.Dtos.AuthDtos
 {
   public class LoginRequestDto
   {
