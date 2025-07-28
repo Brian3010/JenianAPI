@@ -17,12 +17,25 @@ namespace JenianAPI
     public static void Main(string[] args) {
       var builder = WebApplication.CreateBuilder(args);
 
+      // tell dot net to run on this port
+      //builder.WebHost.UseUrls("http://localhost:5018");
+      //builder.WebHost.UseUrls("http://0.0.0.0:5018");
+
+      //builder.Services.AddCors(options => {
+      //  options.AddPolicy("AllowFrontend", policy => {
+      //    policy.WithOrigins("http://localhost:3000", "http://192.168.0.219:3000") // your frontend URL
+      //          .AllowAnyHeader()
+      //          .AllowAnyMethod()
+      //          .AllowCredentials(); // required for cookies or auth headers
+      //  });
+      //});
+
       // Configure Serilog Provider
       var logger = new LoggerConfiguration()
         .WriteTo.Console(outputTemplate:
         "{NewLine}[{Timestamp:HH:mm}] {Message:lj}{NewLine}{Exception}")
         .MinimumLevel.Information()
-        .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning) // Suppress Microsoft logs below Warning
+        //.MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning) // Suppress Microsoft logs below Warning
         .MinimumLevel.Override("System", Serilog.Events.LogEventLevel.Warning) // Suppress System logs below Warning
         .CreateLogger();
 
@@ -62,7 +75,9 @@ namespace JenianAPI
       builder.Services.AddDbContext<JenianAuthDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("JenianAuthConnection")));
 
       // Add life-time services
+      builder.Services.AddHttpClient();
       builder.Services.AddScoped<IJwtTokenManager, JwtTokenManager>();
+      builder.Services.AddScoped<TelegramService>();
 
 
       // Add Identity system to the ASP.NET Core service container
