@@ -31,30 +31,32 @@ namespace JenianAPI.Services
       // return if no text from user
       if (string.IsNullOrEmpty(msg.Text)) return;
 
-      // "/start" indicates the user want to connect via Telegram
-      if (msg.Text.StartsWith("/start ")) {
+
+      // The user send text "/start {linkToken}"
+      if (msg.Text.StartsWith("/start")) {
+        // extract {linkToken}
         var linkToken = msg.Text.Split(" ")[1];
 
-        // Find user by linkToken
+        // Check if the token matches any of the users
         var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.TelegramLinkToken == linkToken);
+
+        // if not, meaning the Token is Invalid or Expired
         if (user == null) {
           _logger.LogInformation("Invalid or expired link token.");
-          await SendMessageAsync(msg.Chat.Id, "Invalid or Expired Token");
+          await SendMessageAsync(msg.Chat.Id, "Invalid or expired token, please try again");
           return;
         } else {
-          // Get telegram user Id
+          // if yes, save the telegram user Id to the Jenian database
           user.TelegramUserId = msg.From.Id.ToString();
-          user.TelegramLinkToken = null; // invalidate/one-time use
-
+          user.TelegramLinkToken = null; // invalidate the token
           await _dbContext.SaveChangesAsync();
-
-          await SendMessageAsync(msg.Chat.Id, "Your Telegram account is now linked");
+          await SendMessageAsync(msg.Chat.Id, "Your Telegram account is now linked to Jenian App");
         }
         return;
       }
 
-
-      // check if already a linked user
+      // After Telegram user id has been saved
+      // For future communication, we will use linkedUser to check if the user is authorised to communicate in our chatbot
       var linkedUser = await _dbContext.Users.FirstOrDefaultAsync(u => u.TelegramUserId == msg.From.Id.ToString());
       if (linkedUser == null) {
         _logger.LogInformation("Unauthorized Telegram ID tried to send message.");
@@ -62,9 +64,10 @@ namespace JenianAPI.Services
         return;
       }
 
+      // After passing all the protection barriers above 
       _logger.LogInformation($"Message from linked user {linkedUser.UserName}: {msg.Text}");
 
-      // TODO: Replace with actual parser logic
+      // Ready! to receive text from the user
       await SendMessageAsync(msg.Chat.Id, "Message received. Shift parser not implemented yet.");
 
     }
