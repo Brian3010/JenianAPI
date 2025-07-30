@@ -16,6 +16,10 @@ namespace JenianAPI.Controllers
       _logger = logger;
     }
 
+    /* This APIs get hooked to Telegram via
+     * curl -X POST "https://api.telegram.org/bot{Telegeram Token}/setWebhook"
+     * -d "url=https:{url}/api/telegram/webhook"
+     */
     [HttpPost("webhook")]
     public async Task<IActionResult> Webhook([FromBody] TelegramUpdate update) {
       _logger.LogInformation("Webhook hit from Telegram!");
