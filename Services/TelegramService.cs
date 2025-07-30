@@ -47,6 +47,11 @@ namespace JenianAPI.Services
           return;
         } else {
           // if yes, save the telegram user Id to the Jenian database
+          var isRegistered = await _dbContext.Users.FirstOrDefaultAsync(u => u.TelegramUserId == msg.From.Id.ToString());
+          if (isRegistered != null) {
+            await SendMessageAsync(msg.Chat.Id, "Looks like this Telegram account is already connected to another Jenian user. Please use a different one.");
+            return;
+          }
           user.TelegramUserId = msg.From.Id.ToString();
           user.TelegramLinkToken = null; // invalidate the token
           await _dbContext.SaveChangesAsync();

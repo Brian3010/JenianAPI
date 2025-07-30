@@ -10,9 +10,11 @@ namespace JenianAPI.Controllers
   public class TelegramUserController : ControllerBase
   {
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly HttpClient _httpClient;
 
-    public TelegramUserController(UserManager<ApplicationUser> userManager) {
+    public TelegramUserController(UserManager<ApplicationUser> userManager, HttpClient httpClient) {
       _userManager = userManager;
+      _httpClient = httpClient;
     }
 
 
@@ -33,11 +35,10 @@ namespace JenianAPI.Controllers
 
       }
 
-
       return Ok(new { linkToken = user.TelegramLinkToken });
     }
 
-
+    // Can you this function in to check if user linked before adding token
     [HttpGet("is-linked")]
     public async Task<IActionResult> CheckIfTelegramLinked() {
       var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
