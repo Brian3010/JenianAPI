@@ -1,5 +1,6 @@
 ﻿using JenianAPI.Data;
 using JenianAPI.Dtos.TelegramDtos;
+using JenianAPI.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace JenianAPI.Services
@@ -10,30 +11,41 @@ namespace JenianAPI.Services
     private readonly ILogger<TelegramService> _logger;
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _configuration;
+    private readonly IParserService _parserService;
 
-    public TelegramService(JenianAuthDbContext dbContext, ILogger<TelegramService> logger, HttpClient httpClient, IConfiguration configuration) {
+    public TelegramService(JenianAuthDbContext dbContext, ILogger<TelegramService> logger, HttpClient httpClient, IConfiguration configuration, IParserService parserService) {
       _dbContext = dbContext;
       _logger = logger;
       _httpClient = httpClient;
       _configuration = configuration;
+      _parserService = parserService;
     }
 
     // This runs in WebHook
     public async Task HandleUpdateAsync(TelegramUpdate update) {
+      /** NOTE: Sending Photos
+      * Compressed Photo is identified as "photo" field
+      * Original Photo is identified as "document" field
+      * Forwarding Photo is identified as "photo" field
+      *
+      */
       var msg = update.Message;
+      //_logger.LogInformation($"Message is {msg.Photo.Count}");
       if (msg == null) {
         _logger.LogInformation("Message is null");
         return;
       }
 
-      _logger.LogInformation($"Message from: {msg.From?.Username} (ID: {msg.From?.Id}) | Text: {msg.Text}");
-
       // return if no text from user
-      if (string.IsNullOrEmpty(msg.Text)) return;
+      if (string.IsNullOrEmpty(msg.Text) && msg.Photo == null && msg.Document == null) {
+        _logger.LogInformation("Message is empty (No Photos, Text or Document received)");
+        return;
+      }
 
+      _logger.LogInformation($"Message from: {msg.From?.Username} (ID: {msg.From?.Id}) | Text: {msg.Text} | Photo: {msg.Photo}");
 
       // The user send text "/start {linkToken}"
-      if (msg.Text.StartsWith("/start")) {
+      if (msg.Text != null && msg.Text.StartsWith("/start")) {
         // extract {linkToken}
         var linkToken = msg.Text.Split(" ")[1];
 
@@ -70,11 +82,11 @@ namespace JenianAPI.Services
       }
 
       // After passing all the protection barriers above 
-      _logger.LogInformation($"Message from linked user {linkedUser.UserName}: {msg.Text}");
+      _logger.LogInformation($"Message from linked user {linkedUser.UserName}: {msg.Text} | {msg.Photo} | {msg.Document} ");
 
-      // Ready! to receive text from the user
+      /** Ready! to receive text from the user*/
       await SendMessageAsync(msg.Chat.Id, "Message received. Shift parser not implemented yet.");
-
+      var parseResult = await _parserService.ParseMessageAsync(msg.Photo, msg.Document, msg.Text, msg.Caption, msg.From.Id);
     }
 
     private async Task SendMessageAsync(long chatId, string text) {

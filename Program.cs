@@ -78,6 +78,7 @@ namespace JenianAPI
       builder.Services.AddHttpClient();
       builder.Services.AddScoped<IJwtTokenManager, JwtTokenManager>();
       builder.Services.AddScoped<TelegramService>();
+      builder.Services.AddScoped<IParserService, TelegramParserService>();
 
 
       // Add Identity system to the ASP.NET Core service container
