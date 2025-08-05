@@ -1,7 +1,9 @@
 ﻿using JenianAPI.Data;
 using JenianAPI.Dtos.TelegramDtos;
+using JenianAPI.Helpers;
 using JenianAPI.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using static JenianAPI.Dtos.TelegramDtos.TelegramFileHandler;
 
 namespace JenianAPI.Services
 {
@@ -85,8 +87,11 @@ namespace JenianAPI.Services
       _logger.LogInformation($"Message from linked user {linkedUser.UserName}: {msg.Text} | {msg.Photo} | {msg.Document} ");
 
       /** Ready! to receive text from the user*/
-      await SendMessageAsync(msg.Chat.Id, "Message received. Shift parser not implemented yet.");
-      var parseResult = await _parserService.ParseMessageAsync(msg.Photo, msg.Document, msg.Text, msg.Caption, msg.From.Id);
+      await SendMessageAsync(msg.Chat.Id, "Message received. Processing now...");
+
+      await HandleMessageAsync(msg);
+
+      return;
     }
 
     private async Task SendMessageAsync(long chatId, string text) {
@@ -101,6 +106,81 @@ namespace JenianAPI.Services
       var response = await _httpClient.PostAsJsonAsync(url, payload);
       response.EnsureSuccessStatusCode();
     }
+
+    private async Task<string> GetDownloadFilePath(string fileId) {
+      var telegramBotToken = _configuration["Telegram:BotToken"];
+      // Get the file_path using Telegram’s getFile API
+      var fileUrl = $"https://api.telegram.org/bot{telegramBotToken}/getFile?file_id={fileId}";
+      var res = await _httpClient.GetFromJsonAsync<TelegramFileResponse>(fileUrl);
+
+      if (res == null || !res.Ok) throw new Exception("");
+
+      return $"https://api.telegram.org/file/bot{telegramBotToken}/{res.Result.FilePath}";
+    }
+
+    private async Task<string> GetPhotoBase64Async(string downloadFileUrl) {
+      var fileStream = await _httpClient.GetStreamAsync(downloadFileUrl);
+
+      // 3. Convert stream to Base64
+      using var ms = new MemoryStream();
+      await fileStream.CopyToAsync(ms);
+      var fileBytes = ms.ToArray();
+      var base64Image = Convert.ToBase64String(fileBytes);
+
+      return base64Image;
+    }
+
+    public async Task HandleMessageAsync(TelegramMessage message) {
+
+      // TODO: implementing parser for photo, document, and text
+      /**
+       * Get the photo file_id from Telegram
+       * Get the file_path using Telegram’s getFile API
+       * Download the photo content (as bytes/stream)
+       * Send it to OpenAI Vision API (GPT-4-Vision) for parsing
+       *  Sending it to OpenAI Vision API (GPT-4-Vision)
+       *  Parsing the AI response
+       * Process the response (shift info)
+       * Save & reply to user
+       */
+      var base64Image = "";
+
+      if (message.Photo != null) {
+        // Get the photo file_id from Telegram
+        var photoFileId = message.Photo.Last().FileId;
+
+        // This one probably need a try-catch block
+        var downloadFilePath = await GetDownloadFilePath(photoFileId);
+
+        base64Image = await GetPhotoBase64Async(downloadFilePath);
+        string resizedBase64Image = ImageResizeHelper.ResizeCompressAndGetDataUrl(base64Image);
+
+      }
+      if (message.Document != null) {
+        var photoFileId = message.Document.FileId;
+
+        var downloadFilePath = await GetDownloadFilePath(photoFileId);
+
+        base64Image = await GetPhotoBase64Async(downloadFilePath);
+        string resizedBase64Image = ImageResizeHelper.ResizeCompressAndGetDataUrl(base64Image);
+      }
+
+      // TODO: parse Text
+
+      // TODO: Implement Open AI call - sending base64Image to OpenAi
+      // like this: ParseShiftFromPhotoAsync(resizedBase64Image)
+
+
+      //return new ParseResult {
+      //  Success = true,
+      //  FileDownloadUrl = base64Image,
+      //  ParsedShiftText = caption, // You can parse caption text further with AI
+      //  Message = "Photo processed successfully"
+      //};
+
+    }
+
+
 
 
   }
