@@ -1,4 +1,6 @@
 
+using Azure;
+using Azure.AI.Vision.ImageAnalysis;
 using JenianAPI.Configurations;
 using JenianAPI.Data;
 using JenianAPI.Models.AuthModels;
@@ -75,10 +77,17 @@ namespace JenianAPI
       builder.Services.AddDbContext<JenianAuthDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("JenianAuthConnection")));
 
       // Add life-time services
+      builder.Services.AddSingleton(serviceProvider => {
+        var config = serviceProvider.GetRequiredService<IConfiguration>();
+        var endpoint = new Uri(config["AzureVision:VisionEndpoint"]);
+        var key = config["AzureVision:VisionKey"];
+
+        return new ImageAnalysisClient(endpoint, new AzureKeyCredential(key));
+      });
       builder.Services.AddHttpClient();
       builder.Services.AddScoped<IJwtTokenManager, JwtTokenManager>();
       builder.Services.AddScoped<TelegramService>();
-      builder.Services.AddScoped<IParserService, TelegramParserService>();
+      builder.Services.AddScoped<IParserService, AzureVisionAIParserService>();
 
 
       // Add Identity system to the ASP.NET Core service container

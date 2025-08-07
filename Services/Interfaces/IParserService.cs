@@ -1,10 +1,9 @@
-﻿using JenianAPI.Dtos.TelegramDtos;
-
-namespace JenianAPI.Services.Interfaces
+﻿namespace JenianAPI.Services.Interfaces
 {
   public interface IParserService
   {
-    Task<ShiftInfoDto> ParseShiftFromPhotoAsync(string base64DataUrl, CancellationToken cancellationToken = default);
+    //Task<ShiftInfoDto> ParseShiftFromPhotoAsync(MemoryStream? fileStream, string? base64DataUrl, CancellationToken? cancellationToken = default);
 
+    Task ParseShiftFromPhotoAsync(MemoryStream fileStream, CancellationToken cancellationToken);
   }
 }

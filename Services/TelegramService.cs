@@ -130,6 +130,18 @@ namespace JenianAPI.Services
       return base64Image;
     }
 
+    private async Task<MemoryStream> ConvertUrlPhotoToMemoryStream(string photoUrl) {
+      byte[] photoBytes = await _httpClient.GetByteArrayAsync(photoUrl);
+      var photoStream = new MemoryStream(photoBytes);
+
+      return photoStream;
+    }
+
+    private async Task<byte[]> ConvertUrlPhotoToBytes(string photoUrl) {
+      byte[] photoBytes = await _httpClient.GetByteArrayAsync(photoUrl);
+      return photoBytes;
+    }
+
     public async Task HandleMessageAsync(TelegramMessage message) {
 
       // TODO: implementing parser for photo, document, and text
@@ -143,32 +155,38 @@ namespace JenianAPI.Services
        * Process the response (shift info)
        * Save & reply to user
        */
-      var base64Image = "";
+      var imageTelegramStream = new MemoryStream();
+      var compressedImage = new MemoryStream();
+      string downloadFilePath;
+      string photoFileId = "";
 
       if (message.Photo != null) {
         // Get the photo file_id from Telegram
-        var photoFileId = message.Photo.Last().FileId;
-
-        // This one probably need a try-catch block
-        var downloadFilePath = await GetDownloadFilePath(photoFileId);
-
-        base64Image = await GetPhotoBase64Async(downloadFilePath);
-        string resizedBase64Image = ImageResizeHelper.ResizeCompressAndGetDataUrl(base64Image);
-
+        photoFileId = message.Photo.Last().FileId;
       }
       if (message.Document != null) {
-        var photoFileId = message.Document.FileId;
-
-        var downloadFilePath = await GetDownloadFilePath(photoFileId);
-
-        base64Image = await GetPhotoBase64Async(downloadFilePath);
-        string resizedBase64Image = ImageResizeHelper.ResizeCompressAndGetDataUrl(base64Image);
+        photoFileId = message.Document.FileId;
       }
 
+      if (!String.IsNullOrEmpty(photoFileId)) {
+        downloadFilePath = await GetDownloadFilePath(photoFileId);
+        imageTelegramStream = await ConvertUrlPhotoToMemoryStream(downloadFilePath);
+        compressedImage = await ImageHelper.CompressImageInStream(imageTelegramStream);
+      }
+
+
+      //_logger.LogInformation($"Compressed Image: {compressedImage}");
       // TODO: parse Text
 
       // TODO: Implement Open AI call - sending base64Image to OpenAi
-      // like this: ParseShiftFromPhotoAsync(resizedBase64Image)
+      try {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        await _parserService.ParseShiftFromPhotoAsync(compressedImage, cts.Token);
+      } catch (Exception e) {
+
+        _logger.LogInformation(e.Message);
+      }
+
 
 
       //return new ParseResult {
