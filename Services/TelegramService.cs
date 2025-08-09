@@ -7,6 +7,21 @@ using static JenianAPI.Dtos.TelegramDtos.TelegramFileHandler;
 
 namespace JenianAPI.Services
 {
+  /// <summary>
+  /// Responsibilities:
+  /// - Verify /start <token> and link a Telegram user to a Jenian account
+  /// - Authorize subsequent messages (must come from a linked TelegramUserId)
+  /// - Fetch photos/docs, compress to JPEG, and dispatch to the parser (Azure Vision, etc.)
+  ///
+  /// Key fixes vs. your version:
+  /// 1) Defensive parsing for "/start" to avoid IndexOutOfRange on split.
+  /// 2) Don’t crash on Telegram outages (no EnsureSuccessStatusCode without try/catch).
+  /// 3) Stronger validation + logging in getFile/sendMessage flows.
+  /// 4) Null-safe photo/document selection + prefer largest photo size.
+  /// 5) Ensure MemoryStreams have Position reset (paired with ImageHelper fix).
+  /// 6) Consistent UTC timestamps (if you add any here later).
+  /// 7) Respect CancellationToken where sensible.
+  /// </summary>
   public class TelegramService
   {
     private readonly JenianAuthDbContext _dbContext;
@@ -15,7 +30,12 @@ namespace JenianAPI.Services
     private readonly IConfiguration _configuration;
     private readonly IParserService _parserService;
 
-    public TelegramService(JenianAuthDbContext dbContext, ILogger<TelegramService> logger, HttpClient httpClient, IConfiguration configuration, IParserService parserService) {
+    public TelegramService(
+      JenianAuthDbContext dbContext,
+      ILogger<TelegramService> logger,
+      HttpClient httpClient,
+      IConfiguration configuration,
+      IParserService parserService) {
       _dbContext = dbContext;
       _logger = logger;
       _httpClient = httpClient;
@@ -23,183 +43,224 @@ namespace JenianAPI.Services
       _parserService = parserService;
     }
 
-    // This runs in WebHook
+    private string BotToken => _configuration["Telegram:BotToken"] ?? string.Empty;
+    private string ApiBase => $"https://api.telegram.org/bot{BotToken}";
+    private string FileBase => $"https://api.telegram.org/file/bot{BotToken}";
+
+    // Runs on webhook POST /api/telegram/webhook
     public async Task HandleUpdateAsync(TelegramUpdate update) {
-      /** NOTE: Sending Photos
-      * Compressed Photo is identified as "photo" field
-      * Original Photo is identified as "document" field
-      * Forwarding Photo is identified as "photo" field
-      *
-      */
       var msg = update.Message;
-      //_logger.LogInformation($"Message is {msg.Photo.Count}");
       if (msg == null) {
-        _logger.LogInformation("Message is null");
+        _logger.LogInformation("Telegram webhook: update has no message.");
         return;
       }
 
-      // return if no text from user
-      if (string.IsNullOrEmpty(msg.Text) && msg.Photo == null && msg.Document == null) {
-        _logger.LogInformation("Message is empty (No Photos, Text or Document received)");
+      var chatId = msg.Chat?.Id ?? msg.From?.Id ?? 0;
+      if (chatId == 0) {
+        _logger.LogInformation("Telegram webhook: cannot resolve chatId.");
         return;
       }
 
-      _logger.LogInformation($"Message from: {msg.From?.Username} (ID: {msg.From?.Id}) | Text: {msg.Text} | Photo: {msg.Photo}");
+      // Short-circuit: empty payload (no text, no photo, no document)
+      var hasAnyContent = !string.IsNullOrWhiteSpace(msg.Text) || msg.Photo != null || msg.Document != null;
+      if (!hasAnyContent) {
+        _logger.LogInformation("Telegram webhook: empty message (no text/photo/document).");
+        await SafeSendMessageAsync(chatId, "I received your message but couldn’t find any text or photo to process.");
+        return;
+      }
 
-      // The user send text "/start {linkToken}"
-      if (msg.Text != null && msg.Text.StartsWith("/start")) {
-        // extract {linkToken}
-        var linkToken = msg.Text.Split(" ")[1];
+      _logger.LogInformation("Telegram webhook from @{Username} (Id:{Id}). Text:'{Text}' Photo:{HasPhoto} Doc:{HasDoc}",
+        msg.From?.Username, msg.From?.Id, msg.Text, msg.Photo != null, msg.Document != null);
 
-        // Check if the token matches any of the users
-        var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.TelegramLinkToken == linkToken);
-
-        // if not, meaning the Token is Invalid or Expired
-        if (user == null) {
-          _logger.LogInformation("Invalid or expired link token.");
-          await SendMessageAsync(msg.Chat.Id, "Invalid or expired token, please try again");
+      // 1) Handle linking flow: /start <linkToken>
+      if (!string.IsNullOrWhiteSpace(msg.Text) && msg.Text.StartsWith("/start", StringComparison.OrdinalIgnoreCase)) {
+        var maybeToken = TryExtractStartToken(msg.Text);
+        if (string.IsNullOrEmpty(maybeToken)) {
+          await SafeSendMessageAsync(chatId, "Please open the link from the Jenian app so I can connect your Telegram.");
           return;
-        } else {
-          // if yes, save the telegram user Id to the Jenian database
-          var isRegistered = await _dbContext.Users.FirstOrDefaultAsync(u => u.TelegramUserId == msg.From.Id.ToString());
-          if (isRegistered != null) {
-            await SendMessageAsync(msg.Chat.Id, "Looks like this Telegram account is already connected to another Jenian user. Please use a different one.");
-            return;
-          }
-          user.TelegramUserId = msg.From.Id.ToString();
-          user.TelegramLinkToken = null; // invalidate the token
-          await _dbContext.SaveChangesAsync();
-          await SendMessageAsync(msg.Chat.Id, "Your Telegram account is now linked to Jenian App");
         }
+
+        var linkToken = maybeToken!;
+        var user = await _dbContext
+          .Users
+          .FirstOrDefaultAsync(u => u.TelegramLinkToken == linkToken);
+
+        if (user == null) {
+          _logger.LogInformation("Telegram link: invalid or expired token '{Token}'", linkToken);
+          await SafeSendMessageAsync(chatId, "Invalid or expired token. Please try connecting again from the Jenian app.");
+          return;
+        }
+
+        // Prevent one Telegram account linking to multiple Jenian users
+        var telegramIdStr = (msg.From?.Id ?? 0).ToString();
+        var alreadyLinked = await _dbContext
+          .Users
+          .AnyAsync(u => u.TelegramUserId == telegramIdStr && u.Id != user.Id);
+
+        if (alreadyLinked) {
+          await SafeSendMessageAsync(chatId, "This Telegram account is already linked to another Jenian user.");
+          return;
+        }
+
+        user.TelegramUserId = telegramIdStr;
+        user.TelegramLinkToken = null; // one-time token → invalidate
+        await _dbContext.SaveChangesAsync();
+
+        await SafeSendMessageAsync(chatId, $"✅ Your Telegram is now linked to Jenian ({user.Email}).");
         return;
       }
 
-      // After Telegram user id has been saved
-      // For future communication, we will use linkedUser to check if the user is authorised to communicate in our chatbot
-      var linkedUser = await _dbContext.Users.FirstOrDefaultAsync(u => u.TelegramUserId == msg.From.Id.ToString());
+      // 2) Gate all further interactions to linked users only
+      var fromTelegramId = (msg.From?.Id ?? 0).ToString();
+      var linkedUser = await _dbContext.Users.FirstOrDefaultAsync(u => u.TelegramUserId == fromTelegramId);
       if (linkedUser == null) {
-        _logger.LogInformation("Unauthorized Telegram ID tried to send message.");
-        await SendMessageAsync(msg.Chat.Id, "You're not authorized. Please connect your Telegram in the Jenian app first.");
+        _logger.LogInformation("Unauthorized Telegram user {TelegramId} tried to interact.", fromTelegramId);
+        await SafeSendMessageAsync(chatId, "You're not authorized yet. Please connect Telegram from the Jenian app first.");
         return;
       }
 
-      // After passing all the protection barriers above 
-      _logger.LogInformation($"Message from linked user {linkedUser.UserName}: {msg.Text} | {msg.Photo} | {msg.Document} ");
+      // 3) Acknowledge and start processing
+      await SafeSendMessageAsync(chatId, "📥 Got it — processing now…");
 
-      /** Ready! to receive text from the user*/
-      await SendMessageAsync(msg.Chat.Id, "Message received. Processing now...");
-
-      await HandleMessageAsync(msg);
-
-      return;
+      // 4) Route by content: photo/document → parse image; text → placeholder for commands
+      try {
+        if (msg.Photo != null || msg.Document != null) {
+          await HandleMediaAsync(msg, chatId);
+        } else if (!string.IsNullOrWhiteSpace(msg.Text)) {
+          // TODO: command router (/help, /unlink, etc.)
+          await SafeSendMessageAsync(chatId, "I currently process shift photos/documents. Text commands coming soon: /help, /unlink.");
+        }
+      } catch (Exception ex) {
+        _logger.LogError(ex, "Error while processing Telegram message for user {UserId}", linkedUser.Id);
+        await SafeSendMessageAsync(chatId, "⚠️ Something went wrong while processing your message. Please try again.");
+      }
     }
 
-    private async Task SendMessageAsync(long chatId, string text) {
+    // --- Helpers ---
 
-      var url = $"https://api.telegram.org/bot{_configuration["Telegram:BotToken"]}/sendMessage";
+    /// <summary>
+    /// Parses "/start <token>" safely. Returns null if missing.
+    /// </summary>
+    private static string? TryExtractStartToken(string text) {
+      // robust split: "/start" OR "/start   token"
+      var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+      return parts.Length >= 2 ? parts[1] : null;
+    }
 
+    /// <summary>
+    /// Sends a message to Telegram; never throws to caller.
+    /// </summary>
+    private async Task SafeSendMessageAsync(long chatId, string text, CancellationToken ct = default) {
+      var url = $"{ApiBase}/sendMessage";
       var payload = new Dictionary<string, object> {
         ["chat_id"] = chatId,
         ["text"] = text
       };
 
-      var response = await _httpClient.PostAsJsonAsync(url, payload);
-      response.EnsureSuccessStatusCode();
-    }
-
-    private async Task<string> GetDownloadFilePath(string fileId) {
-      var telegramBotToken = _configuration["Telegram:BotToken"];
-      // Get the file_path using Telegram’s getFile API
-      var fileUrl = $"https://api.telegram.org/bot{telegramBotToken}/getFile?file_id={fileId}";
-      var res = await _httpClient.GetFromJsonAsync<TelegramFileResponse>(fileUrl);
-
-      if (res == null || !res.Ok) throw new Exception("");
-
-      return $"https://api.telegram.org/file/bot{telegramBotToken}/{res.Result.FilePath}";
-    }
-
-    private async Task<string> GetPhotoBase64Async(string downloadFileUrl) {
-      var fileStream = await _httpClient.GetStreamAsync(downloadFileUrl);
-
-      // 3. Convert stream to Base64
-      using var ms = new MemoryStream();
-      await fileStream.CopyToAsync(ms);
-      var fileBytes = ms.ToArray();
-      var base64Image = Convert.ToBase64String(fileBytes);
-
-      return base64Image;
-    }
-
-    private async Task<MemoryStream> ConvertUrlPhotoToMemoryStream(string photoUrl) {
-      byte[] photoBytes = await _httpClient.GetByteArrayAsync(photoUrl);
-      var photoStream = new MemoryStream(photoBytes);
-
-      return photoStream;
-    }
-
-    private async Task<byte[]> ConvertUrlPhotoToBytes(string photoUrl) {
-      byte[] photoBytes = await _httpClient.GetByteArrayAsync(photoUrl);
-      return photoBytes;
-    }
-
-    public async Task HandleMessageAsync(TelegramMessage message) {
-
-      // TODO: implementing parser for photo, document, and text
-      /**
-       * Get the photo file_id from Telegram
-       * Get the file_path using Telegram’s getFile API
-       * Download the photo content (as bytes/stream)
-       * Send it to OpenAI Vision API (GPT-4-Vision) for parsing
-       *  Sending it to OpenAI Vision API (GPT-4-Vision)
-       *  Parsing the AI response
-       * Process the response (shift info)
-       * Save & reply to user
-       */
-      var imageTelegramStream = new MemoryStream();
-      var compressedImage = new MemoryStream();
-      string downloadFilePath;
-      string photoFileId = "";
-
-      if (message.Photo != null) {
-        // Get the photo file_id from Telegram
-        photoFileId = message.Photo.Last().FileId;
-      }
-      if (message.Document != null) {
-        photoFileId = message.Document.FileId;
-      }
-
-      if (!String.IsNullOrEmpty(photoFileId)) {
-        downloadFilePath = await GetDownloadFilePath(photoFileId);
-        imageTelegramStream = await ConvertUrlPhotoToMemoryStream(downloadFilePath);
-        compressedImage = await ImageHelper.CompressImageInStream(imageTelegramStream);
-      }
-
-
-      //_logger.LogInformation($"Compressed Image: {compressedImage}");
-      // TODO: parse Text
-
-      // TODO: Implement Open AI call - sending base64Image to OpenAi
       try {
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
-        await _parserService.ParseShiftFromPhotoAsync(compressedImage, cts.Token);
-      } catch (Exception e) {
-
-        _logger.LogInformation(e.Message);
+        using var resp = await _httpClient.PostAsJsonAsync(url, payload, ct);
+        if (!resp.IsSuccessStatusCode) {
+          var body = await resp.Content.ReadAsStringAsync(ct);
+          _logger.LogWarning("sendMessage failed: {Code} {Body}", resp.StatusCode, body);
+        }
+      } catch (Exception ex) {
+        _logger.LogError(ex, "sendMessage exception");
       }
-
-
-
-      //return new ParseResult {
-      //  Success = true,
-      //  FileDownloadUrl = base64Image,
-      //  ParsedShiftText = caption, // You can parse caption text further with AI
-      //  Message = "Photo processed successfully"
-      //};
-
     }
 
+    /// <summary>
+    /// Calls getFile and returns a public download URL for the file.
+    /// </summary>
+    private async Task<string> GetDownloadUrlAsync(string fileId, CancellationToken ct = default) {
+      var url = $"{ApiBase}/getFile?file_id={Uri.EscapeDataString(fileId)}";
+      try {
+        var res = await _httpClient.GetFromJsonAsync<TelegramFileResponse>(url, ct);
+        if (res == null || !res.Ok || res.Result == null || string.IsNullOrWhiteSpace(res.Result.FilePath))
+          throw new InvalidOperationException($"getFile failed or empty file path for fileId: {fileId}");
 
+        return $"{FileBase}/{res.Result.FilePath}";
+      } catch (Exception ex) {
+        _logger.LogError(ex, "getFile error for {FileId}", fileId);
+        throw; // let caller handle (we catch upstream)
+      }
+    }
 
+    /// <summary>
+    /// Downloads a URL into a fresh MemoryStream positioned at 0.
+    /// </summary>
+    private async Task<MemoryStream> DownloadToMemoryStreamAsync(string url, CancellationToken ct = default) {
+      try {
+        var bytes = await _httpClient.GetByteArrayAsync(url, ct);
+        var ms = new MemoryStream(bytes);
+        ms.Position = 0;
+        return ms;
+      } catch (Exception ex) {
+        _logger.LogError(ex, "Failed to download media from {Url}", url);
+        throw;
+      }
+    }
 
+    /// <summary>
+    /// Picks the best available file_id from photo/document payloads.
+    /// - For photos: Telegram sends an array of sizes; we take the last (largest).
+    /// - For documents: use the document’s file_id.
+    /// Returns null if none present.
+    /// </summary>
+    private static string? PickBestFileId(TelegramMessage msg) {
+      if (msg.Photo is { Count: > 0 }) {
+        // Photo array is sized smallest→largest
+        return msg.Photo.Last().FileId;
+      }
+
+      if (msg.Document != null && !string.IsNullOrWhiteSpace(msg.Document.FileId)) {
+        return msg.Document.FileId;
+      }
+
+      return null;
+    }
+
+    /// <summary>
+    /// Handles photo/document ingestion: getFile → download → compress → parse.
+    /// </summary>
+    private async Task HandleMediaAsync(TelegramMessage message, long chatId, CancellationToken ct = default) {
+      var bestFileId = PickBestFileId(message);
+      if (string.IsNullOrWhiteSpace(bestFileId)) {
+        await SafeSendMessageAsync(chatId, "I couldn’t find a valid photo/document in your message.");
+        return;
+      }
+
+      // Step 1: Resolve file path via getFile
+      var downloadUrl = await GetDownloadUrlAsync(bestFileId, ct);
+
+      // Step 2: Download to memory
+      using var originalStream = await DownloadToMemoryStreamAsync(downloadUrl, ct);
+
+      // (Important) Reset position before passing to ImageSharp
+      originalStream.Position = 0;
+
+      // Step 3: Compress to JPEG (smaller & friendlier for vision APIs)
+      var compressedStream = await ImageHelper.CompressImageInStream(originalStream);
+      // Ensure position = 0 for downstream callers (we fixed ImageHelper; doing again is cheap & safe)
+      compressedStream.Position = 0;
+
+      // Step 4: Parse with AI (Azure Vision service you wired up)
+      try {
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(TimeSpan.FromSeconds(25)); // keep webhook snappy; Telegram retries on long timeouts
+
+        await _parserService.ParseShiftFromPhotoAsync(compressedStream, cts.Token);
+      } catch (TaskCanceledException) {
+        _logger.LogWarning("Parsing timed out.");
+        await SafeSendMessageAsync(chatId, "⏱️ Parsing took too long. Please try again with a clearer photo.");
+        return;
+      } catch (Exception ex) {
+        _logger.LogError(ex, "Parsing failed.");
+        await SafeSendMessageAsync(chatId, "⚠️ I couldn’t parse that image. Try a clearer/cropped photo of the roster.");
+        return;
+      }
+
+      // Step 5: (Future) Save parsed shift, reply with summary, etc.
+      await SafeSendMessageAsync(chatId, "✅ Photo processed. I’ll add the shift details shortly.");
+    }
   }
 }

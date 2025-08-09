@@ -4,7 +4,7 @@ namespace JenianAPI.Services.Interfaces
 {
   public interface IJwtTokenManager
   {
-    public string GenerateJwtToken(IdentityUser user, int TTLInMinute = 5);
+    public string GenerateJwtToken(IdentityUser user, int TTLInMinute = 5); // short-lived access token
 
 
     public string GenerateRefreshToken();

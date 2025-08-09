@@ -11,6 +11,10 @@ using JwtRegisteredClaimNames = Microsoft.IdentityModel.JsonWebTokens.JwtRegiste
 
 namespace JenianAPI.Services
 {
+  /* JS analogy:
+   * - GenerateJwtToken = sign(payload, secret, {expiresIn})
+   * - Refresh tokens stored in DB table (like a "sessions" table)
+   */
   public class JwtTokenManager : IJwtTokenManager
   {
     private readonly IConfiguration _configuration;
@@ -33,7 +37,7 @@ namespace JenianAPI.Services
       var tokenDescriptor = new SecurityTokenDescriptor {
         Subject = new ClaimsIdentity(
           [
-            new Claim(JwtRegisteredClaimNames.Sub, user.Id),
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id), // NameIdentifier
             new Claim(JwtRegisteredClaimNames.Name, user.UserName),
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
 

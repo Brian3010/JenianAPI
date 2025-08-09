@@ -23,14 +23,15 @@ namespace JenianAPI
       //builder.WebHost.UseUrls("http://localhost:5018");
       //builder.WebHost.UseUrls("http://0.0.0.0:5018");
 
-      //builder.Services.AddCors(options => {
-      //  options.AddPolicy("AllowFrontend", policy => {
-      //    policy.WithOrigins("http://localhost:3000", "http://192.168.0.219:3000") // your frontend URL
-      //          .AllowAnyHeader()
-      //          .AllowAnyMethod()
-      //          .AllowCredentials(); // required for cookies or auth headers
-      //  });
-      //});
+      // CORS for Next.js dev + local network
+      builder.Services.AddCors(options => {
+        options.AddPolicy("AllowFrontend", policy => {
+          policy.WithOrigins("http://localhost:3000", "http://192.168.0.219:3000")
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials();
+        });
+      });
 
       // Configure Serilog Provider
       var logger = new LoggerConfiguration()
@@ -55,7 +56,7 @@ namespace JenianAPI
         options.SwaggerDoc("v1", new OpenApiInfo { Title = "Jenian APIs", Version = "V1" });
         options.AddSecurityDefinition(JwtBearerDefaults.AuthenticationScheme, new OpenApiSecurityScheme {
           Name = "Authorization",
-          Description = "Enter 'Bearer' following by space and JWT.",
+          Description = "Type: Bearer {your JWT}",
           In = ParameterLocation.Header,
           Type = SecuritySchemeType.ApiKey,
           Scheme = "bearer",
@@ -120,9 +121,11 @@ namespace JenianAPI
       }
 
       app.UseHttpsRedirection();
+      app.UseCors("AllowFrontend");
 
       app.UseAuthentication();
       app.UseAuthorization();
+
 
 
       app.MapControllers();

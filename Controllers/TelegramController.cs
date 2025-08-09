@@ -1,6 +1,7 @@
 ﻿using JenianAPI.Dtos.TelegramDtos;
 using JenianAPI.Models.AuthModels;
 using JenianAPI.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -32,7 +33,7 @@ namespace JenianAPI.Controllers
       return Ok(); // Must return 200 or Telegram will retry
     }
 
-
+    [Authorize]
     [HttpGet("link-token")]
     public async Task<IActionResult> GenerateTelegramLinkToken() {
       // Get userId from accessToken
@@ -54,6 +55,7 @@ namespace JenianAPI.Controllers
     }
 
     // Can you this function in to check if user linked before adding token
+    [Authorize]
     [HttpGet("is-linked")]
     public async Task<IActionResult> CheckIfTelegramLinked() {
       var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
