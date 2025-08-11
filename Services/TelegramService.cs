@@ -261,6 +261,9 @@ namespace JenianAPI.Services
 
       // Step 5: (Future) Save parsed shift, reply with summary, etc.
       await SafeSendMessageAsync(chatId, "✅ Photo processed. I’ll add the shift details shortly.");
+
+
+
     }
   }
 }

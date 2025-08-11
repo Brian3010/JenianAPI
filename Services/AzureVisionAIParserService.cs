@@ -1,4 +1,5 @@
-﻿using Azure.AI.Vision.ImageAnalysis;
+﻿using Azure;
+using Azure.AI.Vision.ImageAnalysis;
 using JenianAPI.Dtos.TelegramDtos;
 using JenianAPI.Services.Interfaces;
 
@@ -43,17 +44,32 @@ namespace JenianAPI.Services
 
 
       // Call the Analyse API
-      ImageAnalysisResult result = await _client.AnalyzeAsync(
-        imageData,
-        visualFeatures,
-        options,
-        cancellationToken
-        );
+      try {
+        var res = await _client.AnalyzeAsync(
+          imageData,
+          visualFeatures,
+          options,
+          cancellationToken
+          );
 
-      //return new ShiftInfoDto {
-      //  Location
-      //};
-      _logger.LogInformation($"result from Azure Vision: {result.Read}");
+        var read = res.Value.Read;
+
+        foreach (DetectedTextBlock block in read.Blocks) {
+          foreach (DetectedTextLine line in block.Lines) {
+            _logger.LogInformation($"   Line: '{line.Text}'");
+            foreach (DetectedTextWord word in line.Words) {
+              _logger.LogInformation($"     Word: '{word.Text}', Confidence {word.Confidence.ToString("#.####")}, Bounding Polygon: [{string.Join(" ", word.BoundingPolygon)}]");
+            }
+          }
+        }
+
+      } catch (RequestFailedException e) {
+        _logger.LogInformation("Cannot read the photo: error {error}", e.Message);
+        throw;
+      }
+
+
+
     }
 
 
