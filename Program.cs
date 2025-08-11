@@ -3,6 +3,7 @@ using Azure;
 using Azure.AI.Vision.ImageAnalysis;
 using JenianAPI.Configurations;
 using JenianAPI.Data;
+using JenianAPI.Errors;
 using JenianAPI.Models.AuthModels;
 using JenianAPI.Services;
 using JenianAPI.Services.Interfaces;
@@ -11,6 +12,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Serilog;
+
 
 namespace JenianAPI
 {
@@ -32,6 +34,10 @@ namespace JenianAPI
                 .AllowCredentials();
         });
       });
+
+      // Configure global exception handler
+      builder.Services.AddProblemDetails();
+      builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
       // Configure Serilog Provider
       var logger = new LoggerConfiguration()
@@ -113,6 +119,8 @@ namespace JenianAPI
       builder.Services.ConfigureOptions<JwtBearerConfigurationOptions>().AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
 
       var app = builder.Build();
+
+      app.UseExceptionHandler();
 
       // Configure the HTTP request pipeline.
       if (app.Environment.IsDevelopment()) {
