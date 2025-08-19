@@ -54,6 +54,9 @@ namespace JenianAPI.Services
 
         var read = res.Value.Read;
 
+        //TODO:
+
+
         foreach (DetectedTextBlock block in read.Blocks) {
           foreach (DetectedTextLine line in block.Lines) {
             _logger.LogInformation($"   Line: '{line.Text}'");

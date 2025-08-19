@@ -25,13 +25,27 @@ namespace JenianAPI
       //builder.WebHost.UseUrls("http://localhost:5018");
       //builder.WebHost.UseUrls("http://0.0.0.0:5018");
 
-      // CORS for Next.js dev + local network
+      // -----------------------------
+      // CORS
+      // -----------------------------
       builder.Services.AddCors(options => {
-        options.AddPolicy("AllowFrontend", policy => {
-          policy.WithOrigins("http://localhost:3000", "http://192.168.0.219:3000")
-                .AllowAnyHeader()
-                .AllowAnyMethod()
-                .AllowCredentials();
+        // Dev: wide-open (handy for docker + Postman + localhost:3000, 5173, etc.)
+        options.AddPolicy("DevCors", p =>
+          p.AllowAnyOrigin()     // Tip: don’t combine AllowAnyOrigin with AllowCredentials
+           .AllowAnyHeader()
+           .AllowAnyMethod()
+        );
+
+        // Prod: lock to known frontends (from your original policy)
+        options.AddPolicy("ProdCors", policy => {
+          policy.WithOrigins(
+            "https://your-frontend-domain",     // TODO: set real prod origin(s)
+            "http://localhost:3000",            // keep if you want local FE to hit prod API
+            "http://192.168.0.219:3000"         // remove if not needed
+          )
+          .AllowAnyHeader()
+          .AllowAnyMethod()
+          .AllowCredentials(); // only use credentials with explicit origins
         });
       });
 
@@ -127,14 +141,25 @@ namespace JenianAPI
         app.UseSwagger();
         app.UseSwaggerUI();
       }
+      // -----------------------------
+      // HTTPS redirection
+      // PROD ONLY: in dev/docker we often skip this so http://localhost:8080 works cleanly
+      // -----------------------------
+      if (!app.Environment.IsDevelopment()) {
+        app.UseHttpsRedirection();
+      }
 
-      app.UseHttpsRedirection();
-      app.UseCors("AllowFrontend");
+
+      // -----------------------------
+      // CORS
+      // -----------------------------
+      if (app.Environment.IsDevelopment())
+        app.UseCors("DevCors");
+      else
+        app.UseCors("ProdCors");
 
       app.UseAuthentication();
       app.UseAuthorization();
-
-
 
       app.MapControllers();
 
