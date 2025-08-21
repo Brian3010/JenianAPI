@@ -1,7 +1,6 @@
-﻿using Azure;
-using Azure.AI.Vision.ImageAnalysis;
-using JenianAPI.Dtos.TelegramDtos;
+﻿using Azure.AI.Vision.ImageAnalysis;
 using JenianAPI.Services.Interfaces;
+using System.Text;
 
 namespace JenianAPI.Services
 {
@@ -23,9 +22,8 @@ namespace JenianAPI.Services
     /// Parse image using MemoryStream
     /// </summary>
     /// <param name="fileStream"></param>
-    /// <returns><see cref="ShiftInfoDto"/></returns>
-    //public async Task<ShiftInfoDto> ParseShiftFromPhotoAsync(MemoryStream fileStream) {
-    public async Task ParseShiftFromPhotoAsync(MemoryStream fileStream, CancellationToken cancellationToken) {
+    /// <returns><see cref="string"/></returns>
+    public async Task<string> ExtractTextFromPhotoAsync(MemoryStream fileStream, CancellationToken cancellationToken) {
 
       if (fileStream == null || fileStream.Length == 0)
         throw new Exception("fileStream not provided or empty");
@@ -44,35 +42,29 @@ namespace JenianAPI.Services
 
 
       // Call the Analyse API
-      try {
-        var res = await _client.AnalyzeAsync(
-          imageData,
-          visualFeatures,
-          options,
-          cancellationToken
-          );
 
-        var read = res.Value.Read;
+      var res = await _client.AnalyzeAsync(
+        imageData,
+        visualFeatures,
+        options,
+        cancellationToken
+        );
 
-        //TODO:
+      var read = res.Value.Read;
 
+      if (read?.Blocks is null || read.Blocks.Count == 0)
+        return "There's not thing to read."; // nothing to read
 
-        foreach (DetectedTextBlock block in read.Blocks) {
-          foreach (DetectedTextLine line in block.Lines) {
-            _logger.LogInformation($"   Line: '{line.Text}'");
-            foreach (DetectedTextWord word in line.Words) {
-              _logger.LogInformation($"     Word: '{word.Text}', Confidence {word.Confidence.ToString("#.####")}, Bounding Polygon: [{string.Join(" ", word.BoundingPolygon)}]");
-            }
-          }
-        }
+      // 2) Concatenate lines into a single OCR_TEXT string
+      var ocrText = new StringBuilder();
+      foreach (var block in read.Blocks)
+        foreach (var line in block.Lines)
+          if (!string.IsNullOrWhiteSpace(line.Text))
+            ocrText.AppendLine(line.Text);
 
-      } catch (RequestFailedException e) {
-        _logger.LogInformation("Cannot read the photo: error {error}", e.Message);
-        throw;
-      }
+      //_logger.LogInformation(ocrText.ToString().Trim());
 
-
-
+      return ocrText.ToString().Trim();
     }
 
 

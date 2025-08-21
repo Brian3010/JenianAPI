@@ -248,7 +248,11 @@ namespace JenianAPI.Services
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(TimeSpan.FromSeconds(25)); // keep webhook snappy; Telegram retries on long timeouts
 
-        await _parserService.ParseShiftFromPhotoAsync(compressedStream, cts.Token);
+        var ocrText = await _parserService.ExtractTextFromPhotoAsync(compressedStream, cts.Token);
+
+        //TODO: passing ocrText to AI 
+
+
       } catch (TaskCanceledException) {
         _logger.LogWarning("Parsing timed out.");
         await SafeSendMessageAsync(chatId, "⏱️ Parsing took too long. Please try again with a clearer photo.");
