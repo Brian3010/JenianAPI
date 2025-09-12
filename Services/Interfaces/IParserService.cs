@@ -4,5 +4,8 @@
   {
 
     Task<string> ExtractTextFromPhotoAsync(MemoryStream fileStream, CancellationToken cancellationToken);
+
+
+    Task<string> ExtractShiftAsync(string orcText, string staffName, CancellationToken cancellationToken);
   }
 }

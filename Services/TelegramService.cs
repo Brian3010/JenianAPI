@@ -1,6 +1,5 @@
 ﻿using JenianAPI.Data;
 using JenianAPI.Dtos.TelegramDtos;
-using JenianAPI.Helpers;
 using JenianAPI.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using static JenianAPI.Dtos.TelegramDtos.TelegramFileHandler;
@@ -29,13 +28,9 @@ namespace JenianAPI.Services
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _configuration;
     private readonly IParserService _parserService;
+    private readonly OllamaClient _ollamaClient;
 
-    public TelegramService(
-      JenianAuthDbContext dbContext,
-      ILogger<TelegramService> logger,
-      HttpClient httpClient,
-      IConfiguration configuration,
-      IParserService parserService) {
+    public TelegramService(JenianAuthDbContext dbContext, ILogger<TelegramService> logger, HttpClient httpClient, IConfiguration configuration, IParserService parserService) {
       _dbContext = dbContext;
       _logger = logger;
       _httpClient = httpClient;
@@ -170,7 +165,7 @@ namespace JenianAPI.Services
 
     /// <summary>
     /// Calls getFile and returns a public download URL for the file.
-    /// </summary>
+    /// </summary>  
     private async Task<string> GetDownloadUrlAsync(string fileId, CancellationToken ct = default) {
       var url = $"{ApiBase}/getFile?file_id={Uri.EscapeDataString(fileId)}";
       try {
@@ -235,6 +230,7 @@ namespace JenianAPI.Services
       // Step 2: Download to memory
       using var originalStream = await DownloadToMemoryStreamAsync(downloadUrl, ct);
 
+      /*
       // (Important) Reset position before passing to ImageSharp
       originalStream.Position = 0;
 
@@ -242,15 +238,22 @@ namespace JenianAPI.Services
       var compressedStream = await ImageHelper.CompressImageInStream(originalStream);
       // Ensure position = 0 for downstream callers (we fixed ImageHelper; doing again is cheap & safe)
       compressedStream.Position = 0;
-
+      */
       // Step 4: Parse with AI (Azure Vision service you wired up)
       try {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(TimeSpan.FromSeconds(25)); // keep webhook snappy; Telegram retries on long timeouts
+        cts.CancelAfter(TimeSpan.FromSeconds(3000)); // keep webhook snappy; Telegram retries on long timeouts
 
-        var ocrText = await _parserService.ExtractTextFromPhotoAsync(compressedStream, cts.Token);
+        //var orcText = await _parserService.ExtractTextFromPhotoAsync(compressedStream, cts.Token);
+        var orcText = await _parserService.ExtractTextFromPhotoAsync(originalStream, cts.Token);
 
-        //TODO: passing ocrText to AI 
+        // This name should be obtained by user specification at the frontend
+        // -> save the name that they want to extract in the database. 
+        //TODO: ask to save the name to extract in the database
+        var staffName = "Brian Nguyen";
+
+        var answer = await _parserService.ExtractShiftAsync(orcText, staffName, cts.Token);
+        await SafeSendMessageAsync(chatId, $"⏰ Here is the roster: \n {answer}");
 
 
       } catch (TaskCanceledException) {
@@ -265,8 +268,6 @@ namespace JenianAPI.Services
 
       // Step 5: (Future) Save parsed shift, reply with summary, etc.
       await SafeSendMessageAsync(chatId, "✅ Photo processed. I’ll add the shift details shortly.");
-
-
 
     }
   }

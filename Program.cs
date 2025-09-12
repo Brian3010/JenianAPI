@@ -10,6 +10,7 @@ using JenianAPI.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
 using Serilog;
 
@@ -109,6 +110,8 @@ namespace JenianAPI
       builder.Services.AddScoped<IJwtTokenManager, JwtTokenManager>();
       builder.Services.AddScoped<TelegramService>();
       builder.Services.AddScoped<IParserService, AzureVisionAIParserService>();
+      //builder.Services.AddScoped<IParserService, OllamaParserService>();
+
 
 
       // Add Identity system to the ASP.NET Core service container
@@ -127,6 +130,18 @@ namespace JenianAPI
         options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";
         options.User.RequireUniqueEmail = true;
       });
+
+      // Add Ollama
+      builder.Services.Configure<OllamaOptions>(builder.Configuration.GetSection("Ollama"));
+      builder.Services.AddHttpClient<OllamaClient>((serviceProvider, http) => {
+        var opts = serviceProvider.GetRequiredService<IOptions<OllamaOptions>>().Value;
+
+        // Centralize base URL + timeouts so call-sites stay clean.
+        http.BaseAddress = new Uri(opts.BaseUrl);
+        http.Timeout = Timeout.InfiniteTimeSpan;          // long generations/streams; prefer cancellation tokens
+      })
+      .SetHandlerLifetime(TimeSpan.FromMinutes(10)); // Optional: tune handler lifetime (DNS refresh, socket reuse)
+
 
 
       // JWT Bearers
