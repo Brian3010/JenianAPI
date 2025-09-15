@@ -10,8 +10,8 @@ using JenianAPI.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
+using OpenAI.Chat;
 using Serilog;
 
 
@@ -132,15 +132,27 @@ namespace JenianAPI
       });
 
       // Add Ollama
-      builder.Services.Configure<OllamaOptions>(builder.Configuration.GetSection("Ollama"));
-      builder.Services.AddHttpClient<OllamaClient>((serviceProvider, http) => {
-        var opts = serviceProvider.GetRequiredService<IOptions<OllamaOptions>>().Value;
+      //builder.Services.Configure<OllamaOptions>(builder.Configuration.GetSection("Ollama"));
+      //builder.Services.AddHttpClient<OllamaClient>((serviceProvider, http) => {
+      //  var opts = serviceProvider.GetRequiredService<IOptions<OllamaOptions>>().Value;
 
-        // Centralize base URL + timeouts so call-sites stay clean.
-        http.BaseAddress = new Uri(opts.BaseUrl);
-        http.Timeout = Timeout.InfiniteTimeSpan;          // long generations/streams; prefer cancellation tokens
-      })
-      .SetHandlerLifetime(TimeSpan.FromMinutes(10)); // Optional: tune handler lifetime (DNS refresh, socket reuse)
+      //  // Centralize base URL + timeouts so call-sites stay clean.
+      //  http.BaseAddress = new Uri(opts.BaseUrl);
+      //  http.Timeout = Timeout.InfiniteTimeSpan;          // long generations/streams; prefer cancellation tokens
+      //})
+      //.SetHandlerLifetime(TimeSpan.FromMinutes(10)); // Optional: tune handler lifetime (DNS refresh, socket reuse)
+      // Add OpenAI
+      builder.Services.AddSingleton<ChatClient>(serviceProvider => {
+        var config = serviceProvider.GetRequiredService<IConfiguration>();
+
+        // Pull from config first; fall back to env var (nice for prod)
+        var apiKey = config["OpenAI:ApiKey"];
+        var model = config["OpenAI:Model"];
+
+        return new ChatClient(model, apiKey);
+      });
+
+      builder.Services.AddSingleton<OpenAiService>();
 
 
 

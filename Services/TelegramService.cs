@@ -28,7 +28,6 @@ namespace JenianAPI.Services
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _configuration;
     private readonly IParserService _parserService;
-    private readonly OllamaClient _ollamaClient;
 
     public TelegramService(JenianAuthDbContext dbContext, ILogger<TelegramService> logger, HttpClient httpClient, IConfiguration configuration, IParserService parserService) {
       _dbContext = dbContext;
@@ -195,6 +194,16 @@ namespace JenianAPI.Services
       }
     }
 
+    private async Task<byte[]> DownloadToMemoryByteAsync(string url, CancellationToken ct = default) {
+      try {
+        var bytes = await _httpClient.GetByteArrayAsync(url, ct);
+        return bytes;
+      } catch (Exception ex) {
+        _logger.LogError(ex, "Failed to download media from {Url}", url);
+        throw;
+      }
+    }
+
     /// <summary>
     /// Picks the best available file_id from photo/document payloads.
     /// - For photos: Telegram sends an array of sizes; we take the last (largest).
@@ -228,7 +237,8 @@ namespace JenianAPI.Services
       var downloadUrl = await GetDownloadUrlAsync(bestFileId, ct);
 
       // Step 2: Download to memory
-      using var originalStream = await DownloadToMemoryStreamAsync(downloadUrl, ct);
+      //using var originalStream = await DownloadToMemoryStreamAsync(downloadUrl, ct);
+      var fileByte = await DownloadToMemoryByteAsync(downloadUrl, ct);
 
       /*
       // (Important) Reset position before passing to ImageSharp
@@ -244,8 +254,15 @@ namespace JenianAPI.Services
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(TimeSpan.FromSeconds(3000)); // keep webhook snappy; Telegram retries on long timeouts
 
+        // MemoryStream acts like a file: once you read it, its internal pointer moves to the end.
+        //If you try to convert it to BinaryData without resetting it, the stream is "empty" from that point on.
+        //originalStream.Position = 0;
+
+        // Prepocess the photo for clearer text
+        var cleanedPhoto = OcrPreprocess.CleanPhoto(fileByte);
+
         //var orcText = await _parserService.ExtractTextFromPhotoAsync(compressedStream, cts.Token);
-        var orcText = await _parserService.ExtractTextFromPhotoAsync(originalStream, cts.Token);
+        var orcText = await _parserService.ExtractTextFromPhotoAsync(cleanedPhoto, cts.Token);
 
         // This name should be obtained by user specification at the frontend
         // -> save the name that they want to extract in the database. 

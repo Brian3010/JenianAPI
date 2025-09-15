@@ -8,32 +8,27 @@ namespace JenianAPI.Services
   {
     private readonly ILogger<AzureVisionAIParserService> _logger;
     private ImageAnalysisClient _client;
-    private readonly OllamaClient _ollamaClient;
-    private readonly HttpClient _httpClient;
+    private readonly OpenAiService _openAiService;
     private readonly string _modelOllama;
 
-    public AzureVisionAIParserService(ILogger<AzureVisionAIParserService> logger, IConfiguration configuration, ImageAnalysisClient client, OllamaClient ollamaClient, HttpClient httpClient) {
+    public AzureVisionAIParserService(ILogger<AzureVisionAIParserService> logger, IConfiguration configuration, ImageAnalysisClient client, HttpClient httpClient, OpenAiService openAiService) {
       _logger = logger;
       _modelOllama = configuration["Ollama:Model"] ?? "qwen2.5:7b-instruct";
       _client = client;
-      _ollamaClient = ollamaClient;
-      _httpClient = httpClient;
+      _openAiService = openAiService;
     }
 
     /// <summary>
     /// Parse image using MemoryStream
     /// </summary>
-    /// <param name="fileStream"></param>
+    /// <param name="fileByte"></param>
     /// <returns><see cref="string"/></returns>
-    public async Task<string> ExtractTextFromPhotoAsync(MemoryStream fileStream, CancellationToken cancellationToken) {
+    public async Task<string> ExtractTextFromPhotoAsync(byte[] fileByte, CancellationToken cancellationToken) {
 
-      if (fileStream == null || fileStream.Length == 0)
-        throw new Exception("fileStream not provided or empty");
+      if (fileByte == null || fileByte.Length == 0)
+        throw new Exception("fileByte not provided or empty");
 
-      // MemoryStream acts like a file: once you read it, its internal pointer moves to the end.
-      //If you try to convert it to BinaryData without resetting it, the stream is "empty" from that point on.
-      fileStream.Position = 0;
-      BinaryData imageData = BinaryData.FromStream(fileStream);
+      BinaryData imageData = BinaryData.FromBytes(fileByte);
       _logger.LogInformation($"Image size: {imageData.ToStream().Length} bytes");
 
       // Ask only for text to reduce latency/cost
@@ -126,7 +121,9 @@ namespace JenianAPI.Services
 
       // trying new method
 
-      return "hello";
+
+      var res = await _openAiService.RosterQuery();
+      return $"hello {res.Content[0].Text}";
     }
 
 
