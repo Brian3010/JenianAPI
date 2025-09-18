@@ -2,6 +2,7 @@
 using JenianAPI.Dtos.TelegramDtos;
 using JenianAPI.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using static JenianAPI.Dtos.TelegramDtos.TelegramFileHandler;
 
 namespace JenianAPI.Services
@@ -28,13 +29,15 @@ namespace JenianAPI.Services
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _configuration;
     private readonly IParserService _parserService;
+    private readonly IMemoryCache _cache;
 
-    public TelegramService(JenianAuthDbContext dbContext, ILogger<TelegramService> logger, HttpClient httpClient, IConfiguration configuration, IParserService parserService) {
+    public TelegramService(JenianAuthDbContext dbContext, ILogger<TelegramService> logger, HttpClient httpClient, IConfiguration configuration, IParserService parserService, IMemoryCache cache) {
       _dbContext = dbContext;
       _logger = logger;
       _httpClient = httpClient;
       _configuration = configuration;
       _parserService = parserService;
+      _cache = cache;
     }
 
     private string BotToken => _configuration["Telegram:BotToken"] ?? string.Empty;
@@ -46,6 +49,12 @@ namespace JenianAPI.Services
       var msg = update.Message;
       if (msg == null) {
         _logger.LogInformation("Telegram webhook: update has no message.");
+        return;
+      }
+
+      // 🔒 De-dupe BEFORE any replies
+      if (IsDuplicate(update)) {
+        _logger.LogInformation("Duplicate update suppressed.");
         return;
       }
 
@@ -131,6 +140,23 @@ namespace JenianAPI.Services
     }
 
     // --- Helpers ---
+
+    // Keying by message id + chat id is enough; fallback to update id if you expose it on your DTO.
+    private bool IsDuplicate(TelegramUpdate update) {
+      var msg = update.Message;
+      var chatId = msg?.Chat?.Id ?? 0;
+      var messageId = msg?.MessageId ?? 0;
+
+      // If your DTO has UpdateId, prefer that:
+      // var key = $"tg:update:{update.UpdateId}";
+      var key = $"tg:msg:{chatId}:{messageId}";
+
+      if (_cache.TryGetValue(key, out _)) return true;
+
+      // keep for a few minutes; adjust as you like
+      _cache.Set(key, true, TimeSpan.FromMinutes(15));
+      return false;
+    }
 
     /// <summary>
     /// Parses "/start <token>" safely. Returns null if missing.
@@ -252,7 +278,7 @@ namespace JenianAPI.Services
       // Step 4: Parse with AI (Azure Vision service you wired up)
       try {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(TimeSpan.FromSeconds(3000)); // keep webhook snappy; Telegram retries on long timeouts
+        cts.CancelAfter(TimeSpan.FromSeconds(25)); // keep webhook snappy; Telegram retries on long timeouts
 
         // MemoryStream acts like a file: once you read it, its internal pointer moves to the end.
         //If you try to convert it to BinaryData without resetting it, the stream is "empty" from that point on.
@@ -267,7 +293,7 @@ namespace JenianAPI.Services
         // This name should be obtained by user specification at the frontend
         // -> save the name that they want to extract in the database. 
         //TODO: ask to save the name to extract in the database
-        var staffName = "Brian Nguyen";
+        var staffName = "SITTHISET";
 
         var answer = await _parserService.ExtractShiftAsync(orcText, staffName, cts.Token);
         await SafeSendMessageAsync(chatId, $"⏰ Here is the roster: \n {answer}");

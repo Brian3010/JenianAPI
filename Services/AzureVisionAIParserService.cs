@@ -56,7 +56,7 @@ namespace JenianAPI.Services
         foreach (var line in block.Lines) {
           //_logger.LogInformation($"   Line: '{line.Text}', Bounding Polygon: [{string.Join(" ", line.BoundingPolygon)}]");
           if (!string.IsNullOrWhiteSpace(line.Text)) {
-            ocrText.AppendLine($"{line.Text},[{string.Join(" ", line.BoundingPolygon)}]");
+            ocrText.AppendLine($"{line.Text}:[{string.Join(" ", line.BoundingPolygon)}]\n");
 
           }
           //var t = line?.Text;
@@ -122,8 +122,8 @@ namespace JenianAPI.Services
       // trying new method
 
 
-      var res = await _openAiService.RosterQuery();
-      return $"hello {res.Content[0].Text}";
+      var res = await _openAiService.RosterQuery(ocrText, staffName);
+      return $"{res}";
     }
 
 

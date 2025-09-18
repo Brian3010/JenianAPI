@@ -3,12 +3,8 @@
   "WorkspaceRootPath": "D:\\projects\\Jenian\\JenianAPI\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{C4891ECD-8854-40B8-8A7A-9351E01D4318}|JenianAPI.csproj|d:\\projects\\jenian\\jenianapi\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{C4891ECD-8854-40B8-8A7A-9351E01D4318}|JenianAPI.csproj|solutionrelative:program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{C4891ECD-8854-40B8-8A7A-9351E01D4318}|JenianAPI.csproj|d:\\projects\\jenian\\jenianapi\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
-      "RelativeMoniker": "D:0:0:{C4891ECD-8854-40B8-8A7A-9351E01D4318}|JenianAPI.csproj|solutionrelative:appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+      "AbsoluteMoniker": "D:0:0:{C4891ECD-8854-40B8-8A7A-9351E01D4318}|JenianAPI.csproj|d:\\projects\\jenian\\jenianapi\\services\\telegramservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{C4891ECD-8854-40B8-8A7A-9351E01D4318}|JenianAPI.csproj|solutionrelative:services\\telegramservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{C4891ECD-8854-40B8-8A7A-9351E01D4318}|JenianAPI.csproj|d:\\projects\\jenian\\jenianapi\\services\\azurevisionaiparserservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -19,20 +15,24 @@
       "RelativeMoniker": "D:0:0:{C4891ECD-8854-40B8-8A7A-9351E01D4318}|JenianAPI.csproj|solutionrelative:services\\openaiservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{C4891ECD-8854-40B8-8A7A-9351E01D4318}|JenianAPI.csproj|d:\\projects\\jenian\\jenianapi\\services\\telegramservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{C4891ECD-8854-40B8-8A7A-9351E01D4318}|JenianAPI.csproj|solutionrelative:services\\telegramservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{C4891ECD-8854-40B8-8A7A-9351E01D4318}|JenianAPI.csproj|d:\\projects\\jenian\\jenianapi\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{C4891ECD-8854-40B8-8A7A-9351E01D4318}|JenianAPI.csproj|solutionrelative:appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C4891ECD-8854-40B8-8A7A-9351E01D4318}|JenianAPI.csproj|d:\\projects\\jenian\\jenianapi\\helpers\\rosterparser.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{C4891ECD-8854-40B8-8A7A-9351E01D4318}|JenianAPI.csproj|solutionrelative:helpers\\rosterparser.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C4891ECD-8854-40B8-8A7A-9351E01D4318}|JenianAPI.csproj|d:\\projects\\jenian\\jenianapi\\controllers\\authcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{C4891ECD-8854-40B8-8A7A-9351E01D4318}|JenianAPI.csproj|solutionrelative:controllers\\authcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{C4891ECD-8854-40B8-8A7A-9351E01D4318}|JenianAPI.csproj|d:\\projects\\jenian\\jenianapi\\services\\interfaces\\iparserservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{C4891ECD-8854-40B8-8A7A-9351E01D4318}|JenianAPI.csproj|solutionrelative:services\\interfaces\\iparserservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{C4891ECD-8854-40B8-8A7A-9351E01D4318}|JenianAPI.csproj|d:\\projects\\jenian\\jenianapi\\docker-compose.yml||{8B382828-6202-11D1-8870-0000F87579D2}",
-      "RelativeMoniker": "D:0:0:{C4891ECD-8854-40B8-8A7A-9351E01D4318}|JenianAPI.csproj|solutionrelative:docker-compose.yml||{8B382828-6202-11D1-8870-0000F87579D2}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{C4891ECD-8854-40B8-8A7A-9351E01D4318}|JenianAPI.csproj|d:\\projects\\jenian\\jenianapi\\.gitignore||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{C4891ECD-8854-40B8-8A7A-9351E01D4318}|JenianAPI.csproj|solutionrelative:.gitignore||{3B902123-F8A7-4915-9F01-361F908088D0}"
+      "AbsoluteMoniker": "D:0:0:{C4891ECD-8854-40B8-8A7A-9351E01D4318}|JenianAPI.csproj|d:\\projects\\jenian\\jenianapi\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{C4891ECD-8854-40B8-8A7A-9351E01D4318}|JenianAPI.csproj|solutionrelative:program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{C4891ECD-8854-40B8-8A7A-9351E01D4318}|JenianAPI.csproj|d:\\projects\\jenian\\jenianapi\\dockerfile||{8B382828-6202-11D1-8870-0000F87579D2}",
@@ -55,10 +55,6 @@
       "RelativeMoniker": "D:0:0:{C4891ECD-8854-40B8-8A7A-9351E01D4318}|JenianAPI.csproj|solutionrelative:dtos\\telegramdtos\\telegramfilehandler.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{C4891ECD-8854-40B8-8A7A-9351E01D4318}|JenianAPI.csproj|d:\\projects\\jenian\\jenianapi\\controllers\\authcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{C4891ECD-8854-40B8-8A7A-9351E01D4318}|JenianAPI.csproj|solutionrelative:controllers\\authcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{C4891ECD-8854-40B8-8A7A-9351E01D4318}|JenianAPI.csproj|d:\\projects\\jenian\\jenianapi\\dtos\\telegramdtos\\shiftinfodto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{C4891ECD-8854-40B8-8A7A-9351E01D4318}|JenianAPI.csproj|solutionrelative:dtos\\telegramdtos\\shiftinfodto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
@@ -70,7 +66,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 3,
+          "SelectedChildIndex": 8,
           "Children": [
             {
               "$type": "Bookmark",
@@ -86,13 +82,13 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 7,
               "Title": "Program.cs",
               "DocumentMoniker": "D:\\projects\\Jenian\\JenianAPI\\Program.cs",
               "RelativeDocumentMoniker": "Program.cs",
               "ToolTip": "D:\\projects\\Jenian\\JenianAPI\\Program.cs",
               "RelativeToolTip": "Program.cs",
-              "ViewState": "AgIAAIAAAAAAAAAAAAAEwJUAAAAIAAAAAAAAAA==",
+              "ViewState": "AgIAADMAAAAAAAAAAAAewHMAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-04-25T04:18:56.283Z",
               "IsPinned": true,
@@ -100,13 +96,13 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 13,
+              "DocumentIndex": 5,
               "Title": "AuthController.cs",
               "DocumentMoniker": "D:\\projects\\Jenian\\JenianAPI\\Controllers\\AuthController.cs",
               "RelativeDocumentMoniker": "Controllers\\AuthController.cs",
               "ToolTip": "D:\\projects\\Jenian\\JenianAPI\\Controllers\\AuthController.cs",
               "RelativeToolTip": "Controllers\\AuthController.cs",
-              "ViewState": "AgIAABYAAAAAAAAAAAAcwCQAAAAmAAAAAAAAAA==",
+              "ViewState": "AgIAABYAAAAAAAAAAAAcwDEAAAAqAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-05-05T01:51:20.234Z",
               "IsPinned": true,
@@ -114,91 +110,78 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 4,
+              "Title": "RosterParser.cs",
+              "DocumentMoniker": "D:\\projects\\Jenian\\JenianAPI\\Helpers\\RosterParser.cs",
+              "RelativeDocumentMoniker": "Helpers\\RosterParser.cs",
+              "ToolTip": "D:\\projects\\Jenian\\JenianAPI\\Helpers\\RosterParser.cs",
+              "RelativeToolTip": "Helpers\\RosterParser.cs",
+              "ViewState": "AgIAACUAAAAAAAAAAAAxwBoAAAAtAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-09-18T16:04:14.655Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
               "Title": "OpenAiService.cs",
               "DocumentMoniker": "D:\\projects\\Jenian\\JenianAPI\\Services\\OpenAiService.cs",
               "RelativeDocumentMoniker": "Services\\OpenAiService.cs",
               "ToolTip": "D:\\projects\\Jenian\\JenianAPI\\Services\\OpenAiService.cs",
               "RelativeToolTip": "Services\\OpenAiService.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAuwBAAAAAYAAAAAAAAAA==",
+              "ViewState": "AgIAADoAAAAAAAAAAAAuwEkAAAAuAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-09-14T15:55:02.608Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 7,
-              "Title": ".gitignore",
-              "DocumentMoniker": "D:\\projects\\Jenian\\JenianAPI\\.gitignore",
-              "RelativeDocumentMoniker": ".gitignore",
-              "ToolTip": "D:\\projects\\Jenian\\JenianAPI\\.gitignore",
-              "RelativeToolTip": ".gitignore",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAcAAAAEAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
-              "WhenOpened": "2025-08-12T12:34:15.714Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 1,
               "Title": "AzureVisionAIParserService.cs",
               "DocumentMoniker": "D:\\projects\\Jenian\\JenianAPI\\Services\\AzureVisionAIParserService.cs",
               "RelativeDocumentMoniker": "Services\\AzureVisionAIParserService.cs",
               "ToolTip": "D:\\projects\\Jenian\\JenianAPI\\Services\\AzureVisionAIParserService.cs",
               "RelativeToolTip": "Services\\AzureVisionAIParserService.cs",
-              "ViewState": "AgIAADMAAAAAAAAAAAAgwEUAAAAFAAAAAAAAAA==",
+              "ViewState": "AgIAABIAAAAAAAAAAAAgwCsAAAAQAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-08-03T17:24:31.369Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 0,
               "Title": "TelegramService.cs",
               "DocumentMoniker": "D:\\projects\\Jenian\\JenianAPI\\Services\\TelegramService.cs",
               "RelativeDocumentMoniker": "Services\\TelegramService.cs",
               "ToolTip": "D:\\projects\\Jenian\\JenianAPI\\Services\\TelegramService.cs",
               "RelativeToolTip": "Services\\TelegramService.cs",
-              "ViewState": "AgIAAPYAAAAAAAAAAAAAAA0BAAAnAAAAAAAAAA==",
+              "ViewState": "AgIAABYBAAAAAAAAAAAAACcBAAAiAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-07-28T14:59:10.717Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 6,
               "Title": "IParserService.cs",
               "DocumentMoniker": "D:\\projects\\Jenian\\JenianAPI\\Services\\Interfaces\\IParserService.cs",
               "RelativeDocumentMoniker": "Services\\Interfaces\\IParserService.cs",
               "ToolTip": "D:\\projects\\Jenian\\JenianAPI\\Services\\Interfaces\\IParserService.cs",
               "RelativeToolTip": "Services\\Interfaces\\IParserService.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAuwAUAAAARAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAuwAcAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-08-02T14:42:30.622Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
-              "Title": "docker-compose.yml",
-              "DocumentMoniker": "D:\\projects\\Jenian\\JenianAPI\\docker-compose.yml",
-              "RelativeDocumentMoniker": "docker-compose.yml",
-              "ToolTip": "D:\\projects\\Jenian\\JenianAPI\\docker-compose.yml",
-              "RelativeToolTip": "docker-compose.yml",
-              "ViewState": "AgIAABUAAAAAAAAAAAAAAB4AAAAOAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003775|",
-              "WhenOpened": "2025-08-12T12:10:37.668Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 3,
               "Title": "appsettings.json",
               "DocumentMoniker": "D:\\projects\\Jenian\\JenianAPI\\appsettings.json",
               "RelativeDocumentMoniker": "appsettings.json",
               "ToolTip": "D:\\projects\\Jenian\\JenianAPI\\appsettings.json",
               "RelativeToolTip": "appsettings.json",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABQAAAALAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABUAAAAYAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
               "WhenOpened": "2025-08-12T11:31:37.385Z",
               "EditorCaption": ""
@@ -270,7 +253,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 14,
+              "DocumentIndex": 13,
               "Title": "ShiftInfoDto.cs",
               "DocumentMoniker": "D:\\projects\\Jenian\\JenianAPI\\Dtos\\TelegramDtos\\ShiftInfoDto.cs",
               "RelativeDocumentMoniker": "Dtos\\TelegramDtos\\ShiftInfoDto.cs",

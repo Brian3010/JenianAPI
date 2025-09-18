@@ -152,7 +152,8 @@ namespace JenianAPI
         return new ChatClient(model, apiKey);
       });
 
-      builder.Services.AddSingleton<OpenAiService>();
+      builder.Services.AddScoped<OpenAiService>();
+      builder.Services.AddMemoryCache();
 
 
 
