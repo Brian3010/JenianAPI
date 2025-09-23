@@ -5,7 +5,7 @@ namespace JenianAPI.Services
   public class OcrPreprocess
   {
 
-    public static byte[] CleanPhoto(byte[] photoInput, double scale = 1.25) {
+    public static byte[] PhotoCleanUp(byte[] photoInput, double scale = 1.25) {
       using var src = Cv2.ImDecode(photoInput, ImreadModes.Color);
       if (src.Empty()) throw new InvalidOperationException("Invalid image");
 

@@ -7,6 +7,8 @@ using JenianAPI.Errors;
 using JenianAPI.Models.AuthModels;
 using JenianAPI.Services;
 using JenianAPI.Services.Interfaces;
+using JenianAPI.Workers;
+using JenianAPI.Workers.JobPayloads;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -112,25 +114,6 @@ namespace JenianAPI
       builder.Services.AddScoped<IParserService, AzureVisionAIParserService>();
       //builder.Services.AddScoped<IParserService, OllamaParserService>();
 
-
-
-      // Add Identity system to the ASP.NET Core service container
-      builder.Services.AddIdentityCore<ApplicationUser>().AddEntityFrameworkStores<JenianAuthDbContext>()
-        .AddDefaultTokenProviders(); // <-- required for reset/confirm tokens;
-
-      builder.Services.Configure<IdentityOptions>(options => {
-        // Password settings.
-        options.Password.RequireDigit = true;
-        options.Password.RequireLowercase = true;
-        options.Password.RequireNonAlphanumeric = true;
-        options.Password.RequireUppercase = true;
-        options.Password.RequiredLength = 6;
-        options.Password.RequiredUniqueChars = 1;
-
-        options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";
-        options.User.RequireUniqueEmail = true;
-      });
-
       // Add Ollama
       //builder.Services.Configure<OllamaOptions>(builder.Configuration.GetSection("Ollama"));
       //builder.Services.AddHttpClient<OllamaClient>((serviceProvider, http) => {
@@ -155,6 +138,29 @@ namespace JenianAPI
       builder.Services.AddScoped<OpenAiService>();
       builder.Services.AddMemoryCache();
 
+      builder.Services.AddScoped<ITelegramMessenger, TelegramMessenger>();
+      builder.Services.AddSingleton<IBackgroundJobQueue<ShiftExtractionJob>>(
+      _ => new BackgroundJobQueue<ShiftExtractionJob>(capacity: 200));
+      builder.Services.AddHostedService<ShiftExtractionWorker>();
+
+
+
+      // Add Identity system to the ASP.NET Core service container
+      builder.Services.AddIdentityCore<ApplicationUser>().AddEntityFrameworkStores<JenianAuthDbContext>()
+        .AddDefaultTokenProviders(); // <-- required for reset/confirm tokens;
+
+      builder.Services.Configure<IdentityOptions>(options => {
+        // Password settings.
+        options.Password.RequireDigit = true;
+        options.Password.RequireLowercase = true;
+        options.Password.RequireNonAlphanumeric = true;
+        options.Password.RequireUppercase = true;
+        options.Password.RequiredLength = 6;
+        options.Password.RequiredUniqueChars = 1;
+
+        options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";
+        options.User.RequireUniqueEmail = true;
+      });
 
 
       // JWT Bearers

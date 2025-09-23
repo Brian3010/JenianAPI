@@ -9,11 +9,9 @@ namespace JenianAPI.Services
     private readonly ILogger<AzureVisionAIParserService> _logger;
     private ImageAnalysisClient _client;
     private readonly OpenAiService _openAiService;
-    private readonly string _modelOllama;
 
     public AzureVisionAIParserService(ILogger<AzureVisionAIParserService> logger, IConfiguration configuration, ImageAnalysisClient client, HttpClient httpClient, OpenAiService openAiService) {
       _logger = logger;
-      _modelOllama = configuration["Ollama:Model"] ?? "qwen2.5:7b-instruct";
       _client = client;
       _openAiService = openAiService;
     }
@@ -56,7 +54,7 @@ namespace JenianAPI.Services
         foreach (var line in block.Lines) {
           //_logger.LogInformation($"   Line: '{line.Text}', Bounding Polygon: [{string.Join(" ", line.BoundingPolygon)}]");
           if (!string.IsNullOrWhiteSpace(line.Text)) {
-            ocrText.AppendLine($"{line.Text}:[{string.Join(" ", line.BoundingPolygon)}]\n");
+            ocrText.AppendLine($"{line.Text},[{string.Join(" ", line.BoundingPolygon)}]\n");
 
           }
           //var t = line?.Text;
@@ -72,55 +70,6 @@ namespace JenianAPI.Services
     public async Task<string> ExtractShiftAsync(string ocrText, string staffName, CancellationToken ct = default) {
       if (string.IsNullOrWhiteSpace(ocrText))
         return "Text is empty";
-      /**
-      // Formatting rules for AI system
-      var systemRule = new ChatMessage(
-         Role: "system",
-         Content:
-          """
-           You extract shifts from OCR roster text.
-           - The format will be {word}:[Bounding Polygon coordinates].
-           - Days (MON–SUN) are column headers (align by x-position).
-           - Names are left; shifts to the right under the correct day.
-           - Normalize to 12-hour AM/PM (e.g., 8 - 4 → 8:00AM - 4:00PM; 8 - 4.30 → 8:00AM - 4:30PM).
-           - Assume start ≤9 → AM; 1–11 as PM unless contradicted by end.
-           - Keep tags like MT/AL/(GV)/(SV)/(BV) as "(TAG)" after time.
-           - Ignore noise (CATALOGUE, FULL-TIME, PART-TIME, CASUAL, OFF-SITE EMPLOYEES, IMPORTANT NOTICE, EMPLOYEES NUMBER, etc.).
-           - Fix malformed OCR shift times using these rules:
-              8 -430 → 8:00AM - 4:30PM
-              8 - → discard (missing end)
-              11 - → discard (missing end)
-              A .4 → discard (nonsense)
-              B - 6 → 8:00AM - 6:00PM
-              1.9 / 1 9 / 1:9 → 1:00PM - 9:00PM
-              3.9 / 3 .9 → 3:00PM - 9:00PM
-              11-9 → 11:00AM - 9:00PM
-           Output strictly:
-           {Staff Name} has shifts on:
-           {DAY}: {start - end} (TAG if any)
-           (Only include days that have shifts.)
-           """
-        );
-      _logger.LogInformation("OCRText: {0}", ocrText);
-      var userPrompt = new ChatMessage(
-          Role: "user",
-          Content:
-          $"""
-            Extract shifts for {staffName} using below OCR roster text: 
-            {ocrText}
-
-            """
-      );
-
-      // Asking AI
-      var answer = await _ollamaClient.ChatAsync([systemRule, userPrompt], ct);
-      
-
-      return answer;*/
-
-
-      // trying new method
-
 
       var res = await _openAiService.RosterQuery(ocrText, staffName);
       return $"{res}";

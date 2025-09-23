@@ -1,8 +1,9 @@
 ﻿using JenianAPI.Data;
 using JenianAPI.Dtos.TelegramDtos;
 using JenianAPI.Services.Interfaces;
+using JenianAPI.Workers;
+using JenianAPI.Workers.JobPayloads;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using static JenianAPI.Dtos.TelegramDtos.TelegramFileHandler;
 
 namespace JenianAPI.Services
@@ -29,15 +30,15 @@ namespace JenianAPI.Services
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _configuration;
     private readonly IParserService _parserService;
-    private readonly IMemoryCache _cache;
+    private readonly IBackgroundJobQueue<ShiftExtractionJob> _jobQueue;
 
-    public TelegramService(JenianAuthDbContext dbContext, ILogger<TelegramService> logger, HttpClient httpClient, IConfiguration configuration, IParserService parserService, IMemoryCache cache) {
+    public TelegramService(JenianAuthDbContext dbContext, ILogger<TelegramService> logger, HttpClient httpClient, IConfiguration configuration, IParserService parserService, IBackgroundJobQueue<ShiftExtractionJob> jobQueue) {
       _dbContext = dbContext;
       _logger = logger;
       _httpClient = httpClient;
       _configuration = configuration;
       _parserService = parserService;
-      _cache = cache;
+      _jobQueue = jobQueue;
     }
 
     private string BotToken => _configuration["Telegram:BotToken"] ?? string.Empty;
@@ -49,12 +50,6 @@ namespace JenianAPI.Services
       var msg = update.Message;
       if (msg == null) {
         _logger.LogInformation("Telegram webhook: update has no message.");
-        return;
-      }
-
-      // 🔒 De-dupe BEFORE any replies
-      if (IsDuplicate(update)) {
-        _logger.LogInformation("Duplicate update suppressed.");
         return;
       }
 
@@ -140,24 +135,6 @@ namespace JenianAPI.Services
     }
 
     // --- Helpers ---
-
-    // Keying by message id + chat id is enough; fallback to update id if you expose it on your DTO.
-    private bool IsDuplicate(TelegramUpdate update) {
-      var msg = update.Message;
-      var chatId = msg?.Chat?.Id ?? 0;
-      var messageId = msg?.MessageId ?? 0;
-
-      // If your DTO has UpdateId, prefer that:
-      // var key = $"tg:update:{update.UpdateId}";
-      var key = $"tg:msg:{chatId}:{messageId}";
-
-      if (_cache.TryGetValue(key, out _)) return true;
-
-      // keep for a few minutes; adjust as you like
-      _cache.Set(key, true, TimeSpan.FromMinutes(15));
-      return false;
-    }
-
     /// <summary>
     /// Parses "/start <token>" safely. Returns null if missing.
     /// </summary>
@@ -170,7 +147,7 @@ namespace JenianAPI.Services
     /// <summary>
     /// Sends a message to Telegram; never throws to caller.
     /// </summary>
-    private async Task SafeSendMessageAsync(long chatId, string text, CancellationToken ct = default) {
+    public async Task SafeSendMessageAsync(long chatId, string text, CancellationToken ct = default) {
       var url = $"{ApiBase}/sendMessage";
       var payload = new Dictionary<string, object> {
         ["chat_id"] = chatId,
@@ -263,42 +240,16 @@ namespace JenianAPI.Services
       var downloadUrl = await GetDownloadUrlAsync(bestFileId, ct);
 
       // Step 2: Download to memory
-      //using var originalStream = await DownloadToMemoryStreamAsync(downloadUrl, ct);
       var fileByte = await DownloadToMemoryByteAsync(downloadUrl, ct);
 
-      /*
-      // (Important) Reset position before passing to ImageSharp
-      originalStream.Position = 0;
-
-      // Step 3: Compress to JPEG (smaller & friendlier for vision APIs)
-      var compressedStream = await ImageHelper.CompressImageInStream(originalStream);
-      // Ensure position = 0 for downstream callers (we fixed ImageHelper; doing again is cheap & safe)
-      compressedStream.Position = 0;
-      */
       // Step 4: Parse with AI (Azure Vision service you wired up)
+      var ocrText = "";
+      using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+      cts.CancelAfter(TimeSpan.FromSeconds(10)); // keep webhook snappy; Telegram retries on long timeouts
       try {
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(TimeSpan.FromSeconds(25)); // keep webhook snappy; Telegram retries on long timeouts
-
-        // MemoryStream acts like a file: once you read it, its internal pointer moves to the end.
-        //If you try to convert it to BinaryData without resetting it, the stream is "empty" from that point on.
-        //originalStream.Position = 0;
-
         // Prepocess the photo for clearer text
-        var cleanedPhoto = OcrPreprocess.CleanPhoto(fileByte);
-
-        //var orcText = await _parserService.ExtractTextFromPhotoAsync(compressedStream, cts.Token);
-        var orcText = await _parserService.ExtractTextFromPhotoAsync(cleanedPhoto, cts.Token);
-
-        // This name should be obtained by user specification at the frontend
-        // -> save the name that they want to extract in the database. 
-        //TODO: ask to save the name to extract in the database
-        var staffName = "SITTHISET";
-
-        var answer = await _parserService.ExtractShiftAsync(orcText, staffName, cts.Token);
-        await SafeSendMessageAsync(chatId, $"⏰ Here is the roster: \n {answer}");
-
-
+        var cleanedPhoto = OcrPreprocess.PhotoCleanUp(fileByte);
+        ocrText = await _parserService.ExtractTextFromPhotoAsync(cleanedPhoto, cts.Token);
       } catch (TaskCanceledException) {
         _logger.LogWarning("Parsing timed out.");
         await SafeSendMessageAsync(chatId, "⏱️ Parsing took too long. Please try again with a clearer photo.");
@@ -311,6 +262,19 @@ namespace JenianAPI.Services
 
       // Step 5: (Future) Save parsed shift, reply with summary, etc.
       await SafeSendMessageAsync(chatId, "✅ Photo processed. I’ll add the shift details shortly.");
+
+      // This name should be obtained by user specification at the frontend
+      // -> save the name that they want to extract in the database. 
+      //TODO: ask to save the name to extract in the database
+      var staffName = "Sitthiset";
+
+      //var answer = await _parserService.ExtractShiftAsync(ocrText, staffName, cts.Token);
+      //await SafeSendMessageAsync(chatId, $"✅ Here is the roster: \n {answer}");
+
+      await _jobQueue.EnqueueAsync(
+      new ShiftExtractionJob(chatId, ocrText, staffName),
+      ct);
+
 
     }
   }
