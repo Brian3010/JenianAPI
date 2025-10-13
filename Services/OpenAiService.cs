@@ -75,7 +75,7 @@ namespace JenianAPI.Services
               - Compute each header’s X-center (mean of its 4 x’s). Sort left→right.
               - Build day “columns” using midpoints between adjacent header centers; outer columns extend to ±∞.
           2) Find the row that contains the staff name "{{staffName}}" (substring match, case-insensitive). 
-              - Compute the name token’s Y-center. Define a same-row band of ±20 px around that Y (if no other signals).
+              - Compute the name token’s Y-center. Define a same-row band of ±15 px around that Y (if no other signals).
           3) Identify time tokens on that row band (Y-center inside band). Time tokens match:
               - `H - H`, `H - H:MM`, `H - HMM`, `H.HH`, `H - H.HH`, allowing separators `- – . :`
               - Keep any trailing tag (e.g., `AL`, `MT`) and output it in parentheses.

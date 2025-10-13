@@ -249,6 +249,16 @@ namespace JenianAPI.Services
       try {
         // Prepocess the photo for clearer text
         var cleanedPhoto = OcrPreprocess.PhotoCleanUp(fileByte);
+        //// pick a folder you can find (Desktop/roster-debug)
+        //var outDir = Path.Combine(
+        //    Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+        //    "roster-debug");
+        //Directory.CreateDirectory(outDir);
+
+        //var outPath = Path.Combine(outDir, $"roster-straight-{DateTime.Now:yyyyMMdd_HHmmss}.png");
+        //await File.WriteAllBytesAsync(outPath, cleanedPhoto);
+
+        //Console.WriteLine($"Saved → {outPath}");
         ocrText = await _parserService.ExtractTextFromPhotoAsync(cleanedPhoto, cts.Token);
       } catch (TaskCanceledException) {
         _logger.LogWarning("Parsing timed out.");
@@ -266,7 +276,7 @@ namespace JenianAPI.Services
       // This name should be obtained by user specification at the frontend
       // -> save the name that they want to extract in the database. 
       //TODO: ask to save the name to extract in the database
-      var staffName = "Sitthiset";
+      var staffName = "Brian Nguyen";
 
       //var answer = await _parserService.ExtractShiftAsync(ocrText, staffName, cts.Token);
       //await SafeSendMessageAsync(chatId, $"✅ Here is the roster: \n {answer}");
