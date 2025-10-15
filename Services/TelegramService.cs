@@ -245,7 +245,7 @@ namespace JenianAPI.Services
       // Step 4: Parse with AI (Azure Vision service you wired up)
       var ocrText = "";
       using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-      cts.CancelAfter(TimeSpan.FromSeconds(10)); // keep webhook snappy; Telegram retries on long timeouts
+      cts.CancelAfter(TimeSpan.FromSeconds(20)); // keep webhook snappy; Telegram retries on long timeouts
       try {
         // Prepocess the photo for clearer text
         var cleanedPhoto = OcrPreprocess.PhotoCleanUp(fileByte);
