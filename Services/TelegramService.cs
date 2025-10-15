@@ -124,10 +124,20 @@ namespace JenianAPI.Services
       try {
         if (msg.Photo != null || msg.Document != null) {
           await HandleMediaAsync(msg, chatId);
+        } else if (msg.Text != null && msg.Text.Contains("/delivery")) {
+          await HandleDeliveryReport(msg, chatId);
         } else if (!string.IsNullOrWhiteSpace(msg.Text)) {
           // TODO: command router (/help, /unlink, etc.)
           await SafeSendMessageAsync(chatId, "I currently process shift photos/documents. Text commands coming soon: /help, /unlink.");
         }
+
+
+        //if (msg.Photo != null || msg.Document != null) {
+        //  await HandleMediaAsync(msg, chatId);
+        //} else if (!string.IsNullOrWhiteSpace(msg.Text)) {
+        //  // TODO: command router (/help, /unlink, etc.)
+        //  await SafeSendMessageAsync(chatId, "I currently process shift photos/documents. Text commands coming soon: /help, /unlink.");
+        //}
       } catch (Exception ex) {
         _logger.LogError(ex, "Error while processing Telegram message for user {UserId}", linkedUser.Id);
         await SafeSendMessageAsync(chatId, "⚠️ Something went wrong while processing your message. Please try again.");
@@ -287,5 +297,25 @@ namespace JenianAPI.Services
 
 
     }
+
+    private async Task HandleDeliveryReport(TelegramMessage message, long chatID, CancellationToken ct = default) {
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   }
 }

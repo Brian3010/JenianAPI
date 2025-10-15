@@ -67,5 +67,6 @@ namespace JenianAPI.Controllers
       return Ok(new { isLinked = !string.IsNullOrEmpty(user.TelegramUserId) });
     }
 
+
   }
 }
