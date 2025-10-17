@@ -46,7 +46,7 @@ namespace JenianAPI.Services
     private string FileBase => $"https://api.telegram.org/file/bot{BotToken}";
 
     // Runs on webhook POST /api/telegram/webhook
-    public async Task HandleUpdateAsync(TelegramUpdate update) {
+    public async Task HandleUpdateAsync(TelegramUpdate update, CancellationToken ct) {
       var msg = update.Message;
       if (msg == null) {
         _logger.LogInformation("Telegram webhook: update has no message.");
@@ -63,7 +63,7 @@ namespace JenianAPI.Services
       var hasAnyContent = !string.IsNullOrWhiteSpace(msg.Text) || msg.Photo != null || msg.Document != null;
       if (!hasAnyContent) {
         _logger.LogInformation("Telegram webhook: empty message (no text/photo/document).");
-        await SafeSendMessageAsync(chatId, "I received your message but couldn’t find any text or photo to process.");
+        await SafeSendMessageAsync(chatId, "I received your message but couldn’t find any text or photo to process.", ct);
         return;
       }
 
@@ -74,18 +74,18 @@ namespace JenianAPI.Services
       if (!string.IsNullOrWhiteSpace(msg.Text) && msg.Text.StartsWith("/start", StringComparison.OrdinalIgnoreCase)) {
         var maybeToken = TryExtractStartToken(msg.Text);
         if (string.IsNullOrEmpty(maybeToken)) {
-          await SafeSendMessageAsync(chatId, "Please open the link from the Jenian app so I can connect your Telegram.");
+          await SafeSendMessageAsync(chatId, "Please open the link from the Jenian app so I can connect your Telegram.", ct);
           return;
         }
 
         var linkToken = maybeToken!;
         var user = await _dbContext
           .Users
-          .FirstOrDefaultAsync(u => u.TelegramLinkToken == linkToken);
+          .FirstOrDefaultAsync(u => u.TelegramLinkToken == linkToken, ct);
 
         if (user == null) {
           _logger.LogInformation("Telegram link: invalid or expired token '{Token}'", linkToken);
-          await SafeSendMessageAsync(chatId, "Invalid or expired token. Please try connecting again from the Jenian app.");
+          await SafeSendMessageAsync(chatId, "Invalid or expired token. Please try connecting again from the Jenian app.", ct);
           return;
         }
 
@@ -93,16 +93,16 @@ namespace JenianAPI.Services
         var telegramIdStr = (msg.From?.Id ?? 0).ToString();
         var alreadyLinked = await _dbContext
           .Users
-          .AnyAsync(u => u.TelegramUserId == telegramIdStr && u.Id != user.Id);
+          .AnyAsync(u => u.TelegramUserId == telegramIdStr && u.Id != user.Id, ct);
 
         if (alreadyLinked) {
-          await SafeSendMessageAsync(chatId, "This Telegram account is already linked to another Jenian user.");
+          await SafeSendMessageAsync(chatId, "This Telegram account is already linked to another Jenian user.", ct);
           return;
         }
 
         user.TelegramUserId = telegramIdStr;
         user.TelegramLinkToken = null; // one-time token → invalidate
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(ct);
 
         await SafeSendMessageAsync(chatId, $"✅ Your Telegram is now linked to Jenian ({user.Email}).");
         return;
@@ -110,27 +110,29 @@ namespace JenianAPI.Services
 
       // 2) Gate all further interactions to linked users only
       var fromTelegramId = (msg.From?.Id ?? 0).ToString();
-      var linkedUser = await _dbContext.Users.FirstOrDefaultAsync(u => u.TelegramUserId == fromTelegramId);
+      var linkedUser = await _dbContext.Users.FirstOrDefaultAsync(u => u.TelegramUserId == fromTelegramId, ct);
       if (linkedUser == null) {
         _logger.LogInformation("Unauthorized Telegram user {TelegramId} tried to interact.", fromTelegramId);
-        await SafeSendMessageAsync(chatId, "You're not authorized yet. Please connect Telegram from the Jenian app first.");
+        await SafeSendMessageAsync(chatId, "You're not authorized yet. Please connect Telegram from the Jenian app first.", ct);
         return;
       }
 
       // 3) Acknowledge and start processing
-      await SafeSendMessageAsync(chatId, "📥 Got it — processing now…");
+      await SafeSendMessageAsync(chatId, "📥 Got it — processing now…", ct);
 
       // 4) Route by content: photo/document → parse image; text → placeholder for commands
       try {
-        if (msg.Photo != null || msg.Document != null) {
-          await HandleMediaAsync(msg, chatId);
-        } else if (msg.Text != null && msg.Text.Contains("/delivery")) {
-          await HandleDeliveryReport(msg, chatId);
-        } else if (!string.IsNullOrWhiteSpace(msg.Text)) {
-          // TODO: command router (/help, /unlink, etc.)
-          await SafeSendMessageAsync(chatId, "I currently process shift photos/documents. Text commands coming soon: /help, /unlink.");
-        }
 
+        if (!string.IsNullOrWhiteSpace(msg.Text) || msg.Text == null) {
+          // TODO: command router (/help, /unlink, etc.)
+          await SafeSendMessageAsync(chatId, "please enter following commands: \n\n" +
+            "/d or /delivery - Summarise daily delivery report for Chemist Warehouse\n" +
+            "/r or /roster - Extract shifts from a photo roster", ct);
+        } else if (msg.Text.Contains("/r") || msg.Text.Contains("/roster")) {
+          await HandleMediaAsync(msg, chatId, ct);
+        } else if (msg.Text.Contains("/d") || msg.Text!.Contains("/delivery")) {
+          await HandleDeliveryReport(msg, chatId, ct);
+        }
 
         //if (msg.Photo != null || msg.Document != null) {
         //  await HandleMediaAsync(msg, chatId);
@@ -140,7 +142,7 @@ namespace JenianAPI.Services
         //}
       } catch (Exception ex) {
         _logger.LogError(ex, "Error while processing Telegram message for user {UserId}", linkedUser.Id);
-        await SafeSendMessageAsync(chatId, "⚠️ Something went wrong while processing your message. Please try again.");
+        await SafeSendMessageAsync(chatId, "⚠️ Something went wrong while processing your message. Please try again.", ct);
       }
     }
 
@@ -242,7 +244,7 @@ namespace JenianAPI.Services
     private async Task HandleMediaAsync(TelegramMessage message, long chatId, CancellationToken ct = default) {
       var bestFileId = PickBestFileId(message);
       if (string.IsNullOrWhiteSpace(bestFileId)) {
-        await SafeSendMessageAsync(chatId, "I couldn’t find a valid photo/document in your message.");
+        await SafeSendMessageAsync(chatId, "I couldn’t find a valid photo/document in your message.", ct);
         return;
       }
 
@@ -272,16 +274,16 @@ namespace JenianAPI.Services
         ocrText = await _parserService.ExtractTextFromPhotoAsync(cleanedPhoto, cts.Token);
       } catch (TaskCanceledException) {
         _logger.LogWarning("Parsing timed out.");
-        await SafeSendMessageAsync(chatId, "⏱️ Parsing took too long. Please try again with a clearer photo.");
+        await SafeSendMessageAsync(chatId, "⏱️ Parsing took too long. Please try again with a clearer photo.", ct);
         return;
       } catch (Exception ex) {
         _logger.LogError(ex, "Parsing failed.");
-        await SafeSendMessageAsync(chatId, "⚠️ I couldn’t parse that image. Try a clearer/cropped photo of the roster.");
+        await SafeSendMessageAsync(chatId, "⚠️ I couldn’t parse that image. Try a clearer/cropped photo of the roster.", ct);
         return;
       }
 
       // Step 5: (Future) Save parsed shift, reply with summary, etc.
-      await SafeSendMessageAsync(chatId, "✅ Photo processed. I’ll add the shift details shortly.");
+      await SafeSendMessageAsync(chatId, "✅ Photo processed. I’ll add the shift details shortly.", ct);
 
       // This name should be obtained by user specification at the frontend
       // -> save the name that they want to extract in the database. 
@@ -300,6 +302,8 @@ namespace JenianAPI.Services
 
     private async Task HandleDeliveryReport(TelegramMessage message, long chatID, CancellationToken ct = default) {
 
+
+      await SafeSendMessageAsync(chatID, "kitayamachu", ct);
     }
 
 

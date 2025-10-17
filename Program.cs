@@ -1,6 +1,7 @@
 
 using Azure;
 using Azure.AI.Vision.ImageAnalysis;
+using JenianAPI.Concurrency;
 using JenianAPI.Configurations;
 using JenianAPI.Data;
 using JenianAPI.Errors;
@@ -142,6 +143,8 @@ namespace JenianAPI
       builder.Services.AddSingleton<IBackgroundJobQueue<ShiftExtractionJob>>(
       _ => new BackgroundJobQueue<ShiftExtractionJob>(capacity: 200));
       builder.Services.AddHostedService<ShiftExtractionWorker>();
+
+      builder.Services.AddSingleton<LatestRequestRunner>();
 
 
 

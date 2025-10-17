@@ -1,4 +1,5 @@
-﻿using JenianAPI.Dtos.TelegramDtos;
+﻿using JenianAPI.Concurrency;
+using JenianAPI.Dtos.TelegramDtos;
 using JenianAPI.Models.AuthModels;
 using JenianAPI.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -15,11 +16,13 @@ namespace JenianAPI.Controllers
     private readonly TelegramService _telegramService;
     private readonly ILogger<TelegramController> _logger;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly LatestRequestRunner _latestRequestRunner;
 
-    public TelegramController(TelegramService telegramService, ILogger<TelegramController> logger, UserManager<ApplicationUser> userManager) {
+    public TelegramController(TelegramService telegramService, ILogger<TelegramController> logger, UserManager<ApplicationUser> userManager, LatestRequestRunner latestRequestRunner) {
       _telegramService = telegramService;
       _logger = logger;
       _userManager = userManager;
+      _latestRequestRunner = latestRequestRunner;
     }
 
     /* This APIs get hooked to Telegram via
@@ -29,7 +32,21 @@ namespace JenianAPI.Controllers
     [HttpPost("webhook")]
     public async Task<IActionResult> Webhook([FromBody] TelegramUpdate update) {
       _logger.LogInformation("Webhook hit from Telegram!");
-      await _telegramService.HandleUpdateAsync(update);
+      var msg = update.Message;
+      if (msg == null) {
+        _logger.LogInformation("Telegram webhook: update has no message.");
+        return Ok();
+      }
+
+      var chatId = msg.Chat?.Id ?? msg.From?.Id ?? 0;
+      if (chatId == 0) {
+        _logger.LogInformation("Telegram webhook: cannot resolve chatId.");
+        return Ok();
+      }
+
+      _latestRequestRunner.StartOrRestart(chatId, ct => _telegramService.HandleUpdateAsync(update, ct));
+
+      //await _telegramService.HandleUpdateAsync(update,ct);
       return Ok(); // Must return 200 or Telegram will retry
     }
 
