@@ -5,8 +5,17 @@ namespace JenianAPI.Concurrency
   public class LatestRequestRunner
   {
     private ConcurrentDictionary<long, CancellationTokenSource> _map = new();
+    private readonly ILogger<LatestRequestRunner> _logger;
+    private readonly IServiceScopeFactory _scopeFactory;
 
-    public void StartOrRestart(long chatId, Func<CancellationToken, Task> hanldeFunc) {
+    public LatestRequestRunner(ILogger<LatestRequestRunner> logger, IServiceScopeFactory scopeFactory) {
+      _logger = logger;
+      _scopeFactory = scopeFactory;
+    }
+
+
+
+    public void StartOrRestart(long chatId, Func<IServiceProvider, CancellationToken, Task> hanldeFunc) {
 
       // check if there is a previous job and cancel if yes
       if (_map.TryRemove(chatId, out var old)) {
@@ -17,11 +26,18 @@ namespace JenianAPI.Concurrency
       var cts = new CancellationTokenSource();
       _map[chatId] = cts;
 
-      // run the job off thread
+      //run the job off thread
       _ = Task.Run(async () => {
+        _logger.LogInformation("Runner: starting work for chatId={ChatId}", chatId);
         try {
-          await hanldeFunc(cts.Token);
-        } catch (OperationCanceledException) { /* expected on restart */ } finally {
+          await using var scope = _scopeFactory.CreateAsyncScope();
+          await hanldeFunc(scope.ServiceProvider, cts.Token);
+          _logger.LogInformation("Runner: completed chatId={ChatId}", chatId);
+        } catch (OperationCanceledException) {
+          _logger.LogInformation("Runner: cancelled chatId={ChatId}", chatId);
+        } catch (Exception ex) {
+          _logger.LogError(ex, "Runner: unhandled error chatId={ChatId}", chatId);
+        } finally {
           //Only remove if THIS is still the current CTS (avoid races)
           if (_map.TryGetValue(chatId, out var cur) && ReferenceEquals(cur, cts))
             _map.TryRemove(chatId, out _);

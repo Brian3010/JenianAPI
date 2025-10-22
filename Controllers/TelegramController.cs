@@ -1,5 +1,6 @@
 ﻿using JenianAPI.Concurrency;
 using JenianAPI.Dtos.TelegramDtos;
+using JenianAPI.Helpers;
 using JenianAPI.Models.AuthModels;
 using JenianAPI.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -32,21 +33,12 @@ namespace JenianAPI.Controllers
     [HttpPost("webhook")]
     public async Task<IActionResult> Webhook([FromBody] TelegramUpdate update) {
       _logger.LogInformation("Webhook hit from Telegram!");
-      var msg = update.Message;
-      if (msg == null) {
-        _logger.LogInformation("Telegram webhook: update has no message.");
-        return Ok();
-      }
 
-      var chatId = msg.Chat?.Id ?? msg.From?.Id ?? 0;
-      if (chatId == 0) {
-        _logger.LogInformation("Telegram webhook: cannot resolve chatId.");
-        return Ok();
-      }
+      long timeId = TimeId.UniqueTicks();
 
-      _latestRequestRunner.StartOrRestart(chatId, ct => _telegramService.HandleUpdateAsync(update, ct));
+      _latestRequestRunner.StartOrRestart(timeId, (sp, ct) => sp.GetRequiredService<TelegramService>().HandleUpdateAsync(update, ct));
 
-      //await _telegramService.HandleUpdateAsync(update,ct);
+      //await _telegramService.HandleUpdateAsync(update, cts.Token);
       return Ok(); // Must return 200 or Telegram will retry
     }
 
