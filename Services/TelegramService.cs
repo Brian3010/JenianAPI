@@ -123,12 +123,14 @@ namespace JenianAPI.Services
       // 4) Route by content: photo/document → parse image; text → placeholder for commands
       try {
 
-        if (!string.IsNullOrWhiteSpace(msg.Text) || msg.Text == null) {
+        if (string.IsNullOrWhiteSpace(msg.Text) || msg.Text == null) {
           // TODO: command router (/help, /unlink, etc.)
           await SafeSendMessageAsync(chatId, "please enter following commands: \n\n" +
             "/d or /delivery - Summarise daily delivery report for Chemist Warehouse\n" +
             "/r or /roster - Extract shifts from a photo roster", ct);
         } else if (msg.Text.Contains("/r") || msg.Text.Contains("/roster")) {
+          _logger.LogInformation("Please send me the roster");
+          await SafeSendMessageAsync(chatId, "Please send me the roster");
           await HandleMediaAsync(msg, chatId, ct);
         } else if (msg.Text.Contains("/d") || msg.Text!.Contains("/delivery")) {
           await HandleDeliveryReport(msg, chatId, ct);
