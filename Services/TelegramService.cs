@@ -129,7 +129,7 @@ namespace JenianAPI.Services
             "/d or /delivery - Summarise daily delivery report for Chemist Warehouse\n" +
             "/r or /roster - Extract shifts from a photo roster", ct);
         } else if (msg.Text.Contains("/r") || msg.Text.Contains("/roster")) {
-          _logger.LogInformation("Please send me the roster");
+          //_logger.LogInformation("Please send me the roster");
           await SafeSendMessageAsync(chatId, "Please send me the roster");
           await HandleMediaAsync(msg, chatId, ct);
         } else if (msg.Text.Contains("/d") || msg.Text!.Contains("/delivery")) {
