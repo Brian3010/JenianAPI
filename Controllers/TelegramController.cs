@@ -36,7 +36,13 @@ namespace JenianAPI.Controllers
 
       long timeId = TimeId.UniqueTicks();
 
-      _latestRequestRunner.StartOrRestart(timeId, (sp, ct) => sp.GetRequiredService<TelegramService>().HandleUpdateAsync(update, ct));
+      _latestRequestRunner.StartOrRestart(timeId, (sp, ct) => {
+        // Resolve TelegramService inside THIS scope:
+        var svc = sp.GetRequiredService<TelegramService>();
+
+        // 'update' is captured from the controller method
+        return svc.HandleUpdateAsync(update, ct);
+      });
 
       //await _telegramService.HandleUpdateAsync(update, cts.Token);
       return Ok(); // Must return 200 or Telegram will retry
