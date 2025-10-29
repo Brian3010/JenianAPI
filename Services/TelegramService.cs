@@ -119,32 +119,39 @@ namespace JenianAPI.Services
         return;
       }
 
-      // 3) Acknowledge and start processing
-      await SafeSendMessageAsync(chatId, "📥 Got it — processing now…", ct);
+      //// 3) Acknowledge and start processing
+      //await SafeSendMessageAsync(chatId, "📥 Got it — processing now…", ct);
 
       // 4) Route by content: photo/document → parse image; text → placeholder for commands
       try {
 
-        if (string.IsNullOrWhiteSpace(msg.Text) || msg.Text == null) {
-          // TODO: command router (/help, /unlink, etc.)
-          await SafeSendMessageAsync(chatId, "please enter following commands: \n\n" +
+        if (msg.Photo?.Any() == true) {
+          _rosterBot.TryCompleteWaitWithMessage(msg);
+        }
+        if (string.IsNullOrWhiteSpace(msg.Text)) {
+          await SafeSendMessageAsync(chatId, "Message is empty");
+
+        } else if (msg.Text.Contains("/r") || msg.Text.Contains("/roster")) {
+
+          _rosterBot.StartRosterWait(chatId);   // fire-and-forget the flow
+          //_ = StartPhotoFlowAsync(chatId);
+
+
+
+        } else if (msg.Text.Contains("/d") || msg.Text!.Contains("/delivery")) {
+
+          await HandleDeliveryReport(msg, chatId, ct);
+
+        } else {
+          await SafeSendMessageAsync(chatId, "Please enter following commands: \n\n" +
             "/d or /delivery - Summarise daily delivery report for Chemist Warehouse\n" +
             "/r or /roster - Extract shifts from a photo roster", ct);
-        } else if (msg.Text.Contains("/r") || msg.Text.Contains("/roster")) {
-          //_logger.LogInformation("Please send me the roster");
-          await SafeSendMessageAsync(chatId, "Please send me the roster");
-          await _rosterBot.HandleMediaAsync(msg, chatId, ct);
-        } else if (msg.Text.Contains("/d") || msg.Text!.Contains("/delivery")) {
-          await HandleDeliveryReport(msg, chatId, ct);
         }
 
-        //if (msg.Photo != null || msg.Document != null) {
-        //  //await HandleMediaAsync(msg, chatId);
-        //  await _rosterBot.HandleMediaAsync(msg, chatId);
-        //} else if (!string.IsNullOrWhiteSpace(msg.Text)) {
-        //  // TODO: command router (/help, /unlink, etc.)
-        //  await SafeSendMessageAsync(chatId, "I currently process shift photos/documents. Text commands coming soon: /help, /unlink.");
-        //}
+
+
+
+
       } catch (Exception ex) {
         _logger.LogError(ex, "Error while processing Telegram message for user {UserId}", linkedUser.Id);
         await SafeSendMessageAsync(chatId, "⚠️ Something went wrong while processing your message. Please try again.", ct);
@@ -224,25 +231,27 @@ namespace JenianAPI.Services
           }
         }
 
-        /// <summary>
-        /// Picks the best available file_id from photo/document payloads.
-        /// - For photos: Telegram sends an array of sizes; we take the last (largest).
-        /// - For documents: use the document’s file_id.
-        /// Returns null if none present.
-        /// </summary>
-        private static string? PickBestFileId(TelegramMessage msg) {
-          if (msg.Photo is { Count: > 0 }) {
-            // Photo array is sized smallest→largest
-            return msg.Photo.Last().FileId;
-          }
-
-          if (msg.Document != null && !string.IsNullOrWhiteSpace(msg.Document.FileId)) {
-            return msg.Document.FileId;
-          }
-
-          return null;
-        }
+        
         */
+
+    /// <summary>
+    /// Picks the best available file_id from photo/document payloads.
+    /// - For photos: Telegram sends an array of sizes; we take the last (largest).
+    /// - For documents: use the document’s file_id.
+    /// Returns null if none present.
+    /// </summary>
+    private static string? PickBestFileId(TelegramMessage msg) {
+      if (msg.Photo is { Count: > 0 }) {
+        // Photo array is sized smallest→largest
+        return msg.Photo.Last().FileId;
+      }
+
+      if (msg.Document != null && !string.IsNullOrWhiteSpace(msg.Document.FileId)) {
+        return msg.Document.FileId;
+      }
+
+      return null;
+    }
 
     /*
     /// <summary>
