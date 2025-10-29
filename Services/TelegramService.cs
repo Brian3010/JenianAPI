@@ -1,10 +1,10 @@
 ﻿using JenianAPI.Data;
 using JenianAPI.Dtos.TelegramDtos;
 using JenianAPI.Services.Interfaces;
+using JenianAPI.TelegramBot;
 using JenianAPI.Workers;
 using JenianAPI.Workers.JobPayloads;
 using Microsoft.EntityFrameworkCore;
-using static JenianAPI.Dtos.TelegramDtos.TelegramFileHandler;
 
 namespace JenianAPI.Services
 {
@@ -31,14 +31,16 @@ namespace JenianAPI.Services
     private readonly IConfiguration _configuration;
     private readonly IParserService _parserService;
     private readonly IBackgroundJobQueue<ShiftExtractionJob> _jobQueue;
+    private readonly RosterBot _rosterBot;
 
-    public TelegramService(JenianAuthDbContext dbContext, ILogger<TelegramService> logger, HttpClient httpClient, IConfiguration configuration, IParserService parserService, IBackgroundJobQueue<ShiftExtractionJob> jobQueue) {
+    public TelegramService(JenianAuthDbContext dbContext, ILogger<TelegramService> logger, HttpClient httpClient, IConfiguration configuration, IParserService parserService, IBackgroundJobQueue<ShiftExtractionJob> jobQueue, RosterBot rosterBot) {
       _dbContext = dbContext;
       _logger = logger;
       _httpClient = httpClient;
       _configuration = configuration;
       _parserService = parserService;
       _jobQueue = jobQueue;
+      _rosterBot = rosterBot;
     }
 
     private string BotToken => _configuration["Telegram:BotToken"] ?? string.Empty;
@@ -131,13 +133,14 @@ namespace JenianAPI.Services
         } else if (msg.Text.Contains("/r") || msg.Text.Contains("/roster")) {
           //_logger.LogInformation("Please send me the roster");
           await SafeSendMessageAsync(chatId, "Please send me the roster");
-          await HandleMediaAsync(msg, chatId, ct);
+          await _rosterBot.HandleMediaAsync(msg, chatId, ct);
         } else if (msg.Text.Contains("/d") || msg.Text!.Contains("/delivery")) {
           await HandleDeliveryReport(msg, chatId, ct);
         }
 
         //if (msg.Photo != null || msg.Document != null) {
-        //  await HandleMediaAsync(msg, chatId);
+        //  //await HandleMediaAsync(msg, chatId);
+        //  await _rosterBot.HandleMediaAsync(msg, chatId);
         //} else if (!string.IsNullOrWhiteSpace(msg.Text)) {
         //  // TODO: command router (/help, /unlink, etc.)
         //  await SafeSendMessageAsync(chatId, "I currently process shift photos/documents. Text commands coming soon: /help, /unlink.");
@@ -178,68 +181,70 @@ namespace JenianAPI.Services
         _logger.LogError(ex, "sendMessage exception");
       }
     }
+    /*
+        /// <summary>
+        /// Calls getFile and returns a public download URL for the file.
+        /// </summary>  
+        private async Task<string> GetDownloadUrlAsync(string fileId, CancellationToken ct = default) {
+          var url = $"{ApiBase}/getFile?file_id={Uri.EscapeDataString(fileId)}";
+          try {
+            var res = await _httpClient.GetFromJsonAsync<TelegramFileResponse>(url, ct);
+            if (res == null || !res.Ok || res.Result == null || string.IsNullOrWhiteSpace(res.Result.FilePath))
+              throw new InvalidOperationException($"getFile failed or empty file path for fileId: {fileId}");
 
-    /// <summary>
-    /// Calls getFile and returns a public download URL for the file.
-    /// </summary>  
-    private async Task<string> GetDownloadUrlAsync(string fileId, CancellationToken ct = default) {
-      var url = $"{ApiBase}/getFile?file_id={Uri.EscapeDataString(fileId)}";
-      try {
-        var res = await _httpClient.GetFromJsonAsync<TelegramFileResponse>(url, ct);
-        if (res == null || !res.Ok || res.Result == null || string.IsNullOrWhiteSpace(res.Result.FilePath))
-          throw new InvalidOperationException($"getFile failed or empty file path for fileId: {fileId}");
+            return $"{FileBase}/{res.Result.FilePath}";
+          } catch (Exception ex) {
+            _logger.LogError(ex, "getFile error for {FileId}", fileId);
+            throw; // let caller handle (we catch upstream)
+          }
+        }
 
-        return $"{FileBase}/{res.Result.FilePath}";
-      } catch (Exception ex) {
-        _logger.LogError(ex, "getFile error for {FileId}", fileId);
-        throw; // let caller handle (we catch upstream)
-      }
-    }
+        /// <summary>
+        /// Downloads a URL into a fresh MemoryStream positioned at 0.
+        /// </summary>
+        private async Task<MemoryStream> DownloadToMemoryStreamAsync(string url, CancellationToken ct = default) {
+          try {
+            var bytes = await _httpClient.GetByteArrayAsync(url, ct);
+            var ms = new MemoryStream(bytes);
+            ms.Position = 0;
+            return ms;
+          } catch (Exception ex) {
+            _logger.LogError(ex, "Failed to download media from {Url}", url);
+            throw;
+          }
+        }
 
-    /// <summary>
-    /// Downloads a URL into a fresh MemoryStream positioned at 0.
-    /// </summary>
-    private async Task<MemoryStream> DownloadToMemoryStreamAsync(string url, CancellationToken ct = default) {
-      try {
-        var bytes = await _httpClient.GetByteArrayAsync(url, ct);
-        var ms = new MemoryStream(bytes);
-        ms.Position = 0;
-        return ms;
-      } catch (Exception ex) {
-        _logger.LogError(ex, "Failed to download media from {Url}", url);
-        throw;
-      }
-    }
+        private async Task<byte[]> DownloadToMemoryByteAsync(string url, CancellationToken ct = default) {
+          try {
+            var bytes = await _httpClient.GetByteArrayAsync(url, ct);
+            return bytes;
+          } catch (Exception ex) {
+            _logger.LogError(ex, "Failed to download media from {Url}", url);
+            throw;
+          }
+        }
 
-    private async Task<byte[]> DownloadToMemoryByteAsync(string url, CancellationToken ct = default) {
-      try {
-        var bytes = await _httpClient.GetByteArrayAsync(url, ct);
-        return bytes;
-      } catch (Exception ex) {
-        _logger.LogError(ex, "Failed to download media from {Url}", url);
-        throw;
-      }
-    }
+        /// <summary>
+        /// Picks the best available file_id from photo/document payloads.
+        /// - For photos: Telegram sends an array of sizes; we take the last (largest).
+        /// - For documents: use the document’s file_id.
+        /// Returns null if none present.
+        /// </summary>
+        private static string? PickBestFileId(TelegramMessage msg) {
+          if (msg.Photo is { Count: > 0 }) {
+            // Photo array is sized smallest→largest
+            return msg.Photo.Last().FileId;
+          }
 
-    /// <summary>
-    /// Picks the best available file_id from photo/document payloads.
-    /// - For photos: Telegram sends an array of sizes; we take the last (largest).
-    /// - For documents: use the document’s file_id.
-    /// Returns null if none present.
-    /// </summary>
-    private static string? PickBestFileId(TelegramMessage msg) {
-      if (msg.Photo is { Count: > 0 }) {
-        // Photo array is sized smallest→largest
-        return msg.Photo.Last().FileId;
-      }
+          if (msg.Document != null && !string.IsNullOrWhiteSpace(msg.Document.FileId)) {
+            return msg.Document.FileId;
+          }
 
-      if (msg.Document != null && !string.IsNullOrWhiteSpace(msg.Document.FileId)) {
-        return msg.Document.FileId;
-      }
+          return null;
+        }
+        */
 
-      return null;
-    }
-
+    /*
     /// <summary>
     /// Handles photo/document ingestion: getFile → download → compress → parse.
     /// </summary>
@@ -300,7 +305,7 @@ namespace JenianAPI.Services
       ct);
 
 
-    }
+    }*/
 
     private async Task HandleDeliveryReport(TelegramMessage message, long chatID, CancellationToken ct = default) {
 

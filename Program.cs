@@ -8,6 +8,7 @@ using JenianAPI.Errors;
 using JenianAPI.Models.AuthModels;
 using JenianAPI.Services;
 using JenianAPI.Services.Interfaces;
+using JenianAPI.TelegramBot;
 using JenianAPI.Workers;
 using JenianAPI.Workers.JobPayloads;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -145,6 +146,7 @@ namespace JenianAPI
       builder.Services.AddHostedService<ShiftExtractionWorker>();
 
       builder.Services.AddSingleton<LatestRequestRunner>();
+      builder.Services.AddScoped<RosterBot>();
 
 
 
