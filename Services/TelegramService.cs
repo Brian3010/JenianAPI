@@ -125,12 +125,16 @@ namespace JenianAPI.Services
       // 4) Route by content: photo/document → parse image; text → placeholder for commands
       try {
 
-        if (msg.Photo?.Any() == true) {
+        bool hasPhoto = msg.Photo?.Any() == true;
+        bool hasImageDoc = msg.Document is { MimeType: not null } d &&
+                           d.MimeType.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
+
+        if (hasPhoto || hasImageDoc) {
           _rosterBot.TryCompleteWaitWithMessage(msg);
         }
         if (string.IsNullOrWhiteSpace(msg.Text)) {
-          await SafeSendMessageAsync(chatId, "Message is empty");
-
+          //await SafeSendMessageAsync(chatId, "Message is empty");
+          return;
         } else if (msg.Text.Contains("/r") || msg.Text.Contains("/roster")) {
 
           _rosterBot.StartRosterWait(chatId);   // fire-and-forget the flow

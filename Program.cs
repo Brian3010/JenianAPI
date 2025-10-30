@@ -147,6 +147,7 @@ namespace JenianAPI
 
       builder.Services.AddSingleton<LatestRequestRunner>();
       builder.Services.AddScoped<RosterBot>();
+      builder.Services.AddSingleton<StateStore>();
 
 
 

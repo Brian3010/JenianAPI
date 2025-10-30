@@ -1,4 +1,5 @@
 ﻿using JenianAPI.Dtos.TelegramDtos;
+using JenianAPI.Services;
 using JenianAPI.Services.Interfaces;
 using JenianAPI.Workers;
 using JenianAPI.Workers.JobPayloads;
@@ -12,10 +13,11 @@ namespace JenianAPI.TelegramBot
   public class RosterBot
   {
     private readonly ILogger<RosterBot> _logger;
-    private readonly HttpClient _httpClient;
     private readonly IConfiguration _configuration;
     private readonly IParserService _parserService;
     private readonly IBackgroundJobQueue<ShiftExtractionJob> _jobQueue;
+    private readonly StateStore _stateStore;
+    private readonly IHttpClientFactory _clientFactory;
 
     private string BotToken => _configuration["Telegram:BotToken"] ?? string.Empty;
 
@@ -26,12 +28,13 @@ namespace JenianAPI.TelegramBot
 
 
 
-    public RosterBot(ILogger<RosterBot> logger, HttpClient httpClient, IConfiguration configuration, IParserService parserService, IBackgroundJobQueue<ShiftExtractionJob> jobQueue) {
+    public RosterBot(ILogger<RosterBot> logger, IConfiguration configuration, IParserService parserService, IBackgroundJobQueue<ShiftExtractionJob> jobQueue, StateStore stateStore, IHttpClientFactory clientFactory) {
       _logger = logger;
-      _httpClient = httpClient;
       _configuration = configuration;
       _parserService = parserService;
       _jobQueue = jobQueue;
+      _stateStore = stateStore;
+      _clientFactory = clientFactory;
     }
 
     // PUBLIC: start the wait flow (call this on /r)
@@ -42,7 +45,7 @@ namespace JenianAPI.TelegramBot
     public void TryCompleteWaitWithMessage(TelegramMessage msg) {
       if (msg?.Chat == null) return;
 
-      if (_photoWaiters.TryGetValue(msg.Chat.Id, out var tcs)) {
+      if (_stateStore.Items.TryGetValue(msg.Chat.Id, out var tcs)) {
         // Accept Photo OR Document (optional)
         bool hasPhoto = msg.Photo?.Any() == true;
         bool hasImageDoc = msg.Document is { MimeType: not null } d &&
@@ -50,9 +53,9 @@ namespace JenianAPI.TelegramBot
 
         if (hasPhoto || hasImageDoc) {
           if (tcs.TrySetResult(msg)) {
-            _photoWaiters.TryRemove(new KeyValuePair<long, TaskCompletionSource<TelegramMessage>>(msg.Chat.Id, tcs));
+            _stateStore.Items.TryRemove(new KeyValuePair<long, TaskCompletionSource<TelegramMessage>>(msg.Chat.Id, tcs));
           }
-        } else if (msg.Text is { Length: > 0 }) {
+        } else {
           // Gentle nudge if they send text while we’re waiting
           _ = SafeSendMessageAsync(msg.Chat.Id, "Please send a photo of the roster (image).");
         }
@@ -60,21 +63,7 @@ namespace JenianAPI.TelegramBot
     }
 
     public async Task HandleMediaAsync(TelegramMessage message, long chatId, CancellationToken ct = default) {
-      //await SafeSendMessageAsync(chatId, "helloooo");
 
-
-
-      if (message.Photo?.Any() == true) {
-        if (_photoWaiters.TryGetValue(message.Chat.Id, out var tcs)) {
-          if (tcs.TrySetResult(message)) {
-            _photoWaiters.TryRemove(new KeyValuePair<long, TaskCompletionSource<TelegramMessage>>(message.Chat.Id, tcs));
-          }
-        }
-        return;
-      }
-      return;
-
-      /*
 
       var bestFileId = PickBestFileId(message);
       if (string.IsNullOrWhiteSpace(bestFileId)) {
@@ -131,31 +120,32 @@ namespace JenianAPI.TelegramBot
       new ShiftExtractionJob(chatId, ocrText, staffName),
       ct);
 
-      */
+
     }
 
     private async Task StartPhotoFlowAsync(long chatId, CancellationToken ct = default) {
 
+
       // Clear previous waiter if exist
-      if (_photoWaiters.TryGetValue(chatId, out var existing)) {
+      if (_stateStore.Items.TryGetValue(chatId, out var existing)) {
         existing.TrySetCanceled();
         _photoWaiters.TryRemove(new KeyValuePair<long, TaskCompletionSource<TelegramMessage>>(chatId, existing));
       }
 
       // if no preivous waiter then, create new waiter
       var waiter = new TaskCompletionSource<TelegramMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
-      _photoWaiters[chatId] = waiter;
+      _stateStore.Items[chatId] = waiter;
 
       //await SafeSendMessageAsync(chatId, "Please send me the roster photo");
 
       // (Optional) add a timeout so the bot doesn’t wait forever
-      var timeoutTask = Task.Delay(TimeSpan.FromMinutes(2));
+      var timeoutTask = Task.Delay(TimeSpan.FromMinutes(1));
       var completed = await Task.WhenAny(waiter.Task, timeoutTask);
 
       if (completed != waiter.Task) {
         // Timed out
-        _photoWaiters.TryRemove(new KeyValuePair<long, TaskCompletionSource<TelegramMessage>>(chatId, waiter));
         await SafeSendMessageAsync(chatId, "Timed out waiting for a photo. Send /r to try again.");
+        _stateStore.Items.TryRemove(new KeyValuePair<long, TaskCompletionSource<TelegramMessage>>(chatId, waiter));
         return;
       }
 
@@ -164,10 +154,7 @@ namespace JenianAPI.TelegramBot
       // THIS AWAITS UNTIL SOMEONE CALLS TrySetResult(...)
       var photoMsg = await waiter.Task;
       _logger.LogInformation("After calling watier.Task");
-
-
-
-
+      await HandleMediaAsync(photoMsg, chatId);
 
     }
 
@@ -181,12 +168,13 @@ namespace JenianAPI.TelegramBot
         ["text"] = text
       };
       // Decouple from request token: use a local timeout
-      using var localCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+      //using var localCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 
       try {
-        using var resp = await _httpClient.PostAsJsonAsync(url, payload, localCts.Token);
+        using var client = _clientFactory.CreateClient();
+        using var resp = await client.PostAsJsonAsync(url, payload, ct);
         if (!resp.IsSuccessStatusCode) {
-          var body = await resp.Content.ReadAsStringAsync(localCts.Token);
+          var body = await resp.Content.ReadAsStringAsync(ct);
           _logger.LogWarning("sendMessage failed: {Code} {Body}", resp.StatusCode, body);
         }
       } catch (OperationCanceledException oce) {
@@ -214,7 +202,9 @@ namespace JenianAPI.TelegramBot
     private async Task<string> GetDownloadUrlAsync(string fileId, CancellationToken ct = default) {
       var url = $"{ApiBase}/getFile?file_id={Uri.EscapeDataString(fileId)}";
       try {
-        var res = await _httpClient.GetFromJsonAsync<TelegramFileResponse>(url, ct);
+        using var client = _clientFactory.CreateClient();
+
+        var res = await client.GetFromJsonAsync<TelegramFileResponse>(url, ct);
         if (res == null || !res.Ok || res.Result == null || string.IsNullOrWhiteSpace(res.Result.FilePath))
           throw new InvalidOperationException($"getFile failed or empty file path for fileId: {fileId}");
 
@@ -228,7 +218,9 @@ namespace JenianAPI.TelegramBot
 
     private async Task<byte[]> DownloadToMemoryByteAsync(string url, CancellationToken ct = default) {
       try {
-        var bytes = await _httpClient.GetByteArrayAsync(url, ct);
+        using var client = _clientFactory.CreateClient();
+
+        var bytes = await client.GetByteArrayAsync(url, ct);
         return bytes;
       } catch (Exception ex) {
         _logger.LogError(ex, "Failed to download media from {Url}", url);
