@@ -2,8 +2,6 @@
 using JenianAPI.Dtos.TelegramDtos;
 using JenianAPI.Services.Interfaces;
 using JenianAPI.TelegramBot;
-using JenianAPI.Workers;
-using JenianAPI.Workers.JobPayloads;
 using Microsoft.EntityFrameworkCore;
 
 namespace JenianAPI.Services
@@ -30,17 +28,19 @@ namespace JenianAPI.Services
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _configuration;
     private readonly IParserService _parserService;
-    private readonly IBackgroundJobQueue<ShiftExtractionJob> _jobQueue;
     private readonly RosterBot _rosterBot;
+    private readonly ITelegramMessenger _telegramMessenger;
+    private readonly ReportChemistBot _reportChemistBot;
 
-    public TelegramService(JenianAuthDbContext dbContext, ILogger<TelegramService> logger, HttpClient httpClient, IConfiguration configuration, IParserService parserService, IBackgroundJobQueue<ShiftExtractionJob> jobQueue, RosterBot rosterBot) {
+    public TelegramService(JenianAuthDbContext dbContext, ILogger<TelegramService> logger, HttpClient httpClient, IConfiguration configuration, IParserService parserService, RosterBot rosterBot, ITelegramMessenger telegramMessenger, ReportChemistBot reportChemistBot) {
       _dbContext = dbContext;
       _logger = logger;
       _httpClient = httpClient;
       _configuration = configuration;
       _parserService = parserService;
-      _jobQueue = jobQueue;
       _rosterBot = rosterBot;
+      _telegramMessenger = telegramMessenger;
+      _reportChemistBot = reportChemistBot;
     }
 
     private string BotToken => _configuration["Telegram:BotToken"] ?? string.Empty;
@@ -48,7 +48,7 @@ namespace JenianAPI.Services
     private string FileBase => $"https://api.telegram.org/file/bot{BotToken}";
 
     // Runs on webhook POST /api/telegram/webhook
-    public async Task HandleUpdateAsync(TelegramUpdate update, CancellationToken ct) {
+    public async Task HandleUpdateAsync(TelegramUpdate update, CancellationToken ct = default) {
       var msg = update.Message;
       if (msg == null) {
         _logger.LogInformation("Telegram webhook: update has no message.");
@@ -65,7 +65,7 @@ namespace JenianAPI.Services
       var hasAnyContent = !string.IsNullOrWhiteSpace(msg.Text) || msg.Photo != null || msg.Document != null;
       if (!hasAnyContent) {
         _logger.LogInformation("Telegram webhook: empty message (no text/photo/document).");
-        await SafeSendMessageAsync(chatId, "I received your message but couldn’t find any text or photo to process.", ct);
+        await _telegramMessenger.SendMessageAsync(chatId, "I received your message but couldn’t find any text or photo to process.", ct);
         return;
       }
 
@@ -76,7 +76,7 @@ namespace JenianAPI.Services
       if (!string.IsNullOrWhiteSpace(msg.Text) && msg.Text.StartsWith("/start", StringComparison.OrdinalIgnoreCase)) {
         var maybeToken = TryExtractStartToken(msg.Text);
         if (string.IsNullOrEmpty(maybeToken)) {
-          await SafeSendMessageAsync(chatId, "Please open the link from the Jenian app so I can connect your Telegram.", ct);
+          await _telegramMessenger.SendMessageAsync(chatId, "Please open the link from the Jenian app so I can connect your Telegram.", ct);
           return;
         }
 
@@ -87,7 +87,7 @@ namespace JenianAPI.Services
 
         if (user == null) {
           _logger.LogInformation("Telegram link: invalid or expired token '{Token}'", linkToken);
-          await SafeSendMessageAsync(chatId, "Invalid or expired token. Please try connecting again from the Jenian app.", ct);
+          await _telegramMessenger.SendMessageAsync(chatId, "Invalid or expired token. Please try connecting again from the Jenian app.", ct);
           return;
         }
 
@@ -98,7 +98,7 @@ namespace JenianAPI.Services
           .AnyAsync(u => u.TelegramUserId == telegramIdStr && u.Id != user.Id, ct);
 
         if (alreadyLinked) {
-          await SafeSendMessageAsync(chatId, "This Telegram account is already linked to another Jenian user.", ct);
+          await _telegramMessenger.SendMessageAsync(chatId, "This Telegram account is already linked to another Jenian user.", ct);
           return;
         }
 
@@ -106,7 +106,7 @@ namespace JenianAPI.Services
         user.TelegramLinkToken = null; // one-time token → invalidate
         await _dbContext.SaveChangesAsync(ct);
 
-        await SafeSendMessageAsync(chatId, $"✅ Your Telegram is now linked to Jenian ({user.Email}).");
+        await _telegramMessenger.SendMessageAsync(chatId, $"✅ Your Telegram is now linked to Jenian ({user.Email}).");
         return;
       }
 
@@ -115,7 +115,7 @@ namespace JenianAPI.Services
       var linkedUser = await _dbContext.Users.FirstOrDefaultAsync(u => u.TelegramUserId == fromTelegramId, ct);
       if (linkedUser == null) {
         _logger.LogInformation("Unauthorized Telegram user {TelegramId} tried to interact.", fromTelegramId);
-        await SafeSendMessageAsync(chatId, "You're not authorized yet. Please connect Telegram from the Jenian app first.", ct);
+        await _telegramMessenger.SendMessageAsync(chatId, "You're not authorized yet. Please connect Telegram from the Jenian app first.", ct);
         return;
       }
 
@@ -136,18 +136,16 @@ namespace JenianAPI.Services
           //await SafeSendMessageAsync(chatId, "Message is empty");
           return;
         } else if (msg.Text.Contains("/r") || msg.Text.Contains("/roster")) {
-          await SafeSendMessageAsync(chatId, "Please send me the roster", ct);
+          await _telegramMessenger.SendMessageAsync(chatId, "Please send me the roster", ct);
           _rosterBot.StartRosterWait(chatId, ct);   // fire-and-forget the flow
-          //_ = StartPhotoFlowAsync(chatId);
-
-
 
         } else if (msg.Text.Contains("/d") || msg.Text!.Contains("/delivery")) {
 
-          await HandleDeliveryReport(msg, chatId, ct);
+          await _telegramMessenger.SendMessageAsync(chatId, "Please forward all deliveries today", ct);
+          await _reportChemistBot.HandleDeliveryReport(msg, chatId, ct);
 
         } else {
-          await SafeSendMessageAsync(chatId, "Please enter following commands: \n\n" +
+          await _telegramMessenger.SendMessageAsync(chatId, "Please enter following commands: \n\n" +
             "/d or /delivery - Summarise daily delivery report for Chemist Warehouse\n" +
             "/r or /roster - Extract shifts from a photo roster", ct);
         }
@@ -158,7 +156,7 @@ namespace JenianAPI.Services
 
       } catch (Exception ex) {
         _logger.LogError(ex, "Error while processing Telegram message for user {UserId}", linkedUser.Id);
-        await SafeSendMessageAsync(chatId, "⚠️ Something went wrong while processing your message. Please try again.", ct);
+        await _telegramMessenger.SendMessageAsync(chatId, "⚠️ Something went wrong while processing your message. Please try again.", ct);
       }
     }
 
@@ -172,26 +170,6 @@ namespace JenianAPI.Services
       return parts.Length >= 2 ? parts[1] : null;
     }
 
-    /// <summary>
-    /// Sends a message to Telegram; never throws to caller.
-    /// </summary>
-    public async Task SafeSendMessageAsync(long chatId, string text, CancellationToken ct = default) {
-      var url = $"{ApiBase}/sendMessage";
-      var payload = new Dictionary<string, object> {
-        ["chat_id"] = chatId,
-        ["text"] = text
-      };
-
-      try {
-        using var resp = await _httpClient.PostAsJsonAsync(url, payload, ct);
-        if (!resp.IsSuccessStatusCode) {
-          var body = await resp.Content.ReadAsStringAsync(ct);
-          _logger.LogWarning("sendMessage failed: {Code} {Body}", resp.StatusCode, body);
-        }
-      } catch (Exception ex) {
-        _logger.LogError(ex, "sendMessage exception");
-      }
-    }
     /*
         /// <summary>
         /// Calls getFile and returns a public download URL for the file.
@@ -320,11 +298,7 @@ namespace JenianAPI.Services
 
     }*/
 
-    private async Task HandleDeliveryReport(TelegramMessage message, long chatID, CancellationToken ct = default) {
 
-
-      await SafeSendMessageAsync(chatID, "kitayamachu", ct);
-    }
 
 
 

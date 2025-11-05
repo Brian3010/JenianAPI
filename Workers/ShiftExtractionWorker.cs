@@ -24,15 +24,15 @@ namespace JenianAPI.Workers
         // Create a scope for each job (or each batch/iteration)
         using var scope = _scopeFactory.CreateScope();
         var parser = scope.ServiceProvider.GetRequiredService<IParserService>();
-        var messenger = scope.ServiceProvider.GetRequiredService<ITelegramMessenger>();
+        var telegramMessenger = scope.ServiceProvider.GetRequiredService<ITelegramMessenger>();
         try {
           var answer = await parser.ExtractShiftAsync(job.OcrText, job.StaffName, stoppingToken);
-          await messenger.SafeSendMessageAsync(job.ChatId, $"✅ Here is the roster: \n {answer}");
+          await telegramMessenger.SendMessageAsync(job.ChatId, $"✅ Here is the roster: \n {answer}");
         } catch (OperationCanceledException) {
 
         } catch (Exception e) {
           _logger.LogError(e, "Failed processing ShiftExtractionJob for ChatId {ChatId}", job.ChatId);
-          await messenger.SafeSendMessageAsync(job.ChatId,
+          await telegramMessenger.SendMessageAsync(job.ChatId,
                    "⚠️ I couldn’t finish extracting your roster. Please try again.", stoppingToken);
         }
 

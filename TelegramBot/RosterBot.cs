@@ -139,13 +139,13 @@ namespace JenianAPI.TelegramBot
 
       //await SafeSendMessageAsync(chatId, "Please send me the roster photo");
 
-      // (Optional) add a timeout so the bot doesn’t wait forever
-      var timeoutTask = Task.Delay(TimeSpan.FromMinutes(1));
+      //(Optional)add a timeout so the bot doesn’t wait forever
+      var timeoutTask = Task.Delay(TimeSpan.FromMinutes(1), ct); //TODO: 
       var completed = await Task.WhenAny(waiter.Task, timeoutTask);
 
       if (completed != waiter.Task) {
         // Timed out
-        await SafeSendMessageAsync(chatId, "Timed out waiting for a photo. Send /r to try again.");
+        await SafeSendMessageAsync(chatId, "Timed out waiting for a photo. Send /r to try again.", ct);
         _stateStore.Items.TryRemove(new KeyValuePair<long, TaskCompletionSource<TelegramMessage>>(chatId, waiter));
         return;
       }
@@ -156,6 +156,8 @@ namespace JenianAPI.TelegramBot
       var photoMsg = await waiter.Task;
       _logger.LogInformation("After calling watier.Task");
       await HandleMediaAsync(photoMsg, chatId, ct);
+
+
 
     }
 

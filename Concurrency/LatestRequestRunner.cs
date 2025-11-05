@@ -6,6 +6,7 @@ namespace JenianAPI.Concurrency
   {
     private ConcurrentDictionary<long, CancellationTokenSource> _map = new();
     private readonly ILogger<LatestRequestRunner> _logger;
+
     private readonly IServiceScopeFactory _scopeFactory;
 
     public LatestRequestRunner(ILogger<LatestRequestRunner> logger, IServiceScopeFactory scopeFactory) {
@@ -16,7 +17,7 @@ namespace JenianAPI.Concurrency
 
 
     public void StartOrRestart(long chatId, Func<IServiceProvider, CancellationToken, Task> hanldeFunc) {
-
+      _logger.LogInformation("Map in LatestRequestRunner {0}", _map);
       // check if there is a previous job and cancel if yes
       if (_map.TryRemove(chatId, out var old)) {
         try { old.Cancel(); } finally { old.Dispose(); }
