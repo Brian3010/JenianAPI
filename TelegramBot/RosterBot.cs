@@ -38,8 +38,8 @@ namespace JenianAPI.TelegramBot
     }
 
     // PUBLIC: start the wait flow (call this on /r)
-    public void StartRosterWait(long chatId) {
-      _ = StartPhotoFlowAsync(chatId); // fire-and-forget the long flow
+    public void StartRosterWait(long chatId, CancellationToken ct) {
+      _ = StartPhotoFlowAsync(chatId, ct); // fire-and-forget the long flow
     }
 
     public void TryCompleteWaitWithMessage(TelegramMessage msg) {
@@ -80,7 +80,7 @@ namespace JenianAPI.TelegramBot
       // Step 4: Parse with AI (Azure Vision service you wired up)
       var ocrText = "";
       using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-      cts.CancelAfter(TimeSpan.FromSeconds(20)); // keep webhook snappy; Telegram retries on long timeouts
+      cts.CancelAfter(TimeSpan.FromSeconds(180)); // keep webhook snappy; Telegram retries on long timeouts
       try {
         // Prepocess the photo for clearer text
         var cleanedPhoto = Services.OcrPreprocess.PhotoCleanUp(fileByte);
@@ -94,6 +94,7 @@ namespace JenianAPI.TelegramBot
         //await File.WriteAllBytesAsync(outPath, cleanedPhoto);
 
         //Console.WriteLine($"Saved → {outPath}");
+        await SafeSendMessageAsync(chatId, "The photo is processing...", ct);
         ocrText = await _parserService.ExtractTextFromPhotoAsync(cleanedPhoto, cts.Token);
       } catch (TaskCanceledException) {
         _logger.LogWarning("Parsing timed out.");
@@ -154,7 +155,7 @@ namespace JenianAPI.TelegramBot
       // THIS AWAITS UNTIL SOMEONE CALLS TrySetResult(...)
       var photoMsg = await waiter.Task;
       _logger.LogInformation("After calling watier.Task");
-      await HandleMediaAsync(photoMsg, chatId);
+      await HandleMediaAsync(photoMsg, chatId, ct);
 
     }
 

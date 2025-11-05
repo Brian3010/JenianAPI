@@ -136,8 +136,8 @@ namespace JenianAPI.Services
           //await SafeSendMessageAsync(chatId, "Message is empty");
           return;
         } else if (msg.Text.Contains("/r") || msg.Text.Contains("/roster")) {
-
-          _rosterBot.StartRosterWait(chatId);   // fire-and-forget the flow
+          await SafeSendMessageAsync(chatId, "Please send me the roster", ct);
+          _rosterBot.StartRosterWait(chatId, ct);   // fire-and-forget the flow
           //_ = StartPhotoFlowAsync(chatId);
 
 
