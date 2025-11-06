@@ -140,7 +140,7 @@ namespace JenianAPI.Services
           _rosterBot.StartRosterWait(chatId, ct);   // fire-and-forget the flow
 
         } else if (msg.Text.Contains("/d") || msg.Text!.Contains("/delivery")) {
-
+          _rosterBot.CancelTask(chatId);
           await _telegramMessenger.SendMessageAsync(chatId, "Please forward all deliveries today", ct);
           await _reportChemistBot.HandleDeliveryReport(msg, chatId, ct);
 

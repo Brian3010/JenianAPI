@@ -5,6 +5,7 @@ using JenianAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using System.Security.Claims;
 
 namespace JenianAPI.Controllers
@@ -17,12 +18,14 @@ namespace JenianAPI.Controllers
     private readonly ILogger<TelegramController> _logger;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly LatestRequestRunner _latestRequestRunner;
+    private readonly IMemoryCache _cache;
 
-    public TelegramController(TelegramService telegramService, ILogger<TelegramController> logger, UserManager<ApplicationUser> userManager, LatestRequestRunner latestRequestRunner) {
+    public TelegramController(TelegramService telegramService, ILogger<TelegramController> logger, UserManager<ApplicationUser> userManager, LatestRequestRunner latestRequestRunner, IMemoryCache cache) {
       _telegramService = telegramService;
       _logger = logger;
       _userManager = userManager;
       _latestRequestRunner = latestRequestRunner;
+      _cache = cache;
     }
 
     /* This APIs get hooked to Telegram via
@@ -35,14 +38,23 @@ namespace JenianAPI.Controllers
       var msg = update.Message;
       if (msg == null) {
         _logger.LogInformation("Telegram webhook: update has no message.");
-
+        return Ok();
       }
 
       var chatId = msg?.Chat?.Id ?? msg?.From?.Id ?? 0;
       if (chatId == 0) {
         _logger.LogInformation("Telegram webhook: cannot resolve chatId.");
-
+        return Ok();
       }
+
+      // 1) Idempotency: skip duplicates for 2 minutes
+      var key = $"tg:update:{chatId}";
+      if (_cache.TryGetValue(key, out _)) {
+        _logger.LogInformation("Duplicate update {UpdateId} skipped.", chatId);
+        return Ok(); // still 200 so Telegram stops retrying
+      }
+      _cache.Set(key, true, TimeSpan.FromMinutes(2));
+
       //long timeId = TimeId.UniqueTicks();
 
       _latestRequestRunner.StartOrRestart(chatId, (sp, ct) => {

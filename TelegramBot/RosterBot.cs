@@ -130,7 +130,7 @@ namespace JenianAPI.TelegramBot
       // Clear previous waiter if exist
       if (_stateStore.Items.TryGetValue(chatId, out var existing)) {
         existing.TrySetCanceled();
-        _photoWaiters.TryRemove(new KeyValuePair<long, TaskCompletionSource<TelegramMessage>>(chatId, existing));
+        _stateStore.Items.TryRemove(new KeyValuePair<long, TaskCompletionSource<TelegramMessage>>(chatId, existing));
       }
 
       // if no preivous waiter then, create new waiter
@@ -229,6 +229,14 @@ namespace JenianAPI.TelegramBot
         _logger.LogError(ex, "Failed to download media from {Url}", url);
         throw;
       }
+    }
+
+    public void CancelTask(long chatId) {
+      if (_stateStore.Items.TryGetValue(chatId, out var existing)) {
+        existing.TrySetCanceled();
+        _stateStore.Items.TryRemove(new KeyValuePair<long, TaskCompletionSource<TelegramMessage>>(chatId, existing));
+      }
+
     }
 
 
