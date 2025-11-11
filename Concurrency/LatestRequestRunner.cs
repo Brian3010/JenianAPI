@@ -20,7 +20,7 @@ namespace JenianAPI.Concurrency
       _memoryCache = memoryCache;
     }
 
-    public void StartOrRestart(long chatId, Func<IServiceProvider, CancellationToken, Task> hanldeFunc) {
+    public void StartOrRestart(long chatId, Func<IServiceProvider, CancellationToken, Task> handleFunc) {
       _logger.LogInformation("Map in LatestRequestRunner {0}", _map);
       // check if there is a previous job and cancel if yes
       if (_memoryCache.TryGetValue(chatId, out CancellationTokenSource? oldCache)) {
@@ -42,7 +42,7 @@ namespace JenianAPI.Concurrency
         _logger.LogInformation("Runner: starting work for chatId={ChatId}", chatId);
         try {
           await using var scope = _scopeFactory.CreateAsyncScope();
-          await hanldeFunc(scope.ServiceProvider, cts.Token);
+          await handleFunc(scope.ServiceProvider, cts.Token);
           _logger.LogInformation("Runner: completed chatId={ChatId}", chatId);
         } catch (OperationCanceledException) {
           _logger.LogInformation("Runner: cancelled chatId={ChatId}", chatId);
