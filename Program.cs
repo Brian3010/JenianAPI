@@ -30,9 +30,7 @@ namespace JenianAPI
       //builder.WebHost.UseUrls("http://localhost:5018");
       //builder.WebHost.UseUrls("http://0.0.0.0:5018");
 
-      // -----------------------------
-      // CORS
-      // -----------------------------
+      /** CORS */
       builder.Services.AddCors(options => {
         // Dev: wide-open (handy for docker + Postman + localhost:3000, 5173, etc.)
         options.AddPolicy("DevCors", p =>
@@ -53,6 +51,7 @@ namespace JenianAPI
           .AllowCredentials(); // only use credentials with explicit origins
         });
       });
+      /** END */
 
       // Configure global exception handler
       builder.Services.AddProblemDetails();
@@ -72,11 +71,11 @@ namespace JenianAPI
       logger.Information("Serilog starting");
       logger.Information($"Total services: {builder.Services.Count}");
 
-      // Add services to the container.
-
       builder.Services.AddControllers();
       // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
       builder.Services.AddEndpointsApiExplorer();
+
+      /** Configure SwaggerGen*/
       builder.Services.AddSwaggerGen(options => {
         options.SwaggerDoc("v1", new OpenApiInfo { Title = "Jenian APIs", Version = "V1" });
         options.AddSecurityDefinition(JwtBearerDefaults.AuthenticationScheme, new OpenApiSecurityScheme {
@@ -98,61 +97,13 @@ namespace JenianAPI
           }
         });
       });
+      /** End*/
 
       // DbContexts
       builder.Services.AddDbContext<JenianAuthDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("JenianAuthConnection")));
 
-      // Add life-time services
-      builder.Services.AddSingleton(serviceProvider => {
-        var config = serviceProvider.GetRequiredService<IConfiguration>();
-        var endpoint = new Uri(config["AzureVision:VisionEndpoint"]);
-        var key = config["AzureVision:VisionKey"];
 
-        return new ImageAnalysisClient(endpoint, new AzureKeyCredential(key));
-      });
-      builder.Services.AddHttpClient();
-      builder.Services.AddScoped<IJwtTokenManager, JwtTokenManager>();
-      builder.Services.AddScoped<TelegramService>();
-      builder.Services.AddScoped<IParserService, AzureVisionAIParserService>();
-      //builder.Services.AddScoped<IParserService, OllamaParserService>();
-
-      // Add Ollama
-      //builder.Services.Configure<OllamaOptions>(builder.Configuration.GetSection("Ollama"));
-      //builder.Services.AddHttpClient<OllamaClient>((serviceProvider, http) => {
-      //  var opts = serviceProvider.GetRequiredService<IOptions<OllamaOptions>>().Value;
-
-      //  // Centralize base URL + timeouts so call-sites stay clean.
-      //  http.BaseAddress = new Uri(opts.BaseUrl);
-      //  http.Timeout = Timeout.InfiniteTimeSpan;          // long generations/streams; prefer cancellation tokens
-      //})
-      //.SetHandlerLifetime(TimeSpan.FromMinutes(10)); // Optional: tune handler lifetime (DNS refresh, socket reuse)
-      // Add OpenAI
-      builder.Services.AddSingleton<ChatClient>(serviceProvider => {
-        var config = serviceProvider.GetRequiredService<IConfiguration>();
-
-        // Pull from config first; fall back to env var (nice for prod)
-        var apiKey = config["OpenAI:ApiKey"];
-        var model = config["OpenAI:Model"];
-
-        return new ChatClient(model, apiKey);
-      });
-
-      builder.Services.AddScoped<OpenAiService>();
-      builder.Services.AddMemoryCache();
-
-      builder.Services.AddScoped<ITelegramMessenger, TelegramMessenger>();
-      builder.Services.AddSingleton<IBackgroundJobQueue<ShiftExtractionJob>>(
-      _ => new BackgroundJobQueue<ShiftExtractionJob>(capacity: 200));
-      builder.Services.AddHostedService<ShiftExtractionWorker>();
-
-      builder.Services.AddSingleton<LatestRequestRunner>();
-      builder.Services.AddScoped<RosterBot>();
-      builder.Services.AddScoped<ReportChemistBot>();
-      builder.Services.AddSingleton<StateStore>();
-
-
-
-      // Add Identity system to the ASP.NET Core service container
+      /** Add Identity system to the ASP.NET Core service container*/
       builder.Services.AddIdentityCore<ApplicationUser>().AddEntityFrameworkStores<JenianAuthDbContext>()
         .AddDefaultTokenProviders(); // <-- required for reset/confirm tokens;
 
@@ -168,10 +119,62 @@ namespace JenianAPI
         options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";
         options.User.RequireUniqueEmail = true;
       });
+      /**END*/
 
-
-      // JWT Bearers
+      /** JWT Bearers */
       builder.Services.ConfigureOptions<JwtBearerConfigurationOptions>().AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
+
+
+      /** Add life-time services */
+      builder.Services.AddHttpClient();
+      builder.Services.AddHostedService<ShiftExtractionWorker>();
+
+      builder.Services.AddSingleton(serviceProvider => {
+        var config = serviceProvider.GetRequiredService<IConfiguration>();
+        var endpoint = new Uri(config["AzureVision:VisionEndpoint"]);
+        var key = config["AzureVision:VisionKey"];
+
+        return new ImageAnalysisClient(endpoint, new AzureKeyCredential(key));
+      });
+      builder.Services.AddSingleton<IBackgroundJobQueue<ShiftExtractionJob>>(
+            _ => new BackgroundJobQueue<ShiftExtractionJob>(capacity: 200));
+      // Add OpenAI
+      builder.Services.AddSingleton<ChatClient>(serviceProvider => {
+        var config = serviceProvider.GetRequiredService<IConfiguration>();
+
+        // Pull from config first; fall back to env var (nice for prod)
+        var apiKey = config["OpenAI:ApiKey"];
+        var model = config["OpenAI:Model"];
+
+        return new ChatClient(model, apiKey);
+      });
+      builder.Services.AddSingleton<LatestRequestRunner>();
+      builder.Services.AddSingleton<StateStore>();
+
+      builder.Services.AddScoped<IJwtTokenManager, JwtTokenManager>();
+      builder.Services.AddScoped<TelegramService>();
+      builder.Services.AddScoped<IParserService, AzureVisionAIParserService>();
+      builder.Services.AddScoped<OpenAiService>();
+      builder.Services.AddScoped<ITelegramMessenger, TelegramMessenger>();
+      builder.Services.AddScoped<RosterBot>();
+      builder.Services.AddScoped<ReportChemistBot>();
+      /** END */
+
+      /*
+      builder.Services.AddScoped<IParserService, OllamaParserService>();
+
+      //Add Ollama
+      builder.Services.Configure<OllamaOptions>(builder.Configuration.GetSection("Ollama"));
+      builder.Services.AddHttpClient<OllamaClient>((serviceProvider, http) => {
+        var opts = serviceProvider.GetRequiredService<IOptions<OllamaOptions>>().Value;
+
+        // Centralize base URL + timeouts so call-sites stay clean.
+        http.BaseAddress = new Uri(opts.BaseUrl);
+        http.Timeout = Timeout.InfiniteTimeSpan;          // long generations/streams; prefer cancellation tokens
+      })
+      .SetHandlerLifetime(TimeSpan.FromMinutes(10)); // Optional: tune handler lifetime (DNS refresh, socket reuse)
+      */
+
 
       var app = builder.Build();
 
