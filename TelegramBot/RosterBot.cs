@@ -237,6 +237,7 @@ namespace JenianAPI.TelegramBot
         _stateStore.Items.TryRemove(new KeyValuePair<long, TaskCompletionSource<TelegramMessage>>(chatId, existing));
       }
 
+
     }
 
 

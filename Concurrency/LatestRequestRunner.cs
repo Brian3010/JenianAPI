@@ -53,10 +53,10 @@ namespace JenianAPI.Concurrency
       if (_map.TryRemove(chatId, out var cts)) {
         try { cts.Cancel(); } finally { cts.Dispose(); }
       }
+
     }
 
 
   }
-
 
 }
