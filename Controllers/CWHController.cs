@@ -16,12 +16,17 @@ namespace JenianAPI.Controllers
 
 
     [HttpPost("eod-report")]
-    public async Task<IActionResult> handleReport([FromBody] CWHReportRequestDTOs CWHReportRequest) {
+    public async Task<IActionResult> HandleReport([FromBody] CWHReportRequestDTOs CWHReportRequest) {
+      if (CWHReportRequest == null) {
+        return BadRequest("Invalid report data.");
+      }
+      // process the StockUpdate - process the DeliveryScreenShots
 
-      // process the request and make a report
-      // process the deliveryScreenshot
-      // send the report to telegram
 
+      // process the NightTasks
+      // process the AislesFacing
+      // process the Cleaning
+      // process the GeneralCheck
 
       return Ok();
     }
