@@ -1,5 +1,8 @@
 ﻿using JenianAPI.Dtos.CwhDtos;
+using JenianAPI.Services;
 using JenianAPI.Services.Interfaces;
+using JenianAPI.Workers;
+using JenianAPI.Workers.JobPayloads;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Text;
@@ -12,10 +15,14 @@ namespace JenianAPI.Controllers
   {
     private readonly ILogger<CWHController> _logger;
     private readonly IParserService _parserService;
+    private readonly OpenAiService _openAiService;
+    private readonly IBackgroundJobQueue<DeliveryExtractorJob> _jobQueue;
 
-    public CWHController(ILogger<CWHController> logger, IParserService parserService) {
+    public CWHController(ILogger<CWHController> logger, IParserService parserService, OpenAiService openAiService, IBackgroundJobQueue<DeliveryExtractorJob> jobQueue) {
       _logger = logger;
       _parserService = parserService;
+      _openAiService = openAiService;
+      _jobQueue = jobQueue;
     }
 
 
@@ -31,9 +38,14 @@ namespace JenianAPI.Controllers
         return BadRequest("No delivery screenshots provided.");
       }
       // parse the photos into OCR TEXT
-      var result = HandleStockUpdate(CWHReportRequest.DeliveryScreenShots);
+      var result = await HandleStockUpdate(CWHReportRequest.DeliveryScreenShots);
       _logger.LogInformation("OCR Result: {OcrResult}", result);
-      // testing with POSTMAN
+
+      //var test = await _openAiService.DeliveryTextExtractor(result);
+      //_logger.LogInformation("OpenAI Result: {OpenAiResult}", test);
+
+      await _jobQueue.EnqueueAsync(new DeliveryExtractorJob (result));
+
 
       // process the NightTasks
       // process the AislesFacing
@@ -50,7 +62,7 @@ namespace JenianAPI.Controllers
           using var memoryStream = new MemoryStream();
           await formFile.CopyToAsync(memoryStream);
           var fileBytes = memoryStream.ToArray();
-          var ocrText = await _parserService.ExtractTextFromPhotoAsync(fileBytes, CancellationToken.None);
+          var ocrText = await _parserService.ExtractTextFromPhotoAsync(fileBytes, CancellationToken.None,false);
           allOcrText.AppendLine(ocrText);
         }
       }

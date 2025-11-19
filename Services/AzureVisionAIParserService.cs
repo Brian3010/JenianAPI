@@ -21,7 +21,7 @@ namespace JenianAPI.Services
     /// </summary>
     /// <param name="fileByte"></param>
     /// <returns><see cref="string"/></returns>
-    public async Task<string> ExtractTextFromPhotoAsync(byte[] fileByte, CancellationToken cancellationToken) {
+    public async Task<string> ExtractTextFromPhotoAsync(byte[] fileByte, CancellationToken cancellationToken, bool? isPoligon = true) {
 
       if (fileByte == null || fileByte.Length == 0)
         throw new Exception("fileByte not provided or empty");
@@ -54,15 +54,17 @@ namespace JenianAPI.Services
         foreach (var line in block.Lines) {
           //_logger.LogInformation($"   Line: '{line.Text}', Bounding Polygon: [{string.Join(" ", line.BoundingPolygon)}]");
           if (!string.IsNullOrWhiteSpace(line.Text)) {
-            ocrText.AppendLine($"{line.Text},[{string.Join(" ", line.BoundingPolygon)}]\n");
-
+            if (isPoligon == false)
+              ocrText.AppendLine($"{line.Text}\n");
+            else
+              ocrText.AppendLine($"{line.Text},[{string.Join(" ", line.BoundingPolygon)}]\n");
           }
           //var t = line?.Text;
           //if (!string.IsNullOrWhiteSpace(t))
           //  ocrText.AppendLine(t);
         }
 
-      _logger.LogInformation(ocrText.ToString().Trim());
+      //_logger.LogInformation(ocrText.ToString().Trim());
 
       return ocrText.ToString().Trim();
     }

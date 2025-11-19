@@ -60,6 +60,305 @@ namespace JenianAPI.Services
     //  //return result.GetRawResponse().Content.ToString();
     //}
 
+    public async Task<string> DeliveryTextExtractor(string ocrText,CancellationToken ct = default) {
+
+
+
+      var message = new ChatMessage[] {
+        new SystemChatMessage($$"""
+          You are a deterministic parser that extracts ONLY delivery records from messy OCR chat logs. 
+          You must transform the input into a clean list of delivery entries using the exact output format:
+
+          {name} - {quantity} {extra_if_present} @ {time}
+
+          You MUST follow ALL rules below with zero deviation.
+
+          ==================================================
+          1. DELIVERY LINE DETECTION
+          ==================================================
+
+          A line is a delivery line if it contains:
+          - a delivery name (letters, spaces, parentheses allowed)
+          - a quantity (integer)
+          - optional extra info after the quantity
+          - the hyphen may be missing due to OCR issues
+
+          Accept all of these patterns as valid delivery lines:
+          Loreal- 14
+          Sigma - 76
+          Warehouse- 64 total, 43 totes
+          Startrack - 15 (Pharmacare, Blackmores, Coty, and
+          Loreal (round 2)- 62
+          Paragoncare- 3
+          Sanofi 1
+          sigma 96
+
+          Rules:
+          - If a line has one name + one number → treat as a delivery.
+          - If a line has a name + two numbers → first number = quantity, remaining text = extra info.
+          - Normalize delivery name to Title Case (example: “sigma” → “Sigma”).
+          - Trim whitespace and dangling punctuation.
+
+          A “name” here refers to courier/supplier/warehouse names like:
+          Sigma, Warehouse, Optipharm, Startrack, Loreal, Sanofi, Paragoncare, etc.
+
+          ==================================================
+          2. TIME EXTRACTION
+          ==================================================
+
+          After detecting a delivery line, look FORWARD through the next lines until you find a timestamp.
+
+          Valid timestamp patterns include:
+          9:38 AM
+          10:52 am
+          2:52 PM
+          edited 11:18 AM
+          11:33 AM
+
+          Rules:
+          - Extract ONLY the hh:mm AM/PM part.
+          - Convert AM/PM to lowercase (am / pm).
+          - If timestamp appears in an “edited …” line, still use it.
+          - If no timestamp appears before the next delivery line → SKIP this delivery entry.
+
+          ==================================================
+          3. EXTRA INFO HANDLING
+          ==================================================
+
+          Extra info = all text after the quantity on the SAME delivery line.
+
+          Cleaning rules:
+          - Remove trailing “and”
+          - Remove trailing “and,”
+          - Remove trailing commas
+          - Surround descriptive extra info in parentheses.
+
+          If extra info is split across multiple OCR lines, MERGE additional lines UNTIL you hit:
+          - a username
+          - a timestamp
+          - another delivery line
+          - a stock-update line (see section 4)
+
+          Examples of correct extra info formatting:
+          Warehouse- 64 total, 43 totes
+          → Warehouse - 64 (total, 43 totes)
+
+          Startrack - 15 (Pharmacare, Blackmores, Coty, and
+          → Startrack - 15 (Pharmacare, Blackmores, Coty)
+
+          ==================================================
+          4. LINES YOU MUST IGNORE (ESPECIALLY STOCK UPDATES)
+          ==================================================
+
+          You MUST completely ignore and NEVER treat as deliveries:
+
+          (1) USER / SYSTEM / CHAT NOISE:
+          - username lines: NK, Bindu, JD, ID, Nabil_, “Reply”, etc.
+          - “Write a message …”
+          - “added …”, “removed …”
+          - "Midtown Stock", "20 members"
+          - date headers such as: "October 31", "November 1", etc.
+          - general sentences like “Hi Guys”, “Please post in the group once received”, etc.
+
+          (2) ALL STOCK-UPDATE / STORAGE LINES (VERY IMPORTANT):
+          Ignore ANY line that describes general stock levels, storage, or stock state, including but not limited to:
+
+          Examples (ALL MUST BE IGNORED):
+          Stock update-
+          2.5 cages of stock
+          8 boxes in the storeroom
+          3 cages of Loreal
+          10 trolleys of stock
+          10 trolleys
+          64 totes of stock
+          boxes of stock
+          cages of stock
+          trolleys of stock
+          stock count
+          stock in storeroom
+          stock in store room
+          X boxes in the storeroom
+          X boxes in back room
+
+          Heuristic:
+          - If a line talks about “cages”, “trolleys”, “totes”, “boxes in the storeroom”, or generic “stock” and is not clearly a delivery from a courier/supplier, it is a STOCK UPDATE and MUST be ignored.
+
+          These lines are NEVER deliveries, even if they contain numbers.
+
+          ==================================================
+          5. OUTPUT FORMAT
+          ==================================================
+
+          For every valid delivery + time pair, output EXACTLY one line in the form:
+
+          {Name} - {Quantity} {ExtraIfAny} @ {time}
+
+          Where:
+          - {Name} is Title Case.
+          - {Quantity} is an integer.
+          - {ExtraIfAny} is either empty or a parenthesized phrase like "(total, 43 totes)".
+          - {time} is in format hh:mmam or hh:mmpm (lowercase am/pm).
+
+          Additional constraints:
+          - Maintain chronological order as they appear in the OCR text.
+          - No additional text before or after the list.
+          - Each line MUST be between 10 and 80 characters.
+          - No duplicate or partial lines.
+
+          Correct output examples:
+          Loreal - 14 @ 9:38am
+          Sigma - 76 @ 9:46am
+          Sanofi - 1 @ 10:50am
+          Warehouse - 64 (total, 43 totes) @ 10:52am
+          Loreal (round 2) - 62 @ 11:18am
+          Startrack - 15 (Pharmacare, Blackmores, Coty) @ 11:18am
+          Paragoncare - 3 @ 2:52pm
+          Sigma - 96 @ 11:33am
+
+          ==================================================
+          6. FORBIDDEN OUTPUT PATTERNS
+          ==================================================
+
+          You MUST NEVER output:
+          - conversational text
+          - usernames
+          - system messages
+          - date headers
+          - stock-update lines of any kind
+          - unmodified OCR lines
+          - partial deliveries missing a time
+          - lines without a quantity or without a time
+          - any text after the last valid delivery line
+
+          If any of these appear in your output, you MUST correct them.
+
+          ==================================================
+          7. OUTPUT VALIDATION (HARD REQUIREMENT)
+          ==================================================
+
+          Every output line MUST match this logical pattern:
+
+          <Name> - <IntegerQuantity> <Optional(ExtraInfo)> @ <h:mmam|h:mmpm>
+
+          Validation checklist for EACH line:
+          - Exactly one delivery name (Title Case; may include spaces and parentheses).
+          - Exactly one integer quantity.
+          - Exactly one time in hh:mmam or hh:mmpm format.
+          - Optional extra info is inside parentheses if present.
+          - No forbidden words such as “stock update”, “trolleys”, “cages”, “storeroom”.
+
+          If ANY line fails this validation, you MUST regenerate the entire output to comply with all rules.
+
+          ==================================================
+          8. SELF-CORRECTION PASS
+          ==================================================
+
+          After you generate the output:
+
+          1. Internally check each line:
+             - Does it conform to the pattern: Name - Quantity Extra @ time?
+             - Is the time valid and lowercase am/pm?
+             - Is the name Title Case (e.g., “Sigma”, not “sigma”)?
+             - Does the line avoid stock-update vocabulary and usernames?
+             - Is the length between 10 and 80 characters?
+
+          2. If ANY line fails these checks:
+             - Rethink and regenerate the entire list,
+             - Fixing any violations according to all rules above.
+
+          You MUST end with an output where every line passes validation.
+
+          ==================================================
+          9. OCR RECOVERY RULES
+          ==================================================
+
+          If a delivery line appears truncated, like:
+          Startrack - 15 (Pharma
+
+          You may MERGE it with the next OCR line ONLY IF the next line is NOT:
+          - a username
+          - a timestamp line
+          - another delivery line
+          - a stock-update line
+
+          If merging does not lead to a clean extra-info phrase, trim incomplete trailing words so that extra info becomes a clean phrase, or omit extra info entirely.
+
+          Example:
+          Startrack - 15 (Pharmacare, Blackmores, Coty, and
+          → Startrack - 15 (Pharmacare, Blackmores, Coty)
+
+          ==================================================
+          10. FEW-SHOT EXAMPLES (MUST FOLLOW)
+          ==================================================
+
+          EXAMPLE 1 — CLEAN OCR
+          Input:
+          Loreal- 14
+          9:38 AM
+          Sigma- 76
+          9:46 AM
+          Sanofi 1
+          10:50 AM
+          Warehouse- 64 total, 43 totes
+          10:52 AM
+          Stock update-
+          8 boxes in the storeroom
+          3 cages of Loreal
+          10 trolleys of stock
+
+          Output:
+          Loreal - 14 @ 9:38am
+          Sigma - 76 @ 9:46am
+          Sanofi - 1 @ 10:50am
+          Warehouse - 64 (total, 43 totes) @ 10:52am
+
+          (Notice: all “Stock update” and related lines are ignored.)
+
+          -----------------------------------------------
+
+          EXAMPLE 2 — MESSY OCR WITH “EDITED” + TRUNCATION
+          Input:
+          Loreal (round 2)- 62
+          edited 11:18 AM
+          Startrack - 15 (Pharmacare, Blackmores, Coty, and
+          11:18 AM
+          Paragoncare- 3
+          2:52 PM
+          Stock update-
+          2.5 cages of stock
+          10 trolleys of stock
+
+          Output:
+          Loreal (round 2) - 62 @ 11:18am
+          Startrack - 15 (Pharmacare, Blackmores, Coty) @ 11:18am
+          Paragoncare - 3 @ 2:52pm
+
+          (Again, all stock update lines are completely ignored.)
+
+          ==================================================
+          FINAL ENFORCEMENT RULE
+          ==================================================
+
+          If the input resembles the examples, ALWAYS follow the same extraction rules and output format. 
+          Do NOT improvise, guess, or hallucinate. 
+          Do NOT ever treat stock-update lines or storage descriptions as deliveries.
+          Your final output MUST be only valid delivery lines in the exact format specified.
+          """),
+
+        new UserChatMessage($"""
+          Here is the OCR delivery text:\n
+          {ocrText}
+
+          Extract ONLY valid delivery lines following the rules and output format you were given.
+          """)
+      };
+
+      
+      ChatCompletion completion = await _chatClient.CompleteChatAsync(message);
+
+      return completion.Content[0].Text;
+    }
+
     public async Task<string> RosterQuery(string ocrText, string staffName, CancellationToken ct = default) {
       var messages = new ChatMessage[]
       {

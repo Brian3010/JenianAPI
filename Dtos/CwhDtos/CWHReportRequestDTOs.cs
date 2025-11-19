@@ -94,8 +94,8 @@ namespace JenianAPI.Dtos.CwhDtos
     [Required]
     public required Cleaning Cleaning { get; set; } = new();
 
-    [Required]
-    public required GeneralCheck GeneralCheck { get; set; }
+    //[Required]
+    //public required GeneralCheck GeneralCheck { get; set; }
 
     public string? AdditionalTasks { get; set; }
 
