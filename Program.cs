@@ -128,6 +128,7 @@ namespace JenianAPI
       /** Add life-time services */
       builder.Services.AddHttpClient();
       builder.Services.AddHostedService<ShiftExtractionWorker>();
+      builder.Services.AddHostedService<DeliveryExtractorWorker>();
 
       builder.Services.AddSingleton(serviceProvider => {
         var config = serviceProvider.GetRequiredService<IConfiguration>();
@@ -138,6 +139,10 @@ namespace JenianAPI
       });
       builder.Services.AddSingleton<IBackgroundJobQueue<ShiftExtractionJob>>(
             _ => new BackgroundJobQueue<ShiftExtractionJob>(capacity: 200));
+
+      builder.Services.AddSingleton<IBackgroundJobQueue<DeliveryExtractorJob>>(
+            _ => new BackgroundJobQueue<DeliveryExtractorJob>(capacity: 200));
+
       // Add OpenAI
       builder.Services.AddSingleton<ChatClient>(serviceProvider => {
         var config = serviceProvider.GetRequiredService<IConfiguration>();

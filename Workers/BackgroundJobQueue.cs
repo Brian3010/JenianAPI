@@ -9,7 +9,9 @@ namespace JenianAPI.Workers
     private readonly Channel<T> _channel;
     public BackgroundJobQueue(int capacity = 200) {
       _channel = Channel.CreateBounded<T>(new BoundedChannelOptions(capacity) {
-        FullMode = BoundedChannelFullMode.Wait
+        FullMode = BoundedChannelFullMode.Wait,
+        SingleReader = false,
+        SingleWriter = false
       });
 
     }
