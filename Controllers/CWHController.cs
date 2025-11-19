@@ -21,7 +21,8 @@ namespace JenianAPI.Controllers
 
     //[Authorize]
     [HttpPost("eod-report")]
-    public async Task<IActionResult> HandleReport([FromBody] CWHReportRequestDTOs CWHReportRequest) {
+    public async Task<IActionResult> HandleReport([FromForm] CWHReportRequestDTOs CWHReportRequest) {
+      _logger.LogInformation("EOD-REPORT POST API HIT");
       if (CWHReportRequest == null) {
         return BadRequest("Invalid report data.");
       }
