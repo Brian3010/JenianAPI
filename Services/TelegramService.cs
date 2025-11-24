@@ -135,7 +135,14 @@ namespace JenianAPI.Services
         if (string.IsNullOrWhiteSpace(msg.Text)) {
           //await SafeSendMessageAsync(chatId, "Message is empty");
           return;
-        } else if (msg.Text.Contains("/r") || msg.Text.Contains("/roster")) {
+        } else {
+          await _telegramMessenger.SendMessageAsync(chatId, "Please send me the roster", ct);
+          _rosterBot.StartRosterWait(chatId, ct);   // fire-and-forget the flow
+
+        }
+
+        /*
+        else if (msg.Text.Contains("/r") || msg.Text.Contains("/roster")) {
           await _telegramMessenger.SendMessageAsync(chatId, "Please send me the roster", ct);
           _rosterBot.StartRosterWait(chatId, ct);   // fire-and-forget the flow
 
@@ -149,9 +156,7 @@ namespace JenianAPI.Services
             "/d or /delivery - Summarise daily delivery report for Chemist Warehouse\n" +
             "/r or /roster - Extract shifts from a photo roster", ct);
         }
-
-
-
+        */
 
 
       } catch (Exception ex) {
