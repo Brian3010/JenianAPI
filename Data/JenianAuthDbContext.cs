@@ -23,6 +23,7 @@ namespace JenianAPI.Data
 
     // Create tables
     public DbSet<RefreshToken> RefreshTokens { get; set; }
+    public DbSet<ApplicationUser> ApplicationUser{ get; set; }
 
 
     protected override void OnModelCreating(ModelBuilder builder) {

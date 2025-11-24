@@ -101,6 +101,8 @@ namespace JenianAPI
 
       // DbContexts
       builder.Services.AddDbContext<JenianAuthDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("JenianAuthConnection")));
+      builder.Services.AddDbContext<JenianDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("JenianDbConnection")));
+      /** END*/
 
 
       /** Add Identity system to the ASP.NET Core service container*/
