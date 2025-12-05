@@ -6,6 +6,7 @@ using JenianAPI.Configurations;
 using JenianAPI.Data;
 using JenianAPI.Errors;
 using JenianAPI.Models.AuthModels;
+using JenianAPI.Repositories;
 using JenianAPI.Services;
 using JenianAPI.Services.Interfaces;
 using JenianAPI.TelegramBot;
@@ -165,6 +166,7 @@ namespace JenianAPI
       builder.Services.AddScoped<ITelegramMessenger, TelegramMessenger>();
       builder.Services.AddScoped<RosterBot>();
       builder.Services.AddScoped<ReportChemistBot>();
+      builder.Services.AddScoped<SQLCWHReportRepository>();
       /** END */
 
       /*

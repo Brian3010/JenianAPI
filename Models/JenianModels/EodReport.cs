@@ -1,7 +1,20 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace JenianAPI.Dtos.CwhDtos
+namespace JenianAPI.Models.JenianModels
 {
+  public class EodReport
+  {
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public StockUpdate StockUpdate { get; set; } = new();
+    public NightTasks NightTasks { get; set; } = new();
+    public AislesFacing AislesFacing { get; set; } = new();
+    public Cleaning Cleaning { get; set; } = new();
+    public required GeneralCheck GeneralCheck { get; set; }
+
+  }
+
+
 
   public class StockUpdate
   {
@@ -77,28 +90,5 @@ namespace JenianAPI.Dtos.CwhDtos
   }
 
 
-  public class CWHReportRequestDTOs
-  {
-    [Required]
-    public required List<IFormFile> DeliveryScreenShots { get; set; } = new();
-
-    [Required]
-    public required StockUpdate StockUpdate { get; set; } = new();
-
-    [Required]
-    public required NightTasks NightTasks { get; set; } = new();
-
-    [Required]
-    public required AislesFacing AislesFacing { get; set; } = new();
-
-    [Required]
-    public required Cleaning Cleaning { get; set; } = new();
-
-    [Required]
-    public GeneralCheck? GeneralCheck { get; set; }
-
-    public string? AdditionalTasks { get; set; }
-
-
-  }
+ 
 }

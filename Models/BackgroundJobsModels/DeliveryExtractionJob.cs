@@ -20,7 +20,10 @@ namespace JenianAPI.Models.BackgroundJobsModels
     // Optional: a short name/type to know what this job does
     // e.g. "PhotoExtraction", "ShiftExtraction", "DeliveryParsing"
     public string JobType { get; set; } = null!;
+    // Output data (usually JSON you’ll send back to frontend)
+    public string? Result { get; set; }
 
+    /*
     // Where the input lives (local path, blob URL, etc.)
     public string? InputLocation { get; set; }
 
@@ -33,10 +36,10 @@ namespace JenianAPI.Models.BackgroundJobsModels
 
     // If it fails, save the error message/stack snapshot
     public string? ErrorMessage { get; set; }
-
+    */
     // Job lifecycle state
     public JobStatus Status { get; set; } = JobStatus.Pending;
-
+    
     // How many times worker tried to run it (for retries)
     public int AttemptCount { get; set; } = 0;
 
