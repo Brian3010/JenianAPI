@@ -6,6 +6,7 @@ namespace JenianAPI.Models.JenianModels
   {
     public Guid Id { get; set; } = Guid.NewGuid();
 
+    public string? Delivery { get; set; }
     public StockUpdate StockUpdate { get; set; } = new();
     public NightTasks NightTasks { get; set; } = new();
     public AislesFacing AislesFacing { get; set; } = new();

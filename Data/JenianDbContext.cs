@@ -18,6 +18,7 @@ namespace JenianAPI.Data
     public DbSet<EodReport> EodReports { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder) {
+      //builder.Entity<EodReport>().OwnsOne(e => e.Delivery);
       builder.Entity<EodReport>().OwnsOne(e => e.StockUpdate);
       builder.Entity<EodReport>().OwnsOne(e => e.NightTasks);
       builder.Entity<EodReport>().OwnsOne(e => e.AislesFacing);

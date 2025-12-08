@@ -66,7 +66,8 @@ namespace JenianAPI.Controllers
       // process the Cleaning
       // process the GeneralCheck
 
-      var eodReport = new EodReport{
+      var eodReport = new EodReport {
+        Id = backgroundJobDetails.Id,
         StockUpdate = new Models.JenianModels.StockUpdate {
           TrolleyOfStock = CWHReportRequest.StockUpdate.TrolleyOfStock,
           StockNote = CWHReportRequest.StockUpdate.StockNote,
@@ -92,17 +93,17 @@ namespace JenianAPI.Controllers
           TopSellers = CWHReportRequest.NightTasks.TopSellers
         },
         AislesFacing = new Models.JenianModels.AislesFacing {
-           BabyFirstAid = CWHReportRequest.AislesFacing.BabyFirstAid,
-            Backwall = CWHReportRequest.AislesFacing.Backwall,
-            Cosmetics = CWHReportRequest.AislesFacing.Cosmetics,
-            FemHygSummer = CWHReportRequest.AislesFacing.FemHygSummer,
-            Fragrances = CWHReportRequest.AislesFacing.Fragrances,
-            FrontCounter = CWHReportRequest.AislesFacing.FrontCounter,
-            Haircare = CWHReportRequest.AislesFacing.Haircare,
-            PSA = CWHReportRequest.AislesFacing.PSA,
-            Skincare = CWHReportRequest.AislesFacing.Skincare,
-            SportNutritions = CWHReportRequest.AislesFacing.SportNutritions,
-            Vitamins = CWHReportRequest.AislesFacing.Vitamins
+          BabyFirstAid = CWHReportRequest.AislesFacing.BabyFirstAid,
+          Backwall = CWHReportRequest.AislesFacing.Backwall,
+          Cosmetics = CWHReportRequest.AislesFacing.Cosmetics,
+          FemHygSummer = CWHReportRequest.AislesFacing.FemHygSummer,
+          Fragrances = CWHReportRequest.AislesFacing.Fragrances,
+          FrontCounter = CWHReportRequest.AislesFacing.FrontCounter,
+          Haircare = CWHReportRequest.AislesFacing.Haircare,
+          PSA = CWHReportRequest.AislesFacing.PSA,
+          Skincare = CWHReportRequest.AislesFacing.Skincare,
+          SportNutritions = CWHReportRequest.AislesFacing.SportNutritions,
+          Vitamins = CWHReportRequest.AislesFacing.Vitamins
         },
         Cleaning = new Models.JenianModels.Cleaning {
           BinRun = CWHReportRequest.Cleaning.BinRun,
@@ -123,22 +124,17 @@ namespace JenianAPI.Controllers
 
         },
       };
-
-      //TODO: Save EOD Report to database - for now just log it
+      await _CWHReportRepository.AddOrUpdateEodReportAsync(eodReport.Id, eodReport);
       //TODO: Might change migration to add AdditonalTasks column to CWHReports table
-      
+
 
       _logger.LogInformation("EOD Report to be saved: {@EodReport}", eodReport);
 
       return Ok();
     }
 
-    //[Authorize]
-    //public async Task<IActionResult> GetFinalEodReport(Guid JobId) {
-
-    //  _logger.LogInformation("GET STOCK UPDATE API HIT");
-    //  return Ok();
-    //}
+    //TODO: Add get background job status route -> return status
+    //TODO: Add get Final Report, get by background job id -> return full report when all done
 
     private async Task<string> HandleStockUpdate(List<IFormFile> deliveryScreenShots) {
       StringBuilder allOcrText = new StringBuilder();
