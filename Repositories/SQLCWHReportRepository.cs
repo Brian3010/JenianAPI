@@ -23,7 +23,7 @@ namespace JenianAPI.Repositories
     }
 
 
-    public async Task<JobStatus> GetBgJobStatus(Guid JobId) {
+    public async Task<JobStatus> GetBgJobStatusByIdAsync(Guid JobId) {
       var job = await _dbContext.DeliveryExtractionJobs.FindAsync(JobId);
       if (job == null) {
         _logger.LogInformation("Background Job found: {@job}", job);
@@ -35,7 +35,7 @@ namespace JenianAPI.Repositories
 
     public async Task<string> GetStockUpdateDetailByIdAsync(Guid JobId) {
 
-      if (await GetBgJobStatus(JobId) != JobStatus.Succeeded) {
+      if (await GetBgJobStatusByIdAsync(JobId) != JobStatus.Succeeded) {
         return "Stock update detail might not be ready yet";
       }
 
@@ -83,10 +83,43 @@ namespace JenianAPI.Repositories
       }
     }
 
+    public async Task<EodReport?> GetEodReportByIdAsync(Guid reportId) {
+      var report = await _dbContext.EodReports
+        .Include(r => r.StockUpdate)
+        .Include(r => r.NightTasks)
+        .Include(r => r.AislesFacing)
+        .Include(r => r.Cleaning)
+        .Include(r => r.GeneralCheck)
+        .FirstOrDefaultAsync(r => r.Id == reportId);
+
+
+      if (report == null || report.Delivery == null) {
+        _logger.LogInformation("EodReport with Id {ReportId} has null Delivery field.", reportId);
+        return null;
+      }
+      return report;
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 
 
     }
+
 }
