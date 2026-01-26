@@ -15,8 +15,8 @@ namespace JenianAPI.Dtos.AuthDtos
       get; set;
     }
 
-    [Required]
-    public required string DeviceName { get; set; } // get this from Frontend (best practice)
+    //[Required]
+    //public required string DeviceName { get; set; } // get this from Frontend (best practice)
 
 
     //public string? DeviceIpAddress { get; set; }    

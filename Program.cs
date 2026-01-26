@@ -14,10 +14,12 @@ using JenianAPI.Workers;
 using JenianAPI.Workers.JobPayloads;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using OpenAI.Chat;
 using Serilog;
+using System.IdentityModel.Tokens.Jwt;
 
 
 namespace JenianAPI
@@ -125,6 +127,7 @@ namespace JenianAPI
       /**END*/
 
       /** JWT Bearers */
+      JwtSecurityTokenHandler.DefaultMapInboundClaims = false;
       builder.Services.ConfigureOptions<JwtBearerConfigurationOptions>().AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
 
 
@@ -184,6 +187,14 @@ namespace JenianAPI
       .SetHandlerLifetime(TimeSpan.FromMinutes(10)); // Optional: tune handler lifetime (DNS refresh, socket reuse)
       */
 
+      builder.Services.Configure<ApiBehaviorOptions>(options =>
+      {
+        options.InvalidModelStateResponseFactory = context =>
+            new BadRequestObjectResult(new {
+              message = "Validation failed",
+              errors = context.ModelState
+            });
+      });
 
       var app = builder.Build();
 
