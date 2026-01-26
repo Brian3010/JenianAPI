@@ -5,6 +5,7 @@ using JenianAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
 namespace JenianAPI.Controllers
@@ -65,7 +66,7 @@ namespace JenianAPI.Controllers
     [HttpGet("link-token")]
     public async Task<IActionResult> GenerateTelegramLinkToken() {
       // Get userId from accessToken
-      var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+      var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
       if (userId == null) return NotFound("Cannot Find User Information");
 
       // find user by userId

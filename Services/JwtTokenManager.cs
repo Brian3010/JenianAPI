@@ -15,8 +15,7 @@ namespace JenianAPI.Services
    * - GenerateJwtToken = sign(payload, secret, {expiresIn})
    * - Refresh tokens stored in DB table (like a "sessions" table)
    */
-  public class JwtTokenManager : IJwtTokenManager
-  {
+  public class JwtTokenManager : IJwtTokenManager {
     private readonly IConfiguration _configuration;
     private readonly JenianAuthDbContext _dbContext;
     private readonly ILogger<JwtTokenManager> _logger;
@@ -26,8 +25,8 @@ namespace JenianAPI.Services
       _dbContext = dbContext;
       _logger = logger;
     }
-    public string GenerateJwtToken(IdentityUser user, int TTLInMinute = 5) {
-
+    public string GenerateJwtToken(ApplicationUser user, int TTLInMinute = 5) {
+      _logger.LogInformation("GenerateJwtToken: {0}", user.Id);
       var jwt = _configuration.GetSection("jwt");
       var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Key"]!));
 
@@ -126,6 +125,15 @@ namespace JenianAPI.Services
         rfToken.IsRevoked = false;
       }
       await _dbContext.SaveChangesAsync();
+    }
+
+    public async Task<string?> GetUserIdByRefreshTokenAsync(string refreshToken, string deviceName) {
+
+      var user = await _dbContext.RefreshTokens.FirstOrDefaultAsync(r => r.DeviceName == deviceName && !r.IsRevoked && r.Token ==refreshToken);
+
+      if (user == null) return null;
+
+      return user.UserId;
     }
 
     //public async Task<bool> IsValidRefreshToken(string refreshToken, string deviceName, string deviceIpAddress, string userId) {

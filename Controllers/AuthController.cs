@@ -5,6 +5,7 @@ using JenianAPI.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using System.IdentityModel.Tokens.Jwt;
 using System.Web;
 
 namespace JenianAPI.Controllers
@@ -49,28 +50,29 @@ namespace JenianAPI.Controllers
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequestDto loginRequest) {
       var user = await _userManager.FindByEmailAsync(loginRequest.Email);
-
       // Check valid user
       if (user == null || !await _userManager.CheckPasswordAsync(user, loginRequest.Password)) {
-        return Unauthorized("Invalid username or password");
+        return Unauthorized(new { message = "Invalid username or password" });
       }
 
       // IP Address
       var ipAddress = IpHelper.GetClientIp(HttpContext);
 
-
+      var deviceId = Request.Cookies["deviceId"];
+      if (deviceId == null) return NotFound(new {message="Cannot find deviceID" });
 
       // Generate accessToken and refreshToken
       var accessToken = _jwtTokenManager.GenerateJwtToken(user, 5);
       var refreshToken = _jwtTokenManager.GenerateRefreshToken();
 
-      await _jwtTokenManager.UpdateOrStoreRefreshtoken(refreshToken, loginRequest.DeviceName, ipAddress, user.Id);
+      await _jwtTokenManager.UpdateOrStoreRefreshtoken(refreshToken, deviceId, ipAddress, user.Id);
 
       // Set HttpOnly cookie
       var cookieOptions = new CookieOptions {
         HttpOnly = true,
         Secure = true, // only over HTTPS
-        SameSite = SameSiteMode.Strict,
+        //SameSite = SameSiteMode.Strict,
+        SameSite = SameSiteMode.Lax,
         Expires = DateTime.UtcNow.AddDays(7),
         //Path = "/api/auth/refresh" // Optional: limit path
       };
@@ -114,7 +116,8 @@ namespace JenianAPI.Controllers
       Response.Cookies.Append("refreshToken", "", new CookieOptions {
         HttpOnly = true,
         Secure = true,
-        SameSite = SameSiteMode.Strict,
+        //SameSite = SameSiteMode.Strict,
+        SameSite = SameSiteMode.Lax,
         Expires = DateTime.UtcNow.AddDays(-1), // Set expiration in the past
       });
 
@@ -172,7 +175,8 @@ namespace JenianAPI.Controllers
 
 
     [HttpPost("refresh-token")]
-    public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequestDto refreshTokenRequestDto) {
+    //public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequestDto refreshTokenRequestDto) {
+    public async Task<IActionResult> RefreshToken() {
       /** Check if refresh token is revoked 
        * if yes, return invalid token.
        * 
@@ -182,17 +186,23 @@ namespace JenianAPI.Controllers
        */
 
       // IP Address
-      var ipAddress = IpHelper.GetClientIp(HttpContext);
+      var ipAddress = IpHelper.GetClientIp(HttpContext); // Could be a problem in the future implemntation ??
       //_logger.LogInformation("ipAddress: {ipAddress} ", ipAddress);
 
       var refreshToken = Request.Cookies["refreshToken"];
       if (refreshToken == null) return NotFound("Cannot find refresh token");
 
-      if (!await _jwtTokenManager.IsRefreshTokenExists(refreshToken, refreshTokenRequestDto.DeviceName, ipAddress, refreshTokenRequestDto.UserId)) {
+      var deviceId = Request.Cookies["deviceId"];
+      if (deviceId == null) return NotFound("Cannot find device ID");
+
+      var userId = await _jwtTokenManager.GetUserIdByRefreshTokenAsync(refreshToken, deviceId);
+      if (userId == null) return NotFound("Cannot find user ID");
+
+      if (!await _jwtTokenManager.IsRefreshTokenExists(refreshToken, deviceId, ipAddress, userId)) {
         return Unauthorized("Invalid Refresh Token");
       }
 
-      var user = await _userManager.FindByIdAsync(refreshTokenRequestDto.UserId);
+      var user = await _userManager.FindByIdAsync(userId);
       if (user == null) return NotFound("User not exist");
 
       var newAccessToken = _jwtTokenManager.GenerateJwtToken(user);
@@ -207,6 +217,21 @@ namespace JenianAPI.Controllers
 
       return Ok(response);
     }
+
+    [Authorize]
+    [HttpGet("get-me")]
+    public async Task<IActionResult> getMe() {
+      // JWT is already validated + “decoded” into claims
+      var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+      var username = User.FindFirst(JwtRegisteredClaimNames.Name)?.Value;
+      var email = User.FindFirst(JwtRegisteredClaimNames.Email)?.Value;
+      //var claims = User.Claims.Select(c => new { c.Type, c.Value }).ToList();
+      //_logger.LogInformation("claims: {0}", claims);
+      //return Ok(claims);
+      return Ok(new { userId, username, email });
+    } 
+
+
 
     // GET /api/auth/sessions	- List all active sessions/devices (from refresh tokens)
 
