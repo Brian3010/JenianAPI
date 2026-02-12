@@ -1,6 +1,6 @@
 ﻿namespace JenianAPI.Errors
 {
-  public class AppException : Exception
+  public sealed class AppException : Exception
   {
     public int StatusCode { get; }
     public string? ErrorCode { get; }

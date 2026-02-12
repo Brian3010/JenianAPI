@@ -198,13 +198,13 @@ namespace JenianAPI
 
       var app = builder.Build();
 
-      app.UseExceptionHandler();
-
       // Configure the HTTP request pipeline.
       if (app.Environment.IsDevelopment()) {
         app.UseSwagger();
         app.UseSwaggerUI();
       }
+
+      app.UseExceptionHandler();
       // -----------------------------
       // HTTPS redirection
       // PROD ONLY: in dev/docker we often skip this so http://localhost:8080 works cleanly

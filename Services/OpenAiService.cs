@@ -1,4 +1,5 @@
-﻿using OpenAI.Chat;
+﻿using JenianAPI.Errors;
+using OpenAI.Chat;
 
 namespace JenianAPI.Services
 {
@@ -352,11 +353,13 @@ namespace JenianAPI.Services
           Extract ONLY valid delivery lines following the rules and output format you were given.
           """)
       };
-
-      
+      try {
       ChatCompletion completion = await _chatClient.CompleteChatAsync(message);
-
       return completion.Content[0].Text;
+      }catch(Exception e){
+        throw new AppException("OpenAI query failed: " + e.Message);
+      }
+
     }
 
     public async Task<string> RosterQuery(string ocrText, string staffName, CancellationToken ct = default) {
@@ -417,8 +420,13 @@ namespace JenianAPI.Services
       };
 
       // If your SDK supports it, set temperature = 0 for determinism.
+      try {
       ChatCompletion completion = await _chatClient.CompleteChatAsync(messages);
+
       return completion.Content[0].Text;
+      } catch(Exception e){
+        throw new AppException("OpenAI query failed: " + e.Message);
+      }
     }
 
 
