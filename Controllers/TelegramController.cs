@@ -87,7 +87,7 @@ namespace JenianAPI.Controllers
     [Authorize]
     [HttpGet("is-linked")]
     public async Task<IActionResult> CheckIfTelegramLinked() {
-      var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+      var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
       if (userId == null) return NotFound("Cannot Find User Information");
 
       var user = await _userManager.FindByIdAsync(userId);

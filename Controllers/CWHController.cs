@@ -32,7 +32,7 @@ namespace JenianAPI.Controllers
     }
 
 
-    //[Authorize]
+    [Authorize]
     [HttpPost("eod-report")]
     public async Task<IActionResult> HandleReport([FromForm] CWHReportRequestDTOs CWHReportRequest) {
       _logger.LogInformation("EOD-REPORT POST API HIT");
