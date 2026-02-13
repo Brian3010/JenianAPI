@@ -49,7 +49,7 @@ namespace JenianAPI.Models.BackgroundJobsModels
     public DateTime? CompletedAtUtc { get; set; }
 
     // Optional: link to the user who triggered the job (from your Identity user)
-    public string? UserId { get; set; }
+    public required string UserId { get; set; }
 
 
 

@@ -8,6 +8,7 @@ using JenianAPI.Workers;
 using JenianAPI.Workers.JobPayloads;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 
 namespace JenianAPI.Controllers
@@ -36,6 +37,10 @@ namespace JenianAPI.Controllers
     [HttpPost("eod-report")]
     public async Task<IActionResult> HandleReport([FromForm] CWHReportRequestDTOs CWHReportRequest) {
       _logger.LogInformation("EOD-REPORT POST API HIT");
+      var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+      if (userId == null) return NotFound("Cannot Find User Information");
+
+
       if (CWHReportRequest == null) {
         return BadRequest("Invalid report data.");
       }
@@ -49,11 +54,12 @@ namespace JenianAPI.Controllers
 
       //var test = await _openAiService.DeliveryTextExtractor(result);
       //_logger.LogInformation("OpenAI Result: {OpenAiResult}", test);
-     
-      // Save background job ID to the database
-      var backgroundJobDetails = new DeliveryExtractionJob{
-        JobType = nameof(DeliveryExtractorJob),
 
+      // Save background job ID to the database
+      var backgroundJobDetails = new DeliveryExtractionJob {
+
+        JobType = nameof(DeliveryExtractorJob),
+        UserId = userId
       };
       _logger.LogInformation("backgroundJobDetails: {@backgroundJobDetails}", backgroundJobDetails);
       await _CWHReportRepository.SaveBackgroundJobIdAsync(backgroundJobDetails);
@@ -67,6 +73,7 @@ namespace JenianAPI.Controllers
       // process the GeneralCheck
 
       var eodReport = new EodReport {
+        UserId = userId,
         Id = backgroundJobDetails.Id,
         StockUpdate = new Models.JenianModels.StockUpdate {
           TrolleyOfStock = CWHReportRequest.StockUpdate.TrolleyOfStock,

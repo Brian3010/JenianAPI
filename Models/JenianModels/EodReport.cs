@@ -13,6 +13,8 @@ namespace JenianAPI.Models.JenianModels
     public Cleaning Cleaning { get; set; } = new();
     public required GeneralCheck GeneralCheck { get; set; }
 
+    public required string UserId { get; set; }
+    public DateTime SubmitedAt { get; set; } = DateTime.UtcNow;
   }
 
 
