@@ -41,8 +41,10 @@ namespace JenianAPI.Workers
           _logger.LogInformation("BackgroundJob to save in the database {@bgJob}",bgJob);
           await JenianDbContext.SaveChangesAsync(cancellationToken: stoppingToken);
 
-          // Add answer to EodReports table
+          // Add answer to DeliveryExtractionJob table
           await JenianRepository.UpdateAnswerToDeliveryAsync(job.JobId, answer);
+          // Add answer to EodReports table
+          await JenianRepository.UpdateAnswerToEodReportAsync(job.ReportId, answer);
 
           //TODO: while this background running process other intel, after receive answer, trigger sendTelegrammessage
         } catch (OperationCanceledException) {

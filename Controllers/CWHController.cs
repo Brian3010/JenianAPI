@@ -49,8 +49,8 @@ namespace JenianAPI.Controllers
         return BadRequest("No delivery screenshots provided.");
       }
       // parse the photos into OCR TEXT
-      var result = await HandleStockUpdate(CWHReportRequest.DeliveryScreenShots);
-      _logger.LogInformation("OCR Result: {OcrResult}", result);
+      var ocrDeliveryResult = await HandleStockUpdate(CWHReportRequest.DeliveryScreenShots);
+      _logger.LogInformation("OCR Result: {OcrResult}", ocrDeliveryResult);
 
       //var test = await _openAiService.DeliveryTextExtractor(result);
       //_logger.LogInformation("OpenAI Result: {OpenAiResult}", test);
@@ -61,16 +61,6 @@ namespace JenianAPI.Controllers
         JobType = nameof(DeliveryExtractorJob),
         UserId = userId
       };
-      _logger.LogInformation("backgroundJobDetails: {@backgroundJobDetails}", backgroundJobDetails);
-      await _CWHReportRepository.SaveBackgroundJobIdAsync(backgroundJobDetails);
-      // Enqueue the job
-      await _jobQueue.EnqueueAsync(new DeliveryExtractorJob(result, backgroundJobDetails.Id));
-
-
-      // process the NightTasks
-      // process the AislesFacing
-      // process the Cleaning
-      // process the GeneralCheck
 
       var eodReport = new EodReport {
         UserId = userId,
@@ -131,9 +121,14 @@ namespace JenianAPI.Controllers
 
         },
       };
+
+      _logger.LogInformation("backgroundJobDetails: {@backgroundJobDetails}", backgroundJobDetails);
+      await _CWHReportRepository.SaveBackgroundJobIdAsync(backgroundJobDetails);
+      // Enqueue the job
+      await _jobQueue.EnqueueAsync(new DeliveryExtractorJob(eodReport.Id, ocrDeliveryResult, backgroundJobDetails.Id));
+
       await _CWHReportRepository.AddOrUpdateEodReportAsync(eodReport.Id, eodReport);
       //TODO: Might change migration to add AdditonalTasks column to CWHReports table
-
 
       _logger.LogInformation("EOD Report to be saved: {@EodReport}", eodReport);
 
