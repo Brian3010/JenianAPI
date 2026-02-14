@@ -136,13 +136,13 @@ namespace JenianAPI.Controllers
     }
 
     //TODO: Add get background job status route -> return status
+    [Authorize]
     [HttpGet("background-job-status/{jobId}")]
     public async Task<IActionResult> GetBackgroundJobStatus(Guid jobId) {
       var jobDetails = await _CWHReportRepository.GetBgJobStatusByIdAsync(jobId);
       return Ok(jobDetails);
     }
 
-    //TODO: Add get Final Report, get by background job id -> return full report when all done
     [HttpGet("final-report/{jobId}")]
     public async Task<IActionResult> GetFinalRepot(Guid jobId) {
 
@@ -151,6 +151,19 @@ namespace JenianAPI.Controllers
 
       return Ok(finalReports);
     }
+
+    [Authorize]
+    [HttpGet("is-report-submitted")] 
+    public async Task<IActionResult>IsReportSubmittedToday() {
+      var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+      if (userId == null) return NotFound("Cannot Find User Information");
+      var isSubmitted = await _CWHReportRepository.IsReportSubmitedToday(userId);
+      return Ok(isSubmitted);
+    }
+    // TODO: Test in post man
+
+
+
 
     private async Task<string> HandleStockUpdate(List<IFormFile> deliveryScreenShots) {
       StringBuilder allOcrText = new StringBuilder();

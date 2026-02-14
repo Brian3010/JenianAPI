@@ -139,13 +139,16 @@ namespace JenianAPI.Repositories
     /** Check if user submited the report today
      *  Return: Boolean
      */
-    //public async Task<Boolean> IsReportSubmitedToday() {
+    public async Task<Boolean> IsReportSubmitedToday(string userId) {
+      var today = DateTime.UtcNow.Date;
+      var isAnyReport = await _dbContext.EodReports.Where(e => e.UserId == userId &e.SubmitedAt.Date == today).AnyAsync();
+      if (!isAnyReport) {
+        _logger.LogInformation("No EodReport has been submited today.");
+        return false;
+      }
+      return true;
+    }
 
-    //  const isAnyReport = await _dbContext.EodReports.
-
-    //  return true;
-    //}
-    
 
 
 
@@ -179,6 +182,6 @@ namespace JenianAPI.Repositories
 
 
 
-    }
+  }
 
 }
