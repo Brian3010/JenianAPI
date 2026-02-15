@@ -125,14 +125,16 @@ namespace JenianAPI.Controllers
       _logger.LogInformation("backgroundJobDetails: {@backgroundJobDetails}", backgroundJobDetails);
       await _CWHReportRepository.SaveBackgroundJobIdAsync(backgroundJobDetails);
       // Enqueue the job
-      await _jobQueue.EnqueueAsync(new DeliveryExtractorJob(eodReport.Id, ocrDeliveryResult, backgroundJobDetails.Id));
+      await _jobQueue.EnqueueAsync(new DeliveryExtractorJob(eodReport.Id, ocrDeliveryResult, backgroundJobDetails.Id,userId));
 
-      await _CWHReportRepository.AddOrUpdateEodReportAsync(eodReport.Id, eodReport);
+      //TODO: Check if report exist first 
+
+      await _CWHReportRepository.AddOrUpdateEodReportAsync(eodReport.Id,userId, eodReport);
       //TODO: Might change migration to add AdditonalTasks column to CWHReports table
 
       _logger.LogInformation("EOD Report to be saved: {@EodReport}", eodReport);
 
-      return Ok();
+      return Ok(new { reportId = eodReport.Id});
     }
 
     //TODO: Add get background job status route -> return status
@@ -143,13 +145,18 @@ namespace JenianAPI.Controllers
       return Ok(jobDetails);
     }
 
-    [HttpGet("final-report/{jobId}")]
-    public async Task<IActionResult> GetFinalRepot(Guid jobId) {
+    [Authorize]
+    [HttpGet("eod-report/{jobId}")]
+    public async Task<IActionResult> GetEodReport(Guid jobId) {
+      var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+      if (userId == null) return NotFound("Cannot Find User Id");
+      var report = await _CWHReportRepository.PopulateReportTemplateAsync(jobId,userId);
+      if (report == null) {
+        return NotFound("Report is not ready yet. Please try again later.");
+      }
+      _logger.LogInformation("Final Report fetched: {@FinalReport}", report);
 
-      var finalReports = await _CWHReportRepository.GetEodReportByIdAsync(jobId);
-      _logger.LogInformation("Final Report fetched: {@FinalReport}", finalReports);
-
-      return Ok(finalReports);
+      return Ok(new { report });
     }
 
     [Authorize]
@@ -160,10 +167,6 @@ namespace JenianAPI.Controllers
       var isSubmitted = await _CWHReportRepository.IsReportSubmitedToday(userId);
       return Ok(isSubmitted);
     }
-    // TODO: Test in post man
-
-
-
 
     private async Task<string> HandleStockUpdate(List<IFormFile> deliveryScreenShots) {
       StringBuilder allOcrText = new StringBuilder();

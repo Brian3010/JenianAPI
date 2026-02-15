@@ -63,24 +63,43 @@ namespace JenianAPI.Repositories
       return deliveryDetails.FirstOrDefault()?.Result ?? "No result found";
     }
 
+    /** TODO:
+    * Check if report has been submited today
+    * return: boolean
+    */
+    
+
     /** 
      * Add or Update End of day report
      */
-    public async Task AddOrUpdateEodReportAsync(Guid reportId, EodReport details) {
+    public async Task AddOrUpdateEodReportAsync(Guid reportId,string userId, EodReport details) {
+      //info: find report by reportId param?
+      var start = DateTime.Today;         
+      var end = start.AddDays(1);
+
       var existingReport = await _dbContext.EodReports
         .Include(r => r.StockUpdate)
         .Include(r => r.NightTasks)
         .Include(r => r.AislesFacing)
         .Include(r => r.Cleaning)
         .Include(r => r.GeneralCheck)
-        .FirstOrDefaultAsync(r => r.Id == reportId);
+        .FirstOrDefaultAsync(r =>
+      r.UserId == userId &&
+      r.SubmitedAt >= start &&
+      r.SubmitedAt < end);
+
+      _logger.LogInformation("Message {existingReport}", existingReport);
 
       if (existingReport != null) {
         // update
+        details.Id = existingReport.Id;
+        existingReport.UserId = existingReport.UserId;
         _dbContext.Entry(existingReport).CurrentValues.SetValues(details);
 
       } else {
         // add
+        details.UserId = userId;
+        details.SubmitedAt = DateTime.UtcNow;
         await _dbContext.EodReports.AddAsync(details);
       }
       await _dbContext.SaveChangesAsync();
@@ -90,6 +109,8 @@ namespace JenianAPI.Repositories
      * After the AI extraction done, this function is to Add the its answer to DeliveryExtractionJob table
      */
     public async Task UpdateAnswerToDeliveryAsync(Guid jobId, string answer) {
+      var today = DateTime.UtcNow.Date;
+
       var existingReport = await _dbContext.DeliveryExtractionJobs
         .FirstOrDefaultAsync(r => r.Id == jobId);
       if (existingReport != null) {
@@ -103,15 +124,19 @@ namespace JenianAPI.Repositories
     /**
      * After the AI extraction done, this function is to Add the its answer to EodReports table
      */
-    public async Task UpdateAnswerToEodReportAsync(Guid reportId, string answer) {
+    public async Task UpdateAnswerToEodReportAsync(string userId, string answer) {
+      var today = DateTime.UtcNow.Date;
+
+      _logger.LogInformation("userId {userId}", userId);
+
       var existingReport = await _dbContext.EodReports
-        .FirstOrDefaultAsync(r => r.Id == reportId);
+        .FirstOrDefaultAsync(r => r.UserId == userId && r.SubmitedAt.Date == today);
 
       if (existingReport != null) {
         existingReport.Delivery = answer;
         await _dbContext.SaveChangesAsync();
       } else {
-        _logger.LogWarning("EodReport with Id {ReportId} not found for updating delivery extracted text.", reportId);
+        _logger.LogWarning("Cannot add AI answer to delivery field as report is not exist ");
       }
     }
 
