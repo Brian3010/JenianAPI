@@ -132,6 +132,10 @@ namespace JenianAPI
 
 
       /** Add life-time services */
+      builder.Services.AddHttpClient("JenianAPI", http => {
+        http.Timeout = TimeSpan.FromSeconds(30); // set a reasonable timeout for all API calls
+        http.BaseAddress = new Uri("https://localhost:7034"); // centralize base URL
+      });
       builder.Services.AddHttpClient();
       builder.Services.AddHostedService<ShiftExtractionWorker>();
       builder.Services.AddHostedService<DeliveryExtractorWorker>();
@@ -187,8 +191,7 @@ namespace JenianAPI
       .SetHandlerLifetime(TimeSpan.FromMinutes(10)); // Optional: tune handler lifetime (DNS refresh, socket reuse)
       */
 
-      builder.Services.Configure<ApiBehaviorOptions>(options =>
-      {
+      builder.Services.Configure<ApiBehaviorOptions>(options => {
         options.InvalidModelStateResponseFactory = context =>
             new BadRequestObjectResult(new {
               message = "Validation failed",

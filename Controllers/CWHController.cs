@@ -125,16 +125,14 @@ namespace JenianAPI.Controllers
       _logger.LogInformation("backgroundJobDetails: {@backgroundJobDetails}", backgroundJobDetails);
       await _CWHReportRepository.SaveBackgroundJobIdAsync(backgroundJobDetails);
       // Enqueue the job
-      await _jobQueue.EnqueueAsync(new DeliveryExtractorJob(eodReport.Id, ocrDeliveryResult, backgroundJobDetails.Id,userId));
+      await _jobQueue.EnqueueAsync(new DeliveryExtractorJob(eodReport.Id, ocrDeliveryResult, backgroundJobDetails.Id, userId));
 
-      //TODO: Check if report exist first 
-
-      await _CWHReportRepository.AddOrUpdateEodReportAsync(eodReport.Id,userId, eodReport);
+      await _CWHReportRepository.AddOrUpdateEodReportAsync(userId, eodReport);
       //TODO: Might change migration to add AdditonalTasks column to CWHReports table
 
       _logger.LogInformation("EOD Report to be saved: {@EodReport}", eodReport);
 
-      return Ok(new { reportId = eodReport.Id});
+      return Ok(new { reportId = eodReport.Id });
     }
 
     //TODO: Add get background job status route -> return status
@@ -145,12 +143,13 @@ namespace JenianAPI.Controllers
       return Ok(jobDetails);
     }
 
+
     [Authorize]
     [HttpGet("eod-report/{jobId}")]
     public async Task<IActionResult> GetEodReport(Guid jobId) {
       var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
       if (userId == null) return NotFound("Cannot Find User Id");
-      var report = await _CWHReportRepository.PopulateReportTemplateAsync(jobId,userId);
+      var report = await _CWHReportRepository.PopulateReportTemplateAsync(jobId, userId);
       if (report == null) {
         return NotFound("Report is not ready yet. Please try again later.");
       }
@@ -160,8 +159,8 @@ namespace JenianAPI.Controllers
     }
 
     [Authorize]
-    [HttpGet("is-report-submitted")] 
-    public async Task<IActionResult>IsReportSubmittedToday() {
+    [HttpGet("is-report-submitted")]
+    public async Task<IActionResult> IsReportSubmittedToday() {
       var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
       if (userId == null) return NotFound("Cannot Find User Information");
       var isSubmitted = await _CWHReportRepository.IsReportSubmitedToday(userId);
@@ -175,7 +174,7 @@ namespace JenianAPI.Controllers
           using var memoryStream = new MemoryStream();
           await formFile.CopyToAsync(memoryStream);
           var fileBytes = memoryStream.ToArray();
-          var ocrText = await _parserService.ExtractTextFromPhotoAsync(fileBytes, CancellationToken.None,false);
+          var ocrText = await _parserService.ExtractTextFromPhotoAsync(fileBytes, CancellationToken.None, false);
           allOcrText.AppendLine(ocrText);
         }
       }

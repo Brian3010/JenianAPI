@@ -1,5 +1,6 @@
 ﻿
 using JenianAPI.Data;
+using JenianAPI.Models.AuthModels;
 using JenianAPI.Models.BackgroundJobsModels;
 using JenianAPI.Repositories;
 using JenianAPI.Services;
@@ -14,11 +15,14 @@ namespace JenianAPI.Workers
     private readonly IBackgroundJobQueue<DeliveryExtractorJob> _backgroundJobQueue;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<DeliveryExtractorWorker> _logger;
+    private readonly IHttpClientFactory _httpClientFactory;
 
-    public DeliveryExtractorWorker(IBackgroundJobQueue<DeliveryExtractorJob> backgroundJobQueue, IServiceScopeFactory scopeFactory, ILogger<DeliveryExtractorWorker> logger) {
+    public DeliveryExtractorWorker(IBackgroundJobQueue<DeliveryExtractorJob> backgroundJobQueue, IServiceScopeFactory scopeFactory,
+      ILogger<DeliveryExtractorWorker> logger, IHttpClientFactory httpClientFactory) {
       _backgroundJobQueue = backgroundJobQueue;
       _scopeFactory = scopeFactory;
       _logger = logger;
+      _httpClientFactory = httpClientFactory;
     }
     protected override async Task ExecuteAsync(CancellationToken stoppingToken) {
       _logger.LogInformation("Background worker for delivery extractor run");
@@ -31,22 +35,27 @@ namespace JenianAPI.Workers
         var openAi = scope.ServiceProvider.GetRequiredService<OpenAiService>();
         var JenianDbContext = scope.ServiceProvider.GetRequiredService<JenianDbContext>();
         var JenianRepository = scope.ServiceProvider.GetRequiredService<SQLCWHReportRepository>();
+        var jwtTokenManager = scope.ServiceProvider.GetRequiredService<IJwtTokenManager>();
+
         try {
           var answer = await openAi.DeliveryTextExtractor(job.OcrText, stoppingToken);
           _logger.LogInformation("DeliveryExtractorWorker processed job. Result: {Result}", answer);
           // update job status
-          var bgJob = await JenianDbContext.DeliveryExtractionJobs.FirstAsync(d =>d.Id == job.JobId, cancellationToken: stoppingToken);
+          var bgJob = await JenianDbContext.DeliveryExtractionJobs.FirstAsync(d => d.Id == job.JobId, cancellationToken: stoppingToken);
           bgJob.Status = JobStatus.Succeeded;
           bgJob.Result = answer;
-          _logger.LogInformation("BackgroundJob to save in the database {@bgJob}",bgJob);
+          _logger.LogInformation("BackgroundJob to save in the database {@bgJob}", bgJob);
           await JenianDbContext.SaveChangesAsync(cancellationToken: stoppingToken);
 
           // Add answer to DeliveryExtractionJob table
           await JenianRepository.UpdateAnswerToDeliveryAsync(job.JobId, answer);
-          // Add answer to EodReports table
+          // Add answer to delivey column in EodReports table
           await JenianRepository.UpdateAnswerToEodReportAsync(job.userId, answer);
 
-          //TODO: while this background running process other intel, after receive answer, trigger sendTelegrammessage
+          var r = await JenianRepository.PopulateReportTemplateAsync(job.ReportId, job.userId);
+          _logger.LogInformation("Background worker r = {r}", r);
+
+
         } catch (OperationCanceledException) {
         } catch (Exception e) {
           _logger.LogError(e.Message, "Failed processing DeliveryExtractorJob");
