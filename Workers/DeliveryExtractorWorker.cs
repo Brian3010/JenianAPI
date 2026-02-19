@@ -6,6 +6,7 @@ using JenianAPI.Repositories;
 using JenianAPI.Services;
 using JenianAPI.Services.Interfaces;
 using JenianAPI.Workers.JobPayloads;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace JenianAPI.Workers
@@ -36,6 +37,8 @@ namespace JenianAPI.Workers
         var JenianDbContext = scope.ServiceProvider.GetRequiredService<JenianDbContext>();
         var JenianRepository = scope.ServiceProvider.GetRequiredService<SQLCWHReportRepository>();
         var jwtTokenManager = scope.ServiceProvider.GetRequiredService<IJwtTokenManager>();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var telegramMessenger = scope.ServiceProvider.GetRequiredService<ITelegramMessenger>();
 
         try {
           var answer = await openAi.DeliveryTextExtractor(job.OcrText, stoppingToken);
@@ -52,8 +55,16 @@ namespace JenianAPI.Workers
           // Add answer to delivey column in EodReports table
           await JenianRepository.UpdateAnswerToEodReportAsync(job.userId, answer);
 
-          var r = await JenianRepository.PopulateReportTemplateAsync(job.ReportId, job.userId);
-          _logger.LogInformation("Background worker r = {r}", r);
+          //TODO:  Check if user account is linked to telegram account yet?
+          var telegramUserId = await userManager.Users.Where(u => u.Id == job.userId).Select(u => u.TelegramUserId).SingleOrDefaultAsync(cancellationToken: stoppingToken);
+
+          if (telegramUserId != null) {
+            var r = await JenianRepository.PopulateReportTemplateAsync(job.ReportId, job.userId);
+            if (r != null) {
+              _logger.LogInformation("Background worker r = {r}", r);
+              await telegramMessenger.SendMessageAsync(long.Parse(telegramUserId), r, stoppingToken);
+            }
+          }
 
 
         } catch (OperationCanceledException) {

@@ -124,11 +124,12 @@ namespace JenianAPI.Controllers
 
       _logger.LogInformation("backgroundJobDetails: {@backgroundJobDetails}", backgroundJobDetails);
       await _CWHReportRepository.SaveBackgroundJobIdAsync(backgroundJobDetails);
-      // Enqueue the job
-      await _jobQueue.EnqueueAsync(new DeliveryExtractorJob(eodReport.Id, ocrDeliveryResult, backgroundJobDetails.Id, userId));
 
-      await _CWHReportRepository.AddOrUpdateEodReportAsync(userId, eodReport);
+      var rId = await _CWHReportRepository.AddOrUpdateEodReportAsync(userId, eodReport);
       //TODO: Might change migration to add AdditonalTasks column to CWHReports table
+
+      // Enqueue the job
+      await _jobQueue.EnqueueAsync(new DeliveryExtractorJob(rId, ocrDeliveryResult, backgroundJobDetails.Id, userId));
 
       _logger.LogInformation("EOD Report to be saved: {@EodReport}", eodReport);
 

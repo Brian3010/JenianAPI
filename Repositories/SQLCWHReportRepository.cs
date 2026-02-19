@@ -77,10 +77,11 @@ namespace JenianAPI.Repositories
     /** 
      * Add or Update End of day report
      */
-    public async Task AddOrUpdateEodReportAsync(string userId, EodReport details) {
+    public async Task<Guid> AddOrUpdateEodReportAsync(string userId, EodReport details) {
       //info: find report by reportId param?
       var start = DateTime.Today;
       var end = start.AddDays(1);
+      Guid reportId;
 
       var existingReport = await _dbContext.EodReports
         .Include(r => r.StockUpdate)
@@ -99,13 +100,17 @@ namespace JenianAPI.Repositories
         details.Id = existingReport.Id;
         existingReport.UserId = existingReport.UserId;
         _dbContext.Entry(existingReport).CurrentValues.SetValues(details);
+        reportId = existingReport.Id;
       } else {
         // add
         details.UserId = userId;
         details.SubmitedAt = DateTime.UtcNow;
         await _dbContext.EodReports.AddAsync(details);
+        reportId = details.Id;
       }
       await _dbContext.SaveChangesAsync();
+
+      return reportId;
     }
 
     /**
