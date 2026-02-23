@@ -77,37 +77,33 @@ namespace JenianAPI.Repositories
     /** 
      * Add or Update End of day report
      */
-    public async Task<Guid> AddOrUpdateEodReportAsync(string userId, EodReport details) {
+    public async Task<Guid> AddOrUpdateEodReportAsync(string userId, EodReport incommingReport) {
       //info: find report by reportId param?
       var start = DateTime.Today;
       var end = start.AddDays(1);
       Guid reportId;
 
       var existingReport = await _dbContext.EodReports
-        .Include(r => r.StockUpdate)
-        .Include(r => r.NightTasks)
-        .Include(r => r.AislesFacing)
-        .Include(r => r.Cleaning)
-        .Include(r => r.GeneralCheck)
         .FirstOrDefaultAsync(r => r.UserId == userId && r.SubmitedAt.Date == DateTime.UtcNow.Date);
-      //r.SubmitedAt >= start &&
-      //r.SubmitedAt < end);
+
 
       _logger.LogInformation("Message {existingReport}", existingReport);
 
-      if (existingReport != null) {
-        // update
-        details.Id = existingReport.Id;
-        existingReport.UserId = existingReport.UserId;
-        _dbContext.Entry(existingReport).CurrentValues.SetValues(details);
-        reportId = existingReport.Id;
-      } else {
+      if (existingReport is null) {
         // add
-        details.UserId = userId;
-        details.SubmitedAt = DateTime.UtcNow;
-        await _dbContext.EodReports.AddAsync(details);
-        reportId = details.Id;
+        reportId = incommingReport.Id;
+        await _dbContext.EodReports.AddAsync(incommingReport);
+      } else {
+        // update
+        existingReport.Delivery = incommingReport.Delivery;
+        existingReport.StockUpdate = incommingReport.StockUpdate;
+        existingReport.NightTasks = incommingReport.NightTasks;
+        existingReport.AislesFacing = incommingReport.AislesFacing;
+        existingReport.Cleaning = incommingReport.Cleaning;
+        existingReport.GeneralCheck = incommingReport.GeneralCheck;
+        reportId = existingReport.Id;
       }
+
       await _dbContext.SaveChangesAsync();
 
       return reportId;
@@ -200,7 +196,7 @@ namespace JenianAPI.Repositories
         "Deliveries\n" +
         rawReport.Delivery + "\n\n" +
         "Stock Updates\n" +
-        formatStockUpdate(rawReport.StockUpdate) + "\n\n" +
+        FormatStockUpdate(rawReport.StockUpdate) + "\n\n" +
 
         "Night Tasks:\n" +
         "Off Locations (Fill & Face) @8.00pm\n" +
@@ -250,8 +246,46 @@ namespace JenianAPI.Repositories
       return finalReport;
     }
 
-    private string formatStockUpdate(StockUpdate stockUpdate) {
-      return "";
+    private static string FormatStockUpdate(StockUpdate stockUpdate) {
+      var stockUpdateString = "";
+      // Stock
+      if (stockUpdate.TrolleyOfStock > 0) {
+        var trolleyNum = stockUpdate.TrolleyOfStock > 1 ? "trolleys" : "trolley";
+        stockUpdateString += stockUpdate.TrolleyOfStock + " " + trolleyNum + " of stock";
+
+        if (stockUpdate.StockNote != null) {
+          stockUpdateString += " - " + stockUpdate.StockNote;
+        }
+        stockUpdateString += "\n";
+      }
+      // Cosmetics
+      if (stockUpdate.TrolleyOfCosmetics > 0) {
+        var trolleyNum = stockUpdate.TrolleyOfCosmetics > 1 ? "trolleys" : "trolley";
+        stockUpdateString += stockUpdate.TrolleyOfCosmetics + " " + trolleyNum + " of cosmetic";
+
+        if (stockUpdate.CosmeticNote != null) {
+          stockUpdateString += " - " + stockUpdate.CosmeticNote;
+        }
+        stockUpdateString += "\n";
+      }
+
+      //Fragrances
+      if (stockUpdate.TrolleyofFragrances > 0) {
+        var trolleyNum = stockUpdate.TrolleyofFragrances > 1 ? "trolleys" : "trolley";
+        stockUpdateString += stockUpdate.TrolleyofFragrances + " " + trolleyNum + " of fragrance";
+
+        if (stockUpdate.FragranceNote != null) {
+          stockUpdateString += " - " + stockUpdate.TrolleyofFragrances;
+        }
+        stockUpdateString += "\n";
+      }
+
+      // other notes
+      stockUpdateString += stockUpdate.AdditionalStock;
+      stockUpdateString += "\n";
+      stockUpdateString += stockUpdate.AdditionalNote;
+
+      return stockUpdateString;
     }
 
 
