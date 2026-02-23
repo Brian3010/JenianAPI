@@ -14,7 +14,7 @@ namespace JenianAPI.Dtos.CwhDtos
     public int TrolleyofFragrances { get; set; }
     public string? FragranceNote { get; set; }
 
-    public int? AdditionalStock { get; set; }
+    public string? AdditionalStock { get; set; }
     public string? AdditionalNote { get; set; }
 
   }
