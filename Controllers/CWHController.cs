@@ -146,11 +146,11 @@ namespace JenianAPI.Controllers
 
 
     [Authorize]
-    [HttpGet("eod-report/{jobId}")]
-    public async Task<IActionResult> GetEodReport(Guid jobId) {
+    [HttpGet("eod-report/{reportId}")]
+    public async Task<IActionResult> GetEodReport(Guid reportId) {
       var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
       if (userId == null) return NotFound("Cannot Find User Id");
-      var report = await _CWHReportRepository.PopulateReportTemplateAsync(jobId, userId);
+      var report = await _CWHReportRepository.PopulateReportTemplateAsync(reportId, userId);
       if (report == null) {
         return NotFound("Report is not ready yet. Please try again later.");
       }
