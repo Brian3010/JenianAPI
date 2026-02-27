@@ -1,8 +1,33 @@
-bin/
-obj/
-.git/
-.gitignore
-Dockerfile*
-docker-compose*.yml
+# --- Build outputs (never needed inside image) ---
+**/bin/
+**/obj/
+**/TestResults/
+
+# --- IDE / editor folders ---
+.vs/
+.vscode/
+.idea/
 *.user
 *.suo
+*.userosscache
+*.sln.docstates
+
+# --- Git stuff 
+.git/
+.gitignore
+
+# --- OS / misc ---
+.DS_Store
+Thumbs.db
+
+# --- Local env/secrets (IMPORTANT) ---
+# If you keep secrets in these files locally, do NOT send them into Docker build context.
+.env
+.env.*
+**/*.pfx
+**/*.pem
+**/*.key
+secrets.json
+
+# --- Logs ---
+**/*.log
