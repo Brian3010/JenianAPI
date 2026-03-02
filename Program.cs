@@ -19,14 +19,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using OpenAI.Chat;
 using Serilog;
+using System;
 using System.IdentityModel.Tokens.Jwt;
-
 
 namespace JenianAPI
 {
   public class Program
   {
-    public static void Main(string[] args) {
+    public static async Task Main(string[] args) {
       var builder = WebApplication.CreateBuilder(args);
 
       // tell dot net to run on this port
@@ -200,12 +200,37 @@ namespace JenianAPI
       });
 
       var app = builder.Build();
+      var runMigrations = builder.Configuration.GetValue<bool>("RUN_MIGRATIONS");
+      if (runMigrations) {
+        app.Logger.LogWarning("### RUN_MIGRATIONS=true - starting EF migrations ###");
+
+        try {
+          using var scope = app.Services.CreateScope();
+          var sp = scope.ServiceProvider;
+
+          // Run BOTH contexts
+          var authDb = sp.GetRequiredService<JenianAuthDbContext>();
+          await authDb.Database.MigrateAsync();
+          app.Logger.LogWarning("### AuthDbContext migrated ###");
+
+          var appDb = sp.GetRequiredService<JenianDbContext>();
+          await appDb.Database.MigrateAsync();
+          app.Logger.LogWarning("### AppDbContext migrated ###");
+
+          app.Logger.LogWarning("### EF migrations completed successfully ###");
+        } catch (Exception ex) {
+          app.Logger.LogError(ex, "### EF migrations FAILED ###");
+          throw;
+        }
+
+        return; // one-off migration job
+      }
 
       // Configure the HTTP request pipeline.
-      if (app.Environment.IsDevelopment()) {
-        app.UseSwagger();
-        app.UseSwaggerUI();
-      }
+      //if (app.Environment.IsDevelopment()) {
+      app.UseSwagger();
+      app.UseSwaggerUI();
+      //}
 
       app.UseExceptionHandler();
       // -----------------------------
