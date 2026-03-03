@@ -15,7 +15,8 @@ namespace JenianAPI.Services
    * - GenerateJwtToken = sign(payload, secret, {expiresIn})
    * - Refresh tokens stored in DB table (like a "sessions" table)
    */
-  public class JwtTokenManager : IJwtTokenManager {
+  public class JwtTokenManager : IJwtTokenManager
+  {
     private readonly IConfiguration _configuration;
     private readonly JenianAuthDbContext _dbContext;
     private readonly ILogger<JwtTokenManager> _logger;
@@ -66,7 +67,8 @@ namespace JenianAPI.Services
     public async Task RevokeRefreshToken(string refreshToken, string deviceName, string deviceIpAddress, string userId) {
 
       // Find the token
-      var rfToken = await _dbContext.RefreshTokens.FirstOrDefaultAsync(r => r.DeviceName == deviceName && r.DeviceIpAddress == deviceIpAddress && r.UserId == userId && r.Token == refreshToken && !r.IsRevoked);
+      //var rfToken = await _dbContext.RefreshTokens.FirstOrDefaultAsync(r => r.DeviceName == deviceName && r.DeviceIpAddress == deviceIpAddress && r.UserId == userId && r.Token == refreshToken && !r.IsRevoked);
+      var rfToken = await _dbContext.RefreshTokens.FirstOrDefaultAsync(r => r.DeviceName == deviceName && r.UserId == userId && r.Token == refreshToken && !r.IsRevoked);
       _logger.LogInformation("rfToken: {rfToken}", rfToken);
 
 
@@ -110,14 +112,14 @@ namespace JenianAPI.Services
         ExpiredAt = DateTime.UtcNow.AddDays(7),
         IsRevoked = false,
         DeviceName = deviceName ??= "Unknown Device",
-        DeviceIpAddress = deviceIpAddress ?? "localhost",
+        DeviceIpAddress = deviceIpAddress,
       });
 
 
       await _dbContext.SaveChangesAsync();
     }
 
-    public async Task UpdateRefreshToken(string refreshToken, string deviceName, string deviceIpAddress, string userId) {
+    public async Task UpdateRefreshToken(string refreshToken, string deviceName, string? deviceIpAddress, string userId) {
       var rfToken = await _dbContext.RefreshTokens.FirstOrDefaultAsync(r => r.DeviceName == deviceName && r.DeviceIpAddress == deviceIpAddress && r.UserId == userId && !r.IsRevoked);
 
       if (rfToken != null) {
@@ -129,7 +131,7 @@ namespace JenianAPI.Services
 
     public async Task<string?> GetUserIdByRefreshTokenAsync(string refreshToken, string deviceName) {
 
-      var user = await _dbContext.RefreshTokens.FirstOrDefaultAsync(r => r.DeviceName == deviceName && !r.IsRevoked && r.Token ==refreshToken);
+      var user = await _dbContext.RefreshTokens.FirstOrDefaultAsync(r => r.DeviceName == deviceName && !r.IsRevoked && r.Token == refreshToken);
 
       if (user == null) return null;
 

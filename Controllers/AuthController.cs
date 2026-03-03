@@ -56,16 +56,16 @@ namespace JenianAPI.Controllers
       }
 
       // IP Address
-      var ipAddress = IpHelper.GetClientIp(HttpContext);
+      //var ipAddress = IpHelper.GetClientIp(HttpContext);
 
       var deviceId = Request.Cookies["deviceId"];
-      if (deviceId == null) return NotFound(new {message="Cannot find deviceID" });
+      if (deviceId == null) return NotFound(new { message = "Cannot find deviceID" });
 
       // Generate accessToken and refreshToken
       var accessToken = _jwtTokenManager.GenerateJwtToken(user, 5);
       var refreshToken = _jwtTokenManager.GenerateRefreshToken();
 
-      await _jwtTokenManager.UpdateOrStoreRefreshtoken(refreshToken, deviceId, ipAddress, user.Id);
+      await _jwtTokenManager.UpdateOrStoreRefreshtoken(refreshToken, deviceId, "", user.Id);
 
       // Set HttpOnly cookie
       var cookieOptions = new CookieOptions {
@@ -103,14 +103,14 @@ namespace JenianAPI.Controllers
       if (string.IsNullOrEmpty(refreshToken)) return Unauthorized("Refresh token not found");
 
       // IP Address
-      var ipAddress = IpHelper.GetClientIp(HttpContext);
+      var ipAddress = "";
 
       // Check if token exist before continure proceed
-      if (!await _jwtTokenManager.IsRefreshTokenExists(refreshToken, logoutRequest.DeviceName, ipAddress!, logoutRequest.UserId)) {
+      if (!await _jwtTokenManager.IsRefreshTokenExists(refreshToken, logoutRequest.DeviceName, ipAddress, logoutRequest.UserId)) {
         return Unauthorized("Some values not exist");
       }
 
-      await _jwtTokenManager.RevokeRefreshToken(refreshToken, logoutRequest.DeviceName, ipAddress!, logoutRequest.UserId);
+      await _jwtTokenManager.RevokeRefreshToken(refreshToken, logoutRequest.DeviceName, ipAddress, logoutRequest.UserId);
 
 
       Response.Cookies.Append("refreshToken", "", new CookieOptions {
@@ -186,7 +186,8 @@ namespace JenianAPI.Controllers
        */
 
       // IP Address
-      var ipAddress = IpHelper.GetClientIp(HttpContext); // Could be a problem in the future implemntation ??
+      //var ipAddress = IpHelper.GetClientIp(HttpContext); // Could be a problem in the future implemntation ??
+      var ipAddress = ""; // Could be a problem in the future implemntation ??
       //_logger.LogInformation("ipAddress: {ipAddress} ", ipAddress);
 
       var refreshToken = Request.Cookies["refreshToken"];
@@ -229,7 +230,7 @@ namespace JenianAPI.Controllers
       //_logger.LogInformation("claims: {0}", claims);
       //return Ok(claims);
       return Ok(new { userId, username, email });
-    } 
+    }
 
 
 

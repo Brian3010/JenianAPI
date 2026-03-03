@@ -13,7 +13,7 @@ namespace JenianAPI.Services.Interfaces
     //private Task StoreRefreshToken(string refreshToken, string? deviceName, string? deviceIpAddress, string userId);
 
 
-    public Task UpdateRefreshToken(string refreshToken, string deviceName, string? deviceIpAddress, string userId);
+    public Task UpdateRefreshToken(string refreshToken, string deviceName, string deviceIpAddress, string userId);
 
     public Task<bool> IsRefreshTokenExists(string refreshToken, string deviceName, string deviceIpAddress, string userId);
 
