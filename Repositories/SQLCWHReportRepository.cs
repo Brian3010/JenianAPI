@@ -239,7 +239,7 @@ namespace JenianAPI.Repositories
         "# of Catalogue Bundles: " + rawReport.GeneralCheck.NumOfCataBundle + "\n" +
         "# of Magazone Bundles: " + rawReport.GeneralCheck.NumOfMagaBundle + "\n" +
         "My Pals on charge: " + rawReport.GeneralCheck.NumOfMyPals + "/5\n" +
-        "Fragrance keys on security desk: " + rawReport.GeneralCheck.NumOfFragKeys + "/2\n" +
+        "Fragrance keys on security desk: " + rawReport.GeneralCheck.NumOfFragKeys + "/3\n" +
         "Lift Passes in dispensary: " + rawReport.GeneralCheck.NumOfLiftPasses + "/2\n" +
         "Augmodo in consulting room: " + rawReport.GeneralCheck.NumOfAugmodos + "/4\n"
        ;
