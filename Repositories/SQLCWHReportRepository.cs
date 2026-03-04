@@ -189,9 +189,13 @@ namespace JenianAPI.Repositories
         return null;
       }
 
-      var todayDate = DateTime.UtcNow.ToString("dd/mm/yyyy");
+      //var todayDate = DateTime.UtcNow.ToString("dd/mm/yyyy");
+      var melbourneTimeZone = TimeZoneInfo.FindSystemTimeZoneById("AUS Eastern Standard Time");
+      var melbourneNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, melbourneTimeZone);
+      string formattedDate = melbourneNow.ToString("dddd (dd/MM/yyyy)");
+
       var finalReport =
-        "Night Protocol " + todayDate + "\n\n" +
+        "Night Protocol " + formattedDate + "\n\n" +
         "Scan GAPs using Augmodo ✅\n\n" +
         "Deliveries\n" +
         rawReport.Delivery + "\n\n" +
