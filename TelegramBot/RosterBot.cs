@@ -42,6 +42,15 @@ namespace JenianAPI.TelegramBot
       _ = StartPhotoFlowAsync(chatId, ct); // fire-and-forget the long flow
     }
 
+    public void CancelIfExist(long chatId, CancellationToken ct) {
+      if (_stateStore.Items.TryGetValue(chatId, out var existing)) {
+        _logger.LogInformation("Canceling task: {0} ", existing);
+        existing.TrySetCanceled();
+        _stateStore.Items.TryRemove(new KeyValuePair<long, TaskCompletionSource<TelegramMessage>>(chatId, existing));
+      }
+    }
+
+
     public void TryCompleteWaitWithMessage(TelegramMessage msg) {
       if (msg?.Chat == null) return;
 
@@ -124,7 +133,7 @@ namespace JenianAPI.TelegramBot
 
     }
 
-    private async Task StartPhotoFlowAsync(long chatId, CancellationToken ct = default) {
+    public async Task StartPhotoFlowAsync(long chatId, CancellationToken ct = default) {
 
 
       // Clear previous waiter if exist
@@ -156,8 +165,6 @@ namespace JenianAPI.TelegramBot
       var photoMsg = await waiter.Task;
       _logger.LogInformation("After calling watier.Task");
       await HandleMediaAsync(photoMsg, chatId, ct);
-
-
 
     }
 

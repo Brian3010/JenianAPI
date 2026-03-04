@@ -124,39 +124,20 @@ namespace JenianAPI.Services
 
       // 4) Route by content: photo/document → parse image; text → placeholder for commands
       try {
-
         bool hasPhoto = msg.Photo?.Any() == true;
         bool hasImageDoc = msg.Document is { MimeType: not null } d &&
                            d.MimeType.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
-
         if (hasPhoto || hasImageDoc) {
           _rosterBot.TryCompleteWaitWithMessage(msg);
-        }
-        if (string.IsNullOrWhiteSpace(msg.Text)) {
-          //await SafeSendMessageAsync(chatId, "Message is empty");
-          return;
-        } else {
+        } else if (msg.Text != null && (msg.Text.Contains("/r") || msg.Text.Contains("/roster"))) {
           await _telegramMessenger.SendMessageAsync(chatId, "Please send me the roster", ct);
-          _rosterBot.StartRosterWait(chatId, ct);   // fire-and-forget the flow
-
-        }
-
-        /*
-        else if (msg.Text.Contains("/r") || msg.Text.Contains("/roster")) {
-          await _telegramMessenger.SendMessageAsync(chatId, "Please send me the roster", ct);
-          _rosterBot.StartRosterWait(chatId, ct);   // fire-and-forget the flow
-
-        } else if (msg.Text.Contains("/d") || msg.Text!.Contains("/delivery")) {
-          _rosterBot.CancelTask(chatId);
-          await _telegramMessenger.SendMessageAsync(chatId, "Please forward all deliveries today", ct);
-          await _reportChemistBot.HandleDeliveryReport(msg, chatId, ct);
-
+          _rosterBot.CancelIfExist(chatId, ct);
+          _rosterBot.StartRosterWait(chatId, ct);
         } else {
+          _rosterBot.CancelIfExist(chatId, ct);
           await _telegramMessenger.SendMessageAsync(chatId, "Please enter following commands: \n\n" +
-            "/d or /delivery - Summarise daily delivery report for Chemist Warehouse\n" +
-            "/r or /roster - Extract shifts from a photo roster", ct);
+              "/r or /roster - Extract shifts from a photo roster", ct);
         }
-        */
 
 
       } catch (Exception ex) {
@@ -218,7 +199,7 @@ namespace JenianAPI.Services
           }
         }
 
-        
+
         */
 
     /// <summary>
