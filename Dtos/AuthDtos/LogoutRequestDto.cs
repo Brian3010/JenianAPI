@@ -6,10 +6,6 @@ namespace JenianAPI.Dtos.AuthDtos
   {
 
     [Required]
-    public required string DeviceName { get; set; }
-
-    [Required]
-    public required string UserId { get; set; }
-
+    public required string DeviceId { get; set; }
   }
 }

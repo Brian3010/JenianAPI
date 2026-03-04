@@ -6,15 +6,19 @@ namespace JenianAPI.Dtos.AuthDtos
   {
     [Required]
     [DataType(DataType.EmailAddress)]
-    public string Email { get; set; }
+    public required string Email { get; set; }
+
+    [Required]
+    [DataType(DataType.Text)]
+    public required string UserName { get; set; }
 
     [Required]
     [DataType(DataType.Password)]
-    public string Password { get; set; }
+    public required string Password { get; set; }
 
     [Required]
     [DataType(DataType.Password)]
-    public string ConfirmPassword { get; set; }
+    public required string ConfirmPassword { get; set; }
 
 
   }

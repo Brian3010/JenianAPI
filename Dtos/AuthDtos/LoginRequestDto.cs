@@ -5,8 +5,8 @@ namespace JenianAPI.Dtos.AuthDtos
   public class LoginRequestDto
   {
     [Required]
-    [DataType(DataType.EmailAddress)]
-    public required string Email { get; set; }
+    [DataType(DataType.Text)]
+    public required string UserName { get; set; }
 
     [Required]
     [DataType(DataType.Password)]

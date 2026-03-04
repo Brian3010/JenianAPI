@@ -34,7 +34,7 @@ namespace JenianAPI.Controllers
 
 
       var newUser = new ApplicationUser() {
-        UserName = registerRequest.Email,
+        UserName = registerRequest.UserName,
         Email = registerRequest.Email,
       };
 
@@ -49,7 +49,7 @@ namespace JenianAPI.Controllers
 
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequestDto loginRequest) {
-      var user = await _userManager.FindByEmailAsync(loginRequest.Email);
+      var user = await _userManager.FindByEmailAsync(loginRequest.UserName) ?? await _userManager.FindByNameAsync(loginRequest.UserName);
       // Check valid user
       if (user == null || !await _userManager.CheckPasswordAsync(user, loginRequest.Password)) {
         return Unauthorized(new { message = "Invalid username or password" });
@@ -93,24 +93,28 @@ namespace JenianAPI.Controllers
     [Authorize]
     [HttpPost("logout")]
     public async Task<IActionResult> Logout([FromBody] LogoutRequestDto logoutRequest) {
-      /**
-       * revoke refresh token
-       * delete cookies
-       */
+      _logger.LogInformation("Logout API hit");
+
+      var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+      if (userId == null) return NotFound("Cannot find user information");
 
       // Refresh token from cookie
       var refreshToken = Request.Cookies["refreshToken"];
       if (string.IsNullOrEmpty(refreshToken)) return Unauthorized("Refresh token not found");
 
+
+      _logger.LogInformation("userId and RefreshToken retrieved in logout API: {0},{1}", userId, refreshToken);
+
+
       // IP Address
       var ipAddress = "";
 
       // Check if token exist before continure proceed
-      if (!await _jwtTokenManager.IsRefreshTokenExists(refreshToken, logoutRequest.DeviceName, ipAddress, logoutRequest.UserId)) {
+      if (!await _jwtTokenManager.IsRefreshTokenExists(refreshToken, logoutRequest.DeviceId, ipAddress, userId)) {
         return Unauthorized("Some values not exist");
       }
 
-      await _jwtTokenManager.RevokeRefreshToken(refreshToken, logoutRequest.DeviceName, ipAddress, logoutRequest.UserId);
+      await _jwtTokenManager.RevokeRefreshToken(refreshToken, logoutRequest.DeviceId, ipAddress, userId);
 
 
       Response.Cookies.Append("refreshToken", "", new CookieOptions {
