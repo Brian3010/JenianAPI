@@ -123,6 +123,12 @@ namespace JenianAPI.Services
       //await SafeSendMessageAsync(chatId, "📥 Got it — processing now…", ct);
 
       // 4) Route by content: photo/document → parse image; text → placeholder for commands
+
+      /**
+       * Enable this feature when ready to test photo pasrsing.
+       *  For now, we want to test the linking flow first
+       */
+      /*
       try {
         bool hasPhoto = msg.Photo?.Any() == true;
         bool hasImageDoc = msg.Document is { MimeType: not null } d &&
@@ -139,11 +145,12 @@ namespace JenianAPI.Services
               "/r or /roster - Extract shifts from a photo roster", ct);
         }
 
-
       } catch (Exception ex) {
         _logger.LogError(ex, "Error while processing Telegram message for user {UserId}", linkedUser.Id);
         await _telegramMessenger.SendMessageAsync(chatId, "⚠️ Something went wrong while processing your message. Please try again.", ct);
-      }
+      } */
+
+
     }
 
     // --- Helpers ---
