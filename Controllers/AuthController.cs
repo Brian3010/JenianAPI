@@ -73,7 +73,7 @@ namespace JenianAPI.Controllers
         Secure = true, // only over HTTPS
         //SameSite = SameSiteMode.Strict,
         SameSite = SameSiteMode.Lax,
-        Expires = DateTime.UtcNow.AddDays(7),
+        Expires = DateTime.UtcNow.AddDays(30),
         //Path = "/api/auth/refresh" // Optional: limit path
       };
 
