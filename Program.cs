@@ -29,6 +29,22 @@ namespace JenianAPI
     public static async Task Main(string[] args) {
       var builder = WebApplication.CreateBuilder(args);
 
+      /** Serilog configuration */
+      var logger = new LoggerConfiguration()
+        .WriteTo.Console(outputTemplate:
+        "{NewLine}[{Timestamp:HH:mm}] {Message:lj}{NewLine}{Exception}")
+        .MinimumLevel.Information()
+        //.MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning) // Suppress Microsoft logs below Warning
+        .MinimumLevel.Override("System", Serilog.Events.LogEventLevel.Warning) // Suppress System logs below Warning
+        .CreateLogger();
+
+      builder.Logging.ClearProviders();
+      builder.Logging.AddSerilog(logger);
+      logger.Information("Serilog starting");
+      logger.Information("Jenian starting");
+      logger.Information($"Total services: {builder.Services.Count}");
+      /**************************************************************/
+
       // tell dot net to run on this port
       //builder.WebHost.UseUrls("http://localhost:5018");
       //builder.WebHost.UseUrls("http://0.0.0.0:5018");
@@ -56,29 +72,17 @@ namespace JenianAPI
       });
       /** END */
 
-      // Configure global exception handler
+      /* Global error handling - using ProblemDetails for consistent API error responses.*/
       builder.Services.AddProblemDetails();
       builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
-      // Configure Serilog Provider
-      var logger = new LoggerConfiguration()
-        .WriteTo.Console(outputTemplate:
-        "{NewLine}[{Timestamp:HH:mm}] {Message:lj}{NewLine}{Exception}")
-        .MinimumLevel.Information()
-        //.MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning) // Suppress Microsoft logs below Warning
-        .MinimumLevel.Override("System", Serilog.Events.LogEventLevel.Warning) // Suppress System logs below Warning
-        .CreateLogger();
 
-      builder.Logging.ClearProviders();
-      builder.Logging.AddSerilog(logger);
-      logger.Information("Serilog starting");
-      logger.Information($"Total services: {builder.Services.Count}");
 
       builder.Services.AddControllers();
       // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
       builder.Services.AddEndpointsApiExplorer();
 
-      /** Configure SwaggerGen*/
+      /** Swagger with JWT support */
       builder.Services.AddSwaggerGen(options => {
         options.SwaggerDoc("v1", new OpenApiInfo { Title = "Jenian APIs", Version = "V1" });
         options.AddSecurityDefinition(JwtBearerDefaults.AuthenticationScheme, new OpenApiSecurityScheme {
@@ -100,12 +104,12 @@ namespace JenianAPI
           }
         });
       });
-      /** End*/
+      /**************************************************************/
 
-      // DbContexts
+      /* EF Core with SQL Server - register both Auth and App contexts. Connection strings come from appsettings.json or environment variables.*/
       builder.Services.AddDbContext<JenianAuthDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("JenianAuthConnection")));
       builder.Services.AddDbContext<JenianDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("JenianDbConnection")));
-      /** END*/
+      /**************************************************************/
 
 
       /** Add Identity system to the ASP.NET Core service container*/
@@ -124,14 +128,14 @@ namespace JenianAPI
         options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";
         options.User.RequireUniqueEmail = true;
       });
-      /**END*/
+      /**************************************************************/
 
       /** JWT Bearers */
       JwtSecurityTokenHandler.DefaultMapInboundClaims = false;
       builder.Services.ConfigureOptions<JwtBearerConfigurationOptions>().AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
+      /**************************************************************/
 
-
-      /** Add life-time services */
+      /* Dependency Injection for application services, HTTP clients, background workers, etc. */
       builder.Services.AddHttpClient("JenianAPI", http => {
         http.Timeout = TimeSpan.FromSeconds(30); // set a reasonable timeout for all API calls
         http.BaseAddress = new Uri("https://localhost:7034"); // centralize base URL
@@ -140,6 +144,7 @@ namespace JenianAPI
       builder.Services.AddHostedService<ShiftExtractionWorker>();
       builder.Services.AddHostedService<DeliveryExtractorWorker>();
 
+      // Register Azure Vision client with endpoint and key
       builder.Services.AddSingleton(serviceProvider => {
         var config = serviceProvider.GetRequiredService<IConfiguration>();
         var endpoint = new Uri(config["AzureVision:VisionEndpoint"]);
@@ -147,13 +152,14 @@ namespace JenianAPI
 
         return new ImageAnalysisClient(endpoint, new AzureKeyCredential(key));
       });
+
+      // Register background job queues with a capacity of 200 (tune as needed)
       builder.Services.AddSingleton<IBackgroundJobQueue<ShiftExtractionJob>>(
             _ => new BackgroundJobQueue<ShiftExtractionJob>(capacity: 200));
-
       builder.Services.AddSingleton<IBackgroundJobQueue<DeliveryExtractorJob>>(
             _ => new BackgroundJobQueue<DeliveryExtractorJob>(capacity: 200));
 
-      // Add OpenAI
+      // Register ChatClient with API key and model from configuration (supports both appsettings and env vars)
       builder.Services.AddSingleton<ChatClient>(serviceProvider => {
         var config = serviceProvider.GetRequiredService<IConfiguration>();
 
@@ -163,6 +169,7 @@ namespace JenianAPI
 
         return new ChatClient(model, apiKey);
       });
+      // LatestRequestRunner and StateStore are singletons to maintain shared state across the app (e.g., for tracking latest requests or caching)
       builder.Services.AddSingleton<LatestRequestRunner>();
       builder.Services.AddSingleton<StateStore>();
 
@@ -174,7 +181,7 @@ namespace JenianAPI
       builder.Services.AddScoped<RosterBot>();
       builder.Services.AddScoped<ReportChemistBot>();
       builder.Services.AddScoped<SQLCWHReportRepository>();
-      /** END */
+      /**************************************************************/
 
       /*
       builder.Services.AddScoped<IParserService, OllamaParserService>();
@@ -191,6 +198,7 @@ namespace JenianAPI
       .SetHandlerLifetime(TimeSpan.FromMinutes(10)); // Optional: tune handler lifetime (DNS refresh, socket reuse)
       */
 
+      // Customize the API's response for invalid model states (e.g., failed validation) to return a consistent error format.
       builder.Services.Configure<ApiBehaviorOptions>(options => {
         options.InvalidModelStateResponseFactory = context =>
             new BadRequestObjectResult(new {
@@ -200,6 +208,10 @@ namespace JenianAPI
       });
 
       var app = builder.Build();
+      logger.Information("App environment: {0}", app.Environment.EnvironmentName);
+
+
+      /* Run EF Core migrations on startup if the RUN_MIGRATIONS flag is set. */
       var runMigrations = builder.Configuration.GetValue<bool>("RUN_MIGRATIONS");
       if (runMigrations) {
         app.Logger.LogWarning("### RUN_MIGRATIONS=true - starting EF migrations ###");
@@ -227,10 +239,10 @@ namespace JenianAPI
       }
 
       // Configure the HTTP request pipeline.
-      //if (app.Environment.IsDevelopment()) {
-      app.UseSwagger();
-      app.UseSwaggerUI();
-      //}
+      if (app.Environment.IsDevelopment()) {
+        app.UseSwagger();
+        app.UseSwaggerUI();
+      }
 
       app.UseExceptionHandler();
       // -----------------------------
