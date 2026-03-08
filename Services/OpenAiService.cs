@@ -61,7 +61,7 @@ namespace JenianAPI.Services
     //  //return result.GetRawResponse().Content.ToString();
     //}
 
-    public async Task<string> DeliveryTextExtractor(string ocrText,CancellationToken ct = default) {
+    public async Task<string> DeliveryTextExtractor(string ocrText, CancellationToken ct = default) {
 
 
 
@@ -73,6 +73,49 @@ namespace JenianAPI.Services
           {name} - {quantity} {extra_if_present} @ {time}
 
           You MUST follow ALL rules below with zero deviation.
+
+          ==================================================
+          0. TODAY FILTER (PRE-PROCESSING STEP)
+          ==================================================
+
+          Before applying any extraction rules, you MUST restrict parsing to messages that appear AFTER the LAST occurrence of a “Today” marker in the OCR text.
+
+          Accepted OCR variants of the Today marker include:
+          Today
+          today
+          oday
+          Taday
+          Todav
+
+          Rules:
+          - Locate the LAST occurrence of any Today marker.
+          - Ignore ALL text before this marker.
+          - Only analyze the lines that appear AFTER this marker.
+          - Do NOT extract deliveries from earlier sections such as:
+            March 6
+            March 7
+            October 31
+            or any other date header.
+
+          If a Today marker is not present, return no delivery entries.
+
+          Example:
+
+          Input:
+          March 6
+          Sigma - 61
+          10:30 AM
+
+          March 7
+          Sigma - 51
+          4:31 PM
+
+          Today
+          Sigma - 5
+          9:46 AM
+
+          Output:
+          Sigma - 5 @ 9:46am
 
           ==================================================
           1. DELIVERY LINE DETECTION
@@ -354,9 +397,9 @@ namespace JenianAPI.Services
           """)
       };
       try {
-      ChatCompletion completion = await _chatClient.CompleteChatAsync(message);
-      return completion.Content[0].Text;
-      }catch(Exception e){
+        ChatCompletion completion = await _chatClient.CompleteChatAsync(message);
+        return completion.Content[0].Text;
+      } catch (Exception e) {
         throw new AppException("OpenAI query failed: " + e.Message);
       }
 
@@ -421,10 +464,10 @@ namespace JenianAPI.Services
 
       // If your SDK supports it, set temperature = 0 for determinism.
       try {
-      ChatCompletion completion = await _chatClient.CompleteChatAsync(messages);
+        ChatCompletion completion = await _chatClient.CompleteChatAsync(messages);
 
-      return completion.Content[0].Text;
-      } catch(Exception e){
+        return completion.Content[0].Text;
+      } catch (Exception e) {
         throw new AppException("OpenAI query failed: " + e.Message);
       }
     }
