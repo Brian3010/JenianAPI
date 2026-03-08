@@ -75,7 +75,7 @@ namespace JenianAPI.Services
           You MUST follow ALL rules below with zero deviation.
 
           ==================================================
-          0. TODAY FILTER (PRE-PROCESSING STEP)
+          1. TODAY FILTER (PRE-PROCESSING STEP)
           ==================================================
 
           Before applying any extraction rules, you MUST restrict parsing to messages that appear AFTER the LAST occurrence of a “Today” marker in the OCR text.
@@ -118,7 +118,7 @@ namespace JenianAPI.Services
           Sigma - 5 @ 9:46am
 
           ==================================================
-          1. DELIVERY LINE DETECTION
+          2. DELIVERY LINE DETECTION
           ==================================================
 
           A line is a delivery line if it contains:
@@ -147,7 +147,7 @@ namespace JenianAPI.Services
           Sigma, Warehouse, Optipharm, Startrack, Loreal, Sanofi, Paragoncare, etc.
 
           ==================================================
-          2. TIME EXTRACTION
+          3. TIME EXTRACTION
           ==================================================
 
           After detecting a delivery line, look FORWARD through the next lines until you find a timestamp.
@@ -166,7 +166,7 @@ namespace JenianAPI.Services
           - If no timestamp appears before the next delivery line → SKIP this delivery entry.
 
           ==================================================
-          3. EXTRA INFO HANDLING
+          4. EXTRA INFO HANDLING
           ==================================================
 
           Extra info = all text after the quantity on the SAME delivery line.
@@ -191,7 +191,7 @@ namespace JenianAPI.Services
           → Startrack - 15 (Pharmacare, Blackmores, Coty)
 
           ==================================================
-          4. LINES YOU MUST IGNORE (ESPECIALLY STOCK UPDATES)
+          5. LINES YOU MUST IGNORE (ESPECIALLY STOCK UPDATES)
           ==================================================
 
           You MUST completely ignore and NEVER treat as deliveries:
@@ -230,7 +230,7 @@ namespace JenianAPI.Services
           These lines are NEVER deliveries, even if they contain numbers.
 
           ==================================================
-          5. OUTPUT FORMAT
+          6. OUTPUT FORMAT
           ==================================================
 
           For every valid delivery + time pair, output EXACTLY one line in the form:
@@ -260,7 +260,7 @@ namespace JenianAPI.Services
           Sigma - 96 @ 11:33am
 
           ==================================================
-          6. FORBIDDEN OUTPUT PATTERNS
+          7. FORBIDDEN OUTPUT PATTERNS
           ==================================================
 
           You MUST NEVER output:
@@ -277,7 +277,7 @@ namespace JenianAPI.Services
           If any of these appear in your output, you MUST correct them.
 
           ==================================================
-          7. OUTPUT VALIDATION (HARD REQUIREMENT)
+          8. OUTPUT VALIDATION (HARD REQUIREMENT)
           ==================================================
 
           Every output line MUST match this logical pattern:
@@ -294,7 +294,7 @@ namespace JenianAPI.Services
           If ANY line fails this validation, you MUST regenerate the entire output to comply with all rules.
 
           ==================================================
-          8. SELF-CORRECTION PASS
+          9. SELF-CORRECTION PASS
           ==================================================
 
           After you generate the output:
@@ -313,7 +313,7 @@ namespace JenianAPI.Services
           You MUST end with an output where every line passes validation.
 
           ==================================================
-          9. OCR RECOVERY RULES
+          10. OCR RECOVERY RULES
           ==================================================
 
           If a delivery line appears truncated, like:
@@ -332,7 +332,7 @@ namespace JenianAPI.Services
           → Startrack - 15 (Pharmacare, Blackmores, Coty)
 
           ==================================================
-          10. FEW-SHOT EXAMPLES (MUST FOLLOW)
+          11. FEW-SHOT EXAMPLES (MUST FOLLOW)
           ==================================================
 
           EXAMPLE 1 — CLEAN OCR
