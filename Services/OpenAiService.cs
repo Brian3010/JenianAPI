@@ -78,7 +78,7 @@ namespace JenianAPI.Services
           1. TODAY FILTER (PRE-PROCESSING STEP)
           ==================================================
 
-          Before applying any extraction rules, you MUST restrict parsing to messages that appear AFTER the LAST occurrence of a “Today” marker in the OCR text.
+          Before applying any extraction rules, you MUST restrict parsing to messages that appear BEFORE the LAST occurrence of a “Today” marker in the OCR text.
 
           Accepted OCR variants of the Today marker include:
           Today
