@@ -142,11 +142,11 @@ namespace JenianAPI.Services
               - delivery name appears before the quantity
               - "-" may or may not exist
               - there may be a space instead of "-"
-              - use the FIRST number as the quantity
+              - keep the number as the quantity
 
               Example:
               Loreal- 58/60
-              → quantity = 58
+              → quantity = 58/60
 
 
               EXTRA INFO
@@ -184,6 +184,15 @@ namespace JenianAPI.Services
               admin
               owner
               Nick Kyaw
+              Alish
+              Bindu
+              Darren
+              Brian
+              Nabil
+              Volkan
+              Claudio
+              Oakar
+              qinlan
               NK
               TELEGRAM
               members
@@ -201,6 +210,7 @@ namespace JenianAPI.Services
               - no headings
               """),
 
+
         new UserChatMessage($"""
           Here is the OCR delivery text:\n
           {filteredText}
@@ -214,10 +224,11 @@ namespace JenianAPI.Services
         var raw = completion.Content[0].Text ?? string.Empty;
 
         _logger.LogInformation("raw {Value}", raw);
+        var finalDelivery = DeliveryDeduplicator.RemoveDuplicates(raw);
 
-        _logger.LogInformation("final delivery {Value}", DeliveryDeduplicator.RemoveDuplicates(raw));
+        _logger.LogInformation("final delivery {Value}", finalDelivery);
 
-        return DeliveryDeduplicator.RemoveDuplicates(raw);
+        return finalDelivery;
       } catch (Exception e) {
         throw new AppException("OpenAI query failed: " + e.Message);
       }
