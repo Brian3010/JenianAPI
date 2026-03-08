@@ -1,9 +1,7 @@
 ﻿bin/
-obj
-/obj/
+obj/
+.vs/
+.env
 *.db
 *.suo
 *.user
-.vs/
-/.vs/
-.env
