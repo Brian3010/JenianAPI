@@ -61,7 +61,7 @@ namespace JenianAPI
         // Prod: lock to known frontends (from your original policy)
         options.AddPolicy("ProdCors", policy => {
           policy.WithOrigins(
-            "https://your-frontend-domain",     // TODO: set real prod origin(s)
+            "https://jenian-client.vercel.app/",     // TODO: set real prod origin(s)
             "http://localhost:3000",            // keep if you want local FE to hit prod API
             "http://192.168.0.219:3000"         // remove if not needed
           )
@@ -159,7 +159,7 @@ namespace JenianAPI
       builder.Services.AddSingleton<IBackgroundJobQueue<DeliveryExtractorJob>>(
             _ => new BackgroundJobQueue<DeliveryExtractorJob>(capacity: 200));
 
-      // Register ChatClient with API key and model from configuration (supports both appsettings and env vars)
+      /** OpenAI Setup*/
       builder.Services.AddSingleton<ChatClient>(serviceProvider => {
         var config = serviceProvider.GetRequiredService<IConfiguration>();
 
@@ -169,6 +169,7 @@ namespace JenianAPI
 
         return new ChatClient(model, apiKey);
       });
+      /**************************************************************/
       // LatestRequestRunner and StateStore are singletons to maintain shared state across the app (e.g., for tracking latest requests or caching)
       builder.Services.AddSingleton<LatestRequestRunner>();
       builder.Services.AddSingleton<StateStore>();
