@@ -45,7 +45,7 @@ namespace JenianAPI.Services
     }
 
     public async Task<string> DeliveryTextExtractor(string ocrText, CancellationToken ct = default) {
-      var filteredText = ExtractAfterLastToday(ocrText);
+      var filteredText = TelegramOcrTextProcess.ExtractAfterLastToday(ocrText);
 
       _logger.LogInformation("filteredText {Value}", filteredText);
 
