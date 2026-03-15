@@ -45,9 +45,9 @@ namespace JenianAPI.Controllers
         return BadRequest("Invalid report data.");
       }
       // process the StockUpdate - process the DeliveryScreenShots
-      if (CWHReportRequest.DeliveryScreenShots == null || CWHReportRequest.DeliveryScreenShots.Count == 0) {
-        return BadRequest("No delivery screenshots provided.");
-      }
+      //if (CWHReportRequest.DeliveryScreenShots == null || CWHReportRequest.DeliveryScreenShots.Count == 0) {
+      //  return BadRequest("No delivery screenshots provided.");
+      //}
       // parse the photos into OCR TEXT
       var ocrDeliveryResult = await HandleStockUpdate(CWHReportRequest.DeliveryScreenShots);
       _logger.LogInformation("OCR Result: {OcrResult}", ocrDeliveryResult);
