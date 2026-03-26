@@ -182,6 +182,7 @@ namespace JenianAPI
       builder.Services.AddScoped<RosterBot>();
       builder.Services.AddScoped<ReportChemistBot>();
       builder.Services.AddScoped<SQLCWHReportRepository>();
+      builder.Services.AddScoped<SQLJenianAuthRepository>();
       /**************************************************************/
 
       /*
