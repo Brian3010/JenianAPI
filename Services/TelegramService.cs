@@ -87,7 +87,7 @@ namespace JenianAPI.Services
 
         if (user == null) {
           _logger.LogInformation("Telegram link: invalid or expired token '{Token}'", linkToken);
-          await _telegramMessenger.SendMessageAsync(chatId, "Invalid or expired token. Please try connecting again from the Jenian app.", ct);
+          await _telegramMessenger.SendMessageAsync(chatId, $"Invalid or expired token. Please try connecting again from the Jenian app. {linkToken}", ct);
           return;
         }
 
@@ -95,7 +95,7 @@ namespace JenianAPI.Services
         var telegramIdStr = (msg.From?.Id ?? 0).ToString();
         var alreadyLinked = await _dbContext
           .Users
-          .AnyAsync(u => u.TelegramUserId == telegramIdStr && u.Id != user.Id, ct);
+          .AnyAsync(u => u.TelegramUserId == telegramIdStr && u.Id == user.Id, ct);
 
         if (alreadyLinked) {
           await _telegramMessenger.SendMessageAsync(chatId, "This Telegram account is already linked to another Jenian user.", ct);
