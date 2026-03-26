@@ -1,6 +1,8 @@
-﻿using JenianAPI.Dtos.AuthDtos;
+﻿using JenianAPI.Data;
+using JenianAPI.Dtos.AuthDtos;
 using JenianAPI.Helpers;
 using JenianAPI.Models.AuthModels;
+using JenianAPI.Repositories;
 using JenianAPI.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -17,11 +19,13 @@ namespace JenianAPI.Controllers
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IJwtTokenManager _jwtTokenManager;
     private readonly ILogger<AuthController> _logger;
+    private readonly SQLJenianAuthRepository _jenainAuthRepository;
 
-    public AuthController(UserManager<ApplicationUser> userManager, IJwtTokenManager jwtTokenManager, ILogger<AuthController> logger) {
+    public AuthController(UserManager<ApplicationUser> userManager, IJwtTokenManager jwtTokenManager, ILogger<AuthController> logger, SQLJenianAuthRepository jenainAuthRepository) {
       _userManager = userManager;
       _jwtTokenManager = jwtTokenManager;
       _logger = logger;
+      _jenainAuthRepository = jenainAuthRepository;
     }
 
 
@@ -228,18 +232,19 @@ namespace JenianAPI.Controllers
     public async Task<IActionResult> getMe() {
       // JWT is already validated + “decoded” into claims
       var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+      if (userId == null) return NotFound("GET: get-me - cannot find userId");
+
       var username = User.FindFirst(JwtRegisteredClaimNames.Name)?.Value;
       var email = User.FindFirst(JwtRegisteredClaimNames.Email)?.Value;
+      var isTelegramConnected = await _jenainAuthRepository.IsTelegramConnectedAsync(userId);
       //var claims = User.Claims.Select(c => new { c.Type, c.Value }).ToList();
       //_logger.LogInformation("claims: {0}", claims);
       //return Ok(claims);
-      return Ok(new { userId, username, email });
+      return Ok(new { username, isTelegramConnected, email });
     }
 
 
-
     // GET /api/auth/sessions	- List all active sessions/devices (from refresh tokens)
-
 
 
 
