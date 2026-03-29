@@ -32,7 +32,7 @@ namespace JenianAPI
       /** Serilog configuration */
       var logger = new LoggerConfiguration()
         .WriteTo.Console(outputTemplate:
-        "{NewLine}[{Timestamp:HH:mm}] {Message:lj}{NewLine}{Exception}")
+        "{NewLine}[{Timestamp:HH:mm}] {Level:u3} {Message:lj}{NewLine}{Exception}")
         .MinimumLevel.Information()
         //.MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning) // Suppress Microsoft logs below Warning
         .MinimumLevel.Override("System", Serilog.Events.LogEventLevel.Warning) // Suppress System logs below Warning
