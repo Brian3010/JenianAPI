@@ -34,7 +34,7 @@ namespace JenianAPI.Services
     /// <param name="TTLInMinute"></param>
     /// <returns>A string of jwt token</returns>
     public string GenerateJwtToken(ApplicationUser user, int TTLInMinute = 5) {
-      _logger.LogInformation("GenerateJwtToken: {0}", user.Id);
+      _logger.LogInformation("GenerateJwtToken with userId: {0}", user.Id);
       var jwt = _configuration.GetSection("jwt");
       var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Key"]!));
 
