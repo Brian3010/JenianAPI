@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Cryptography;
 using System.Web;
 
 namespace JenianAPI.Controllers
@@ -53,6 +54,7 @@ namespace JenianAPI.Controllers
 
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequestDto loginRequest) {
+
       var user = await _userManager.FindByEmailAsync(loginRequest.UserName) ?? await _userManager.FindByNameAsync(loginRequest.UserName);
       // Check valid user
       if (user == null || !await _userManager.CheckPasswordAsync(user, loginRequest.Password)) {
@@ -62,26 +64,38 @@ namespace JenianAPI.Controllers
       // IP Address
       //var ipAddress = IpHelper.GetClientIp(HttpContext);
 
-      var deviceId = Request.Cookies["deviceId"];
-      if (deviceId == null) return NotFound(new { message = "Cannot find deviceID" });
+      var deviceIdCookie = Request.Cookies["deviceId"];
+      Guid deviceId = Guid.TryParse(deviceIdCookie, out var guid) ? guid : Guid.NewGuid();
+      var refreshToken = Request.Cookies["refreshToken"] ?? _jwtTokenManager.GenerateRefreshToken();
+      _logger.LogInformation("Cookie received: {0} - {1}", deviceId, refreshToken);
+
+      //if (!await _jwtTokenManager.DeviceAuthInfoExistsAsync(refreshToken, deviceId, user.Id)) {
+      //  refreshToken = _jwtTokenManager.GenerateRefreshToken();
+      //}
 
       // Generate accessToken and refreshToken
-      var accessToken = _jwtTokenManager.GenerateJwtToken(user, 5);
-      var refreshToken = _jwtTokenManager.GenerateRefreshToken();
+      var accessToken = _jwtTokenManager.GenerateJwtToken(user, 30);
 
-      await _jwtTokenManager.UpdateOrStoreRefreshtoken(refreshToken, deviceId, "", user.Id);
+      await _jwtTokenManager.UpsertDeviceAuthInfoAsync(refreshToken, deviceId, user.Id);
 
-      // Set HttpOnly cookie
-      var cookieOptions = new CookieOptions {
+      Response.Cookies.Append("refreshToken", refreshToken, new CookieOptions {
         HttpOnly = true,
         Secure = true, // only over HTTPS
         //SameSite = SameSiteMode.Strict,
         SameSite = SameSiteMode.Lax,
-        Expires = DateTime.UtcNow.AddDays(30),
+        Expires = DateTime.UtcNow.AddDays(30)
         //Path = "/api/auth/refresh" // Optional: limit path
-      };
+      });
 
-      Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
+
+      Response.Cookies.Append("deviceId", deviceId.ToString(), new CookieOptions {
+        HttpOnly = true,
+        Secure = true, // only over HTTPS
+        //SameSite = SameSiteMode.Strict,
+        SameSite = SameSiteMode.Lax,
+        Expires = DateTime.UtcNow.AddDays(60)
+        //Path = "/api/auth/refresh" // Optional: limit path
+      });
 
       // Create a response
       var response = new {
@@ -95,32 +109,31 @@ namespace JenianAPI.Controllers
     }
 
     [Authorize]
-    [HttpPost("logout")]
-    public async Task<IActionResult> Logout([FromBody] LogoutRequestDto logoutRequest) {
+    [HttpGet("logout")]
+    public async Task<IActionResult> Logout() {
       _logger.LogInformation("Logout API hit");
 
       var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
-      if (userId == null) return NotFound("Cannot find user information");
-
       // Refresh token from cookie
       var refreshToken = Request.Cookies["refreshToken"];
-      if (string.IsNullOrEmpty(refreshToken)) return Unauthorized("Refresh token not found");
+      //var deviceId = Request.Cookies["deviceId"];
+      //Guid? deviceId = Guid.TryParse(Request.Cookies["deviceId"], out var guid) ? guid : null;
+      string? deviceIdCookie = Request.Cookies["deviceId"];
+      Guid? deviceId = Guid.TryParse(deviceIdCookie, out var guid) ? guid : null;
 
+
+      if (!string.IsNullOrEmpty(userId) && !string.IsNullOrEmpty(refreshToken) && deviceId.HasValue) {
+        var actualDeviceId = deviceId.Value;
+        _logger.LogInformation("Logout: userId: {0}, refreshToken: {1}, deviceId {2}", userId, refreshToken, deviceId);
+
+        var deviceAuthInfoExist = await _jwtTokenManager.DeviceAuthInfoExistsAsync(refreshToken, actualDeviceId, userId);
+        if (deviceAuthInfoExist)
+          await _jwtTokenManager.RevokeDeviceAuthInfoAsync(refreshToken, actualDeviceId, userId);
+      }
 
       _logger.LogInformation("userId and RefreshToken retrieved in logout API: {0},{1}", userId, refreshToken);
 
-
-      // IP Address
-      var ipAddress = "";
-
-      // Check if token exist before continure proceed
-      if (!await _jwtTokenManager.IsRefreshTokenExists(refreshToken, logoutRequest.DeviceId, ipAddress, userId)) {
-        return Unauthorized("Some values not exist");
-      }
-
-      await _jwtTokenManager.RevokeRefreshToken(refreshToken, logoutRequest.DeviceId, ipAddress, userId);
-
-
+      // remove refreshToken cookie
       Response.Cookies.Append("refreshToken", "", new CookieOptions {
         HttpOnly = true,
         Secure = true,
@@ -181,7 +194,6 @@ namespace JenianAPI.Controllers
 
     }
 
-
     [HttpPost("refresh-token")]
     //public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequestDto refreshTokenRequestDto) {
     public async Task<IActionResult> RefreshToken() {
@@ -193,26 +205,30 @@ namespace JenianAPI.Controllers
        * Return same repsonse as the log-in API
        */
 
-      // IP Address
-      //var ipAddress = IpHelper.GetClientIp(HttpContext); // Could be a problem in the future implemntation ??
-      var ipAddress = ""; // Could be a problem in the future implemntation ??
-      //_logger.LogInformation("ipAddress: {ipAddress} ", ipAddress);
+      var refreshTokenCookie = Request.Cookies["refreshToken"];
+      string? deviceIdCookie = Request.Cookies["deviceId"];
 
-      var refreshToken = Request.Cookies["refreshToken"];
-      if (refreshToken == null) return NotFound("Cannot find refresh token");
+      // 1. Check for missing cookies
+      if (string.IsNullOrEmpty(refreshTokenCookie) || string.IsNullOrEmpty(deviceIdCookie)) {
+        _logger.LogWarning("Refresh attempt failed: Missing cookies: {0} - {1}", refreshTokenCookie, deviceIdCookie);
+        return Unauthorized("Session expired. Please login again.");
+      }
 
-      var deviceId = Request.Cookies["deviceId"];
-      if (deviceId == null) return NotFound("Cannot find device ID");
+      Guid? deviceId = Guid.TryParse(deviceIdCookie, out var guid) ? guid : null;
 
-      var userId = await _jwtTokenManager.GetUserIdByRefreshTokenAsync(refreshToken, deviceId);
-      if (userId == null) return NotFound("Cannot find user ID");
+      if (deviceId is null) {
+        return BadRequest("DeviceId is null");
+      }
 
-      if (!await _jwtTokenManager.IsRefreshTokenExists(refreshToken, deviceId, ipAddress, userId)) {
+      var userId = await _jwtTokenManager.GetUserIdByDeviceAuthAsync(refreshTokenCookie, deviceId.Value);
+      if (userId == null) return Unauthorized("Invalid session.");
+
+      if (!await _jwtTokenManager.DeviceAuthInfoExistsAsync(refreshTokenCookie, deviceId.Value, userId)) {
         return Unauthorized("Invalid Refresh Token");
       }
 
       var user = await _userManager.FindByIdAsync(userId);
-      if (user == null) return NotFound("User not exist");
+      if (user == null) return Unauthorized("User no longer exists.");
 
       var newAccessToken = _jwtTokenManager.GenerateJwtToken(user);
 
