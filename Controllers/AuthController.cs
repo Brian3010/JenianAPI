@@ -109,7 +109,7 @@ namespace JenianAPI.Controllers
     }
 
     [Authorize]
-    [HttpGet("logout")]
+    [HttpDelete("logout")]
     public async Task<IActionResult> Logout() {
       _logger.LogInformation("Logout API hit");
 
@@ -127,15 +127,25 @@ namespace JenianAPI.Controllers
         _logger.LogInformation("Logout: userId: {0}, refreshToken: {1}, deviceId {2}", userId, refreshToken, deviceId);
 
         var deviceAuthInfoExist = await _jwtTokenManager.DeviceAuthInfoExistsAsync(refreshToken, actualDeviceId, userId);
+
+        _logger.LogInformation("deviceAuthInfoExist {0}", deviceAuthInfoExist);
+
         if (deviceAuthInfoExist)
           await _jwtTokenManager.RevokeDeviceAuthInfoAsync(refreshToken, actualDeviceId, userId);
       }
 
-      _logger.LogInformation("userId and RefreshToken retrieved in logout API: {0},{1}", userId, refreshToken);
+      _logger.LogInformation("userId, RefreshToken and deviceId retrieved in logout API: {0} - {1} - {2}", userId, refreshToken, deviceId);
 
       // remove refreshToken cookie
       Response.Cookies.Append("refreshToken", "", new CookieOptions {
-        HttpOnly = true,
+        Secure = true,
+        //SameSite = SameSiteMode.Strict,
+        SameSite = SameSiteMode.Lax,
+        Expires = DateTime.UtcNow.AddDays(-1), // Set expiration in the past
+      });
+
+      // remove DeviceId cookie
+      Response.Cookies.Append("deviceId", "", new CookieOptions {
         Secure = true,
         //SameSite = SameSiteMode.Strict,
         SameSite = SameSiteMode.Lax,
@@ -230,12 +240,12 @@ namespace JenianAPI.Controllers
       var user = await _userManager.FindByIdAsync(userId);
       if (user == null) return Unauthorized("User no longer exists.");
 
-      var newAccessToken = _jwtTokenManager.GenerateJwtToken(user);
+      var newAccessToken = _jwtTokenManager.GenerateJwtToken(user, 30);
 
 
       // Create a response
       var response = new {
-        Message = "Login Successfully",
+        Message = "Auth session (refreshToken - deviceId) processed successfully",
         AccessToken = newAccessToken,
         User = new UserDto { Id = user.Id, Email = user.Email, UserName = user.UserName },
       };
