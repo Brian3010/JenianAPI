@@ -1,0 +1,40 @@
+# ============================================================
+# .dockerignore
+# Tells Docker which files to EXCLUDE from the build context
+# when you run `docker build`.
+#
+# Why it matters:
+#   - Keeps secrets (appsettings.Local.json, .env) out of the image
+#   - Prevents huge bin/ and obj/ folders from being sent to Docker
+#   - Makes builds faster because less data is transferred
+# ============================================================
+
+# ----- Compiled output (rebuilt inside the container) -----
+**/bin/
+**/obj/
+
+# ----- IDE / editor files -----
+.vs/
+.vscode/
+**/*.user
+**/*.suo
+**/*.sln.DotSettings.user
+
+# ----- Developer-local secrets (MUST NOT enter the image) -----
+**/appsettings.Local.json
+**/appsettings.*.Local.json
+.env
+.env.*
+!.env.example
+
+# ----- Git history (not needed inside the container) -----
+.git/
+.gitignore
+
+# ----- Documentation and project management files -----
+*.md
+docs/
+
+# ----- OS noise -----
+.DS_Store
+Thumbs.db
