@@ -1,10 +1,9 @@
 using Jenian.API.Contracts.Cwh;
 using Jenian.Application.Abstractions.AI;
 using Jenian.Application.Abstractions.BackgroundJobs;
+using Jenian.Application.Abstractions.Persistence;
 using Jenian.Domain.Entities;
 using Jenian.Infrastructure.BackgroundJobs.JobPayloads;
-using Jenian.Infrastructure.Persistence.Repositories;
-using Jenian.Infrastructure.Services.AI;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.IdentityModel.Tokens.Jwt;
@@ -18,12 +17,12 @@ namespace Jenian.API.Controllers
   {
     private readonly ILogger<CWHController> _logger;
     private readonly IParserService _parserService;
-    private readonly OpenAiService _openAiService;
+    private readonly IOpenAiService _openAiService;
     private readonly IBackgroundJobQueue<DeliveryExtractorJob> _jobQueue;
-    private readonly SQLCWHReportRepository _CWHReportRepository;
+    private readonly ICWHReportRepository _CWHReportRepository;
 
-    public CWHController(ILogger<CWHController> logger, IParserService parserService, OpenAiService openAiService, IBackgroundJobQueue<DeliveryExtractorJob> jobQueue
-      , SQLCWHReportRepository CWHReportRepository) {
+    public CWHController(ILogger<CWHController> logger, IParserService parserService, IOpenAiService openAiService, IBackgroundJobQueue<DeliveryExtractorJob> jobQueue
+      , ICWHReportRepository CWHReportRepository) {
       _logger = logger;
       _parserService = parserService;
       _openAiService = openAiService;

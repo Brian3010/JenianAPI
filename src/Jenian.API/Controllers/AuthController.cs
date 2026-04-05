@@ -1,13 +1,11 @@
 using Jenian.API.Contracts.Auth;
 using Jenian.Application.Abstractions.Auth;
+using Jenian.Application.Abstractions.Persistence;
 using Jenian.Infrastructure.Identity;
-using Jenian.Infrastructure.Persistence.Auth;
-using Jenian.Infrastructure.Persistence.Repositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.IdentityModel.Tokens.Jwt;
-using System.Security.Cryptography;
 using System.Web;
 
 namespace Jenian.API.Controllers
@@ -19,9 +17,9 @@ namespace Jenian.API.Controllers
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IJwtTokenManager _jwtTokenManager;
     private readonly ILogger<AuthController> _logger;
-    private readonly SQLJenianAuthRepository _jenainAuthRepository;
+    private readonly IJenianAuthRepository _jenainAuthRepository;
 
-    public AuthController(UserManager<ApplicationUser> userManager, IJwtTokenManager jwtTokenManager, ILogger<AuthController> logger, SQLJenianAuthRepository jenainAuthRepository) {
+    public AuthController(UserManager<ApplicationUser> userManager, IJwtTokenManager jwtTokenManager, ILogger<AuthController> logger, IJenianAuthRepository jenainAuthRepository) {
       _userManager = userManager;
       _jwtTokenManager = jwtTokenManager;
       _logger = logger;

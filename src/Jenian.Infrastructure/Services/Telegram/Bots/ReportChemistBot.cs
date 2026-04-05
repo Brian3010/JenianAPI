@@ -3,7 +3,7 @@ using Jenian.Application.Features.Telegram.Dtos;
 
 namespace Jenian.Infrastructure.Services.Telegram.Bots
 {
-  public class ReportChemistBot
+  public class ReportChemistBot : IReportChemistBot
   {
     private readonly ILogger<ReportChemistBot> _logger;
     private readonly ITelegramMessenger _telegramMessager;

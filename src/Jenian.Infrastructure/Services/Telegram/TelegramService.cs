@@ -23,18 +23,18 @@ namespace Jenian.Infrastructure.Services.Telegram
   /// 6) Consistent UTC timestamps (if you add any here later).
   /// 7) Respect CancellationToken where sensible.
   /// </summary>
-  public class TelegramService
+  public class TelegramService : ITelegramService
   {
     private readonly JenianAuthDbContext _dbContext;
     private readonly ILogger<TelegramService> _logger;
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _configuration;
     private readonly IParserService _parserService;
-    private readonly RosterBot _rosterBot;
+    private readonly IRosterBot _rosterBot;
     private readonly ITelegramMessenger _telegramMessenger;
-    private readonly ReportChemistBot _reportChemistBot;
+    private readonly IReportChemistBot _reportChemistBot;
 
-    public TelegramService(JenianAuthDbContext dbContext, ILogger<TelegramService> logger, HttpClient httpClient, IConfiguration configuration, IParserService parserService, RosterBot rosterBot, ITelegramMessenger telegramMessenger, ReportChemistBot reportChemistBot) {
+    public TelegramService(JenianAuthDbContext dbContext, ILogger<TelegramService> logger, HttpClient httpClient, IConfiguration configuration, IParserService parserService, IRosterBot rosterBot, ITelegramMessenger telegramMessenger, IReportChemistBot reportChemistBot) {
       _dbContext = dbContext;
       _logger = logger;
       _httpClient = httpClient;

@@ -1,12 +1,12 @@
+using Jenian.Application.Abstractions.AI;
 using Jenian.Application.Abstractions.Auth;
 using Jenian.Application.Abstractions.BackgroundJobs;
 using Jenian.Application.Abstractions.Messaging;
+using Jenian.Application.Abstractions.Persistence;
 using Jenian.Domain.Entities;
 using Jenian.Infrastructure.BackgroundJobs.JobPayloads;
 using Jenian.Infrastructure.Identity;
 using Jenian.Infrastructure.Persistence.App;
-using Jenian.Infrastructure.Persistence.Repositories;
-using Jenian.Infrastructure.Services.AI;
 using Jenian.Infrastructure.Services.Auth;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -35,9 +35,9 @@ namespace Jenian.Infrastructure.BackgroundJobs
         _logger.LogInformation("Enqueueing background Job: {@job}", job);
         // Create a scope for each job (or each batch/iteration)
         using var scope = _scopeFactory.CreateScope();
-        var openAi = scope.ServiceProvider.GetRequiredService<OpenAiService>();
+        var openAi = scope.ServiceProvider.GetRequiredService<IOpenAiService>();
         var jenianDbContext = scope.ServiceProvider.GetRequiredService<JenianDbContext>();
-        var jenianRepository = scope.ServiceProvider.GetRequiredService<SQLCWHReportRepository>();
+        var jenianRepository = scope.ServiceProvider.GetRequiredService<ICWHReportRepository>();
         var jwtTokenManager = scope.ServiceProvider.GetRequiredService<IJwtTokenManager>();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var telegramMessenger = scope.ServiceProvider.GetRequiredService<ITelegramMessenger>();
