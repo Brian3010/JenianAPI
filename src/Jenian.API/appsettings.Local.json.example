@@ -15,5 +15,13 @@
   "AzureVision": {
     "VisionEndpoint": "https://<your-resource>.cognitiveservices.azure.com/",
     "VisionKey": "<your-azure-vision-key>"
+  },
+  "Cors": {
+    "AllowedOrigins": [
+      "https://<your-production-frontend>"
+    ]
+  },
+  "JenianAPI": {
+    "BaseUrl": "https://<your-production-api-url>"
   }
 }
