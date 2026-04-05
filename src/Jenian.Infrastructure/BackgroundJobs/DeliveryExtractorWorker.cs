@@ -55,13 +55,13 @@ namespace Jenian.Infrastructure.BackgroundJobs
           // Add answer to DeliveryExtractionJob table
           await jenianRepository.UpdateAnswerToDeliveryAsync(job.JobId, answer);
           // Add answer to delivey column in EodReports table
-          await jenianRepository.UpdateAnswerToEodReportAsync(job.userId, answer);
+          await jenianRepository.UpdateAnswerToEodReportAsync(job.UserId, answer);
 
           //TODO:  Check if user account is linked to telegram account yet?
-          var telegramUserId = await userManager.Users.Where(u => u.Id == job.userId).Select(u => u.TelegramUserId).SingleOrDefaultAsync(cancellationToken: stoppingToken);
+          var telegramUserId = await userManager.Users.Where(u => u.Id == job.UserId).Select(u => u.TelegramUserId).SingleOrDefaultAsync(cancellationToken: stoppingToken);
 
           if (telegramUserId != null) {
-            var r = await jenianRepository.PopulateReportTemplateAsync(job.ReportId, job.userId);
+            var r = await jenianRepository.PopulateReportTemplateAsync(job.ReportId, job.UserId);
             if (r != null) {
               _logger.LogInformation("Background worker r = {r}", r);
               await telegramMessenger.SendMessageAsync(long.Parse(telegramUserId), r, stoppingToken);
@@ -71,7 +71,7 @@ namespace Jenian.Infrastructure.BackgroundJobs
 
         } catch (OperationCanceledException) {
         } catch (Exception e) {
-          _logger.LogError(e.Message, "Failed processing DeliveryExtractorJob");
+          _logger.LogError(e, "Failed processing DeliveryExtractorJob");
         }
       }
 

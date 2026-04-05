@@ -74,7 +74,7 @@ namespace Jenian.Infrastructure.Services.Auth
 
       if (rfToken != null) {
         rfToken.IsRevoked = true;
-        rfToken.RevokedAt = DateTime.Now;
+        rfToken.RevokedAt = DateTime.UtcNow;
       }
 
       await _dbContext.SaveChangesAsync();
@@ -110,7 +110,7 @@ namespace Jenian.Infrastructure.Services.Auth
     public async Task StoreDeviceAuthInfoAsync(string refreshToken, Guid deviceId, string userId) {
 
       _dbContext.RefreshTokens.Add(new RefreshToken {
-        Id = new Guid(),
+        Id = Guid.NewGuid(),
         UserId = userId,
         Token = refreshToken,
         CreatedAt = DateTime.UtcNow,

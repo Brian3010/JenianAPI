@@ -35,7 +35,7 @@ namespace Jenian.Infrastructure.Persistence.Repositories
     public async Task<JobStatus> GetBgJobStatusByIdAsync(Guid JobId) {
       var job = await _dbContext.DeliveryExtractionJobs.FindAsync(JobId);
       if (job == null) {
-        _logger.LogInformation("Background Job found: {@job}", job);
+        _logger.LogInformation("Background Job not found for id: {JobId}", JobId);
         return JobStatus.Failed;
       }
       return job.Status;
@@ -158,7 +158,7 @@ namespace Jenian.Infrastructure.Persistence.Repositories
      */
     public async Task<Boolean> IsReportSubmitedToday(string userId) {
       var today = DateTime.UtcNow.Date;
-      var isAnyReport = await _dbContext.EodReports.Where(e => e.UserId == userId & e.SubmitedAt.Date == today).AnyAsync();
+      var isAnyReport = await _dbContext.EodReports.Where(e => e.UserId == userId && e.SubmitedAt.Date == today).AnyAsync();
       if (!isAnyReport) {
         _logger.LogInformation("No EodReport has been submited today.");
         return false;
@@ -268,7 +268,7 @@ namespace Jenian.Infrastructure.Persistence.Repositories
         stockUpdateString += stockUpdate.TrolleyofFragrances + " " + trolleyNum + " of fragrance";
 
         if (stockUpdate.FragranceNote != null) {
-          stockUpdateString += " - " + stockUpdate.TrolleyofFragrances;
+          stockUpdateString += " - " + stockUpdate.FragranceNote;
         }
         stockUpdateString += "\n";
       }
