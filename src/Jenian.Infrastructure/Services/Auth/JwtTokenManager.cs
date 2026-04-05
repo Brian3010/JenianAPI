@@ -103,7 +103,7 @@ namespace Jenian.Infrastructure.Services.Auth
     /// <returns>true (exist) or false (not exist)</returns>
     public async Task<bool> DeviceAuthInfoExistsAsync(string refreshToken, Guid deviceId, string userId) {
       return await _dbContext.RefreshTokens.AnyAsync(rf =>
-          (rf.UserId == userId && rf.DeviceId == deviceId) ||
+          (rf.UserId == userId && rf.DeviceId == deviceId && !rf.IsRevoked) ||
           (rf.UserId == userId && rf.Token == refreshToken && !rf.IsRevoked));
     }
 
@@ -128,7 +128,7 @@ namespace Jenian.Infrastructure.Services.Auth
     /// </summary>
     public async Task UpdateDeviceAuthInfoAsync(string refreshToken, Guid deviceId, string userId) {
       var rfToken = await _dbContext.RefreshTokens.FirstOrDefaultAsync(r =>
-        (r.UserId == userId && r.Token == refreshToken) ||
+        (r.UserId == userId && r.Token == refreshToken && !r.IsRevoked) ||
         (r.UserId == userId && r.DeviceId == deviceId && !r.IsRevoked));
 
       if (rfToken != null) {

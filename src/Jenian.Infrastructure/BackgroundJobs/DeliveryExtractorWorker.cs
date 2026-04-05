@@ -1,5 +1,4 @@
 using Jenian.Application.Abstractions.AI;
-using Jenian.Application.Abstractions.Auth;
 using Jenian.Application.Abstractions.BackgroundJobs;
 using Jenian.Application.Abstractions.Messaging;
 using Jenian.Application.Abstractions.Persistence;
@@ -7,7 +6,6 @@ using Jenian.Domain.Entities;
 using Jenian.Infrastructure.BackgroundJobs.JobPayloads;
 using Jenian.Infrastructure.Identity;
 using Jenian.Infrastructure.Persistence.App;
-using Jenian.Infrastructure.Services.Auth;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -38,7 +36,6 @@ namespace Jenian.Infrastructure.BackgroundJobs
         var openAi = scope.ServiceProvider.GetRequiredService<IOpenAiService>();
         var jenianDbContext = scope.ServiceProvider.GetRequiredService<JenianDbContext>();
         var jenianRepository = scope.ServiceProvider.GetRequiredService<ICWHReportRepository>();
-        var jwtTokenManager = scope.ServiceProvider.GetRequiredService<IJwtTokenManager>();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var telegramMessenger = scope.ServiceProvider.GetRequiredService<ITelegramMessenger>();
 
@@ -60,11 +57,11 @@ namespace Jenian.Infrastructure.BackgroundJobs
           //TODO:  Check if user account is linked to telegram account yet?
           var telegramUserId = await userManager.Users.Where(u => u.Id == job.UserId).Select(u => u.TelegramUserId).SingleOrDefaultAsync(cancellationToken: stoppingToken);
 
-          if (telegramUserId != null) {
+          if (telegramUserId != null && long.TryParse(telegramUserId, out var telegramChatId)) {
             var r = await jenianRepository.PopulateReportTemplateAsync(job.ReportId, job.UserId);
             if (r != null) {
               _logger.LogInformation("Background worker r = {r}", r);
-              await telegramMessenger.SendMessageAsync(long.Parse(telegramUserId), r, stoppingToken);
+              await telegramMessenger.SendMessageAsync(telegramChatId, r, stoppingToken);
             }
           }
 

@@ -27,17 +27,15 @@ namespace Jenian.Infrastructure.Services.Telegram
   {
     private readonly JenianAuthDbContext _dbContext;
     private readonly ILogger<TelegramService> _logger;
-    private readonly HttpClient _httpClient;
     private readonly IConfiguration _configuration;
     private readonly IParserService _parserService;
     private readonly IRosterBot _rosterBot;
     private readonly ITelegramMessenger _telegramMessenger;
     private readonly IReportChemistBot _reportChemistBot;
 
-    public TelegramService(JenianAuthDbContext dbContext, ILogger<TelegramService> logger, HttpClient httpClient, IConfiguration configuration, IParserService parserService, IRosterBot rosterBot, ITelegramMessenger telegramMessenger, IReportChemistBot reportChemistBot) {
+    public TelegramService(JenianAuthDbContext dbContext, ILogger<TelegramService> logger, IConfiguration configuration, IParserService parserService, IRosterBot rosterBot, ITelegramMessenger telegramMessenger, IReportChemistBot reportChemistBot) {
       _dbContext = dbContext;
       _logger = logger;
-      _httpClient = httpClient;
       _configuration = configuration;
       _parserService = parserService;
       _rosterBot = rosterBot;
