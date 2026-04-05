@@ -180,24 +180,6 @@ namespace Jenian.Infrastructure.Services.Helpers
     }
 
 
-
-    private static List<string> RemoveImmediateDuplicates(List<string> lines) {
-      var result = new List<string>();
-      string? previous = null;
-
-      foreach (var line in lines) {
-        if (previous != null &&
-            string.Equals(previous, line, StringComparison.OrdinalIgnoreCase)) {
-          continue;
-        }
-
-        result.Add(line);
-        previous = line;
-      }
-
-      return result;
-
-    }
   }
 }
 

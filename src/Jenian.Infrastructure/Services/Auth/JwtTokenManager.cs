@@ -103,8 +103,8 @@ namespace Jenian.Infrastructure.Services.Auth
     /// <returns>true (exist) or false (not exist)</returns>
     public async Task<bool> DeviceAuthInfoExistsAsync(string refreshToken, Guid deviceId, string userId) {
       return await _dbContext.RefreshTokens.AnyAsync(rf =>
-          (rf.UserId == userId && rf.DeviceId == deviceId && !rf.IsRevoked) ||
-          (rf.UserId == userId && rf.Token == refreshToken && !rf.IsRevoked));
+          (rf.UserId == userId && rf.DeviceId == deviceId && !rf.IsRevoked && rf.ExpiredAt > DateTime.UtcNow) ||
+          (rf.UserId == userId && rf.Token == refreshToken && !rf.IsRevoked && rf.ExpiredAt > DateTime.UtcNow));
     }
 
     public async Task StoreDeviceAuthInfoAsync(string refreshToken, Guid deviceId, string userId) {
@@ -128,8 +128,8 @@ namespace Jenian.Infrastructure.Services.Auth
     /// </summary>
     public async Task UpdateDeviceAuthInfoAsync(string refreshToken, Guid deviceId, string userId) {
       var rfToken = await _dbContext.RefreshTokens.FirstOrDefaultAsync(r =>
-        (r.UserId == userId && r.Token == refreshToken && !r.IsRevoked) ||
-        (r.UserId == userId && r.DeviceId == deviceId && !r.IsRevoked));
+        (r.UserId == userId && r.Token == refreshToken && !r.IsRevoked && r.ExpiredAt > DateTime.UtcNow) ||
+        (r.UserId == userId && r.DeviceId == deviceId && !r.IsRevoked && r.ExpiredAt > DateTime.UtcNow));
 
       if (rfToken != null) {
         rfToken.Token = refreshToken;
@@ -141,7 +141,7 @@ namespace Jenian.Infrastructure.Services.Auth
 
     public async Task<string?> GetUserIdByDeviceAuthAsync(string refreshToken, Guid deviceId) {
 
-      var user = await _dbContext.RefreshTokens.AsNoTracking().FirstOrDefaultAsync(r => r.DeviceId == deviceId && !r.IsRevoked && r.Token == refreshToken);
+      var user = await _dbContext.RefreshTokens.AsNoTracking().FirstOrDefaultAsync(r => r.DeviceId == deviceId && !r.IsRevoked && r.Token == refreshToken && r.ExpiredAt > DateTime.UtcNow);
 
       if (user == null) return null;
 

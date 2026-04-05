@@ -54,9 +54,9 @@ namespace Jenian.Infrastructure.Services.AI
         foreach (var line in block.Lines) {
           if (!string.IsNullOrWhiteSpace(line.Text)) {
             if (isPoligon == false)
-              ocrText.AppendLine($"{line.Text}\n");
+              ocrText.AppendLine($"{line.Text}");
             else
-              ocrText.AppendLine($"{line.Text},[{string.Join(" ", line.BoundingPolygon)}]\n");
+              ocrText.AppendLine($"{line.Text},[{string.Join(" ", line.BoundingPolygon)}]");
           }
         }
 
