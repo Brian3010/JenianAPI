@@ -7,10 +7,10 @@ namespace Jenian.Infrastructure.Services.AI
   public class AzureVisionAIParserService : IParserService
   {
     private readonly ILogger<AzureVisionAIParserService> _logger;
-    private ImageAnalysisClient _client;
+    private readonly ImageAnalysisClient _client;
     private readonly IOpenAiService _openAiService;
 
-    public AzureVisionAIParserService(ILogger<AzureVisionAIParserService> logger, IConfiguration configuration, ImageAnalysisClient client, HttpClient httpClient, IOpenAiService openAiService) {
+    public AzureVisionAIParserService(ILogger<AzureVisionAIParserService> logger, ImageAnalysisClient client, IOpenAiService openAiService) {
       _logger = logger;
       _client = client;
       _openAiService = openAiService;
@@ -27,7 +27,7 @@ namespace Jenian.Infrastructure.Services.AI
         throw new Exception("fileByte not provided or empty");
 
       BinaryData imageData = BinaryData.FromBytes(fileByte);
-      _logger.LogInformation($"Image size: {imageData.ToStream().Length} bytes");
+      _logger.LogInformation("Image size: {ImageSize} bytes", imageData.ToMemory().Length);
 
       // Ask only for text to reduce latency/cost
       var visualFeatures = VisualFeatures.Read;
