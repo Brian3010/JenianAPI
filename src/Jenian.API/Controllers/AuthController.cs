@@ -1,8 +1,8 @@
 using Jenian.API.Contracts.Auth;
+using Jenian.Application.Abstractions.Auth;
 using Jenian.Infrastructure.Identity;
 using Jenian.Infrastructure.Persistence.Auth;
 using Jenian.Infrastructure.Persistence.Repositories;
-using Jenian.Infrastructure.Services.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -66,7 +66,7 @@ namespace Jenian.API.Controllers
       _logger.LogInformation("Cookie received: {0} - {1}", deviceId, refreshToken);
 
       // Generate accessToken and refreshToken
-      var accessToken = _jwtTokenManager.GenerateJwtToken(user, 30);
+      var accessToken = _jwtTokenManager.GenerateJwtToken(new JwtUserClaims(user.Id, user.UserName!, user.Email!), 30);
 
       await _jwtTokenManager.UpsertDeviceAuthInfoAsync(refreshToken, deviceId, user.Id);
 
@@ -211,7 +211,7 @@ namespace Jenian.API.Controllers
       var user = await _userManager.FindByIdAsync(userId);
       if (user == null) return Unauthorized("User no longer exists.");
 
-      var newAccessToken = _jwtTokenManager.GenerateJwtToken(user, 30);
+      var newAccessToken = _jwtTokenManager.GenerateJwtToken(new JwtUserClaims(user.Id, user.UserName!, user.Email!), 30);
 
 
       // Create a response
