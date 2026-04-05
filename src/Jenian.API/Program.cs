@@ -46,8 +46,7 @@ namespace Jenian.API
         options.AddPolicy("ProdCors", policy => {
           policy.WithOrigins(
             "https://jenian-client.vercel.app",      // TODO: set real prod origin(s)
-            "http://localhost:3000",            // keep if you want local FE to hit prod API
-            "http://192.168.0.219:3000"         // remove if not needed
+            "http://localhost:3000"            // keep if you want local FE to hit prod API
           )
           .AllowAnyHeader()
           .AllowAnyMethod()
@@ -95,9 +94,11 @@ namespace Jenian.API
       /**************************************************************/
 
       /* HTTP clients */
+      var jenianApiBaseUrl = builder.Configuration["JenianAPI:BaseUrl"]
+          ?? throw new InvalidOperationException("JenianAPI:BaseUrl is not configured.");
       builder.Services.AddHttpClient("JenianAPI", http => {
         http.Timeout = TimeSpan.FromSeconds(30); // set a reasonable timeout for all API calls
-        http.BaseAddress = new Uri("https://localhost:7034"); // centralize base URL
+        http.BaseAddress = new Uri(jenianApiBaseUrl); // centralize base URL
       });
       builder.Services.AddHttpClient();
       /**************************************************************/
