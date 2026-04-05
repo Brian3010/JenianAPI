@@ -221,7 +221,7 @@ namespace Jenian.Infrastructure.Services.AI
       try {
         ChatCompletion completion = await _chatClient.CompleteChatAsync(messages);
 
-        return completion.Content[0].Text;
+        return completion.Content[0].Text ?? string.Empty;
       } catch (Exception e) {
         throw new AppException("OpenAI query failed: " + e.Message);
       }

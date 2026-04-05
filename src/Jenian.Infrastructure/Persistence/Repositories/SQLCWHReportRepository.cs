@@ -98,7 +98,6 @@ namespace Jenian.Infrastructure.Persistence.Repositories
      * After the AI extraction done, this function is to Add the its answer to DeliveryExtractionJob table
      */
     public async Task UpdateAnswerToDeliveryAsync(Guid jobId, string answer) {
-      var today = DateTime.UtcNow.Date;
 
       var existingReport = await _dbContext.DeliveryExtractionJobs
         .FirstOrDefaultAsync(r => r.Id == jobId);

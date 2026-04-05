@@ -3,7 +3,6 @@ using Jenian.Application.Abstractions.BackgroundJobs;
 using Jenian.Application.Abstractions.Messaging;
 using Jenian.Application.Features.Telegram.Dtos;
 using Jenian.Infrastructure.BackgroundJobs.JobPayloads;
-using System.Collections.Concurrent;
 using static Jenian.Infrastructure.Services.Telegram.Bots.TelegramFileHandler;
 
 
@@ -20,8 +19,6 @@ namespace Jenian.Infrastructure.Services.Telegram.Bots
     private readonly IHttpClientFactory _clientFactory;
 
     private string BotToken => _configuration["Telegram:BotToken"] ?? string.Empty;
-
-    private ConcurrentDictionary<long, TaskCompletionSource<TelegramMessage>> _photoWaiters = new();
 
     private string ApiBase => $"https://api.telegram.org/bot{BotToken}";
     private string FileBase => $"https://api.telegram.org/file/bot{BotToken}";
