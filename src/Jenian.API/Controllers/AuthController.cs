@@ -61,7 +61,7 @@ namespace Jenian.API.Controllers
       var deviceIdCookie = Request.Cookies["deviceId"];
       Guid deviceId = Guid.TryParse(deviceIdCookie, out var guid) ? guid : Guid.NewGuid();
       var refreshToken = Request.Cookies["refreshToken"] ?? _jwtTokenManager.GenerateRefreshToken();
-      _logger.LogInformation("Cookie received: {0} - {1}", deviceId, refreshToken);
+      _logger.LogInformation("Cookie received: deviceId={DeviceId} refreshToken=[redacted]", deviceId);
 
       // Generate accessToken and refreshToken
       var accessToken = _jwtTokenManager.GenerateJwtToken(new JwtUserClaims(user.Id, user.UserName!, user.Email!), 30);
@@ -107,7 +107,7 @@ namespace Jenian.API.Controllers
 
       if (!string.IsNullOrEmpty(userId) && !string.IsNullOrEmpty(refreshToken) && deviceId.HasValue) {
         var actualDeviceId = deviceId.Value;
-        _logger.LogInformation("Logout: userId: {0}, refreshToken: {1}, deviceId {2}", userId, refreshToken, deviceId);
+        _logger.LogInformation("Logout: userId: {UserId}, refreshToken=[redacted], deviceId {DeviceId}", userId, deviceId);
 
         var deviceAuthInfoExist = await _jwtTokenManager.DeviceAuthInfoExistsAsync(refreshToken, actualDeviceId, userId);
 
@@ -117,7 +117,7 @@ namespace Jenian.API.Controllers
           await _jwtTokenManager.RevokeDeviceAuthInfoAsync(refreshToken, actualDeviceId, userId);
       }
 
-      _logger.LogInformation("userId, RefreshToken and deviceId retrieved in logout API: {0} - {1} - {2}", userId, refreshToken, deviceId);
+      _logger.LogInformation("Logout processed: userId={UserId}, refreshToken=[redacted], deviceId={DeviceId}", userId, deviceId);
 
       // remove refreshToken cookie
       Response.Cookies.Append("refreshToken", "", new CookieOptions {
@@ -189,7 +189,8 @@ namespace Jenian.API.Controllers
 
       // 1. Check for missing cookies
       if (string.IsNullOrEmpty(refreshTokenCookie) || string.IsNullOrEmpty(deviceIdCookie)) {
-        _logger.LogWarning("Refresh attempt failed: Missing cookies: {0} - {1}", refreshTokenCookie, deviceIdCookie);
+        _logger.LogWarning("Refresh attempt failed: Missing cookies (refreshToken={HasRefreshToken}, deviceId={HasDeviceId})",
+          !string.IsNullOrEmpty(refreshTokenCookie), !string.IsNullOrEmpty(deviceIdCookie));
         return Unauthorized("Session expired. Please login again.");
       }
 
