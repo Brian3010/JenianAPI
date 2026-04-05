@@ -1,9 +1,16 @@
-﻿bin/
+bin/
 obj/
 .vs/
+
+# Local developer secrets — copy appsettings.Local.json.example and fill in real values
+appsettings.Local.json
+appsettings.*.Local.json
+
+# Legacy .env support (for Docker / environment-variable based deployments)
 .env
 .env.*
 !.env.example
+
 *.db
 *.suo
 *.user

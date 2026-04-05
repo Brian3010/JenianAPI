@@ -14,6 +14,10 @@ namespace Jenian.API
     public static async Task Main(string[] args) {
       var builder = WebApplication.CreateBuilder(args);
 
+      // appsettings.Local.json is git-ignored and holds per-developer secrets
+      // (jwt:Key, API keys, etc.).  It overrides appsettings.Development.json locally.
+      builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+
       /** Serilog configuration */
       var logger = new LoggerConfiguration()
         .WriteTo.Console(outputTemplate:

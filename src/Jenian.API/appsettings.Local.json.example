@@ -1,0 +1,19 @@
+{
+  "ConnectionStrings": {
+    "JenianAuthConnection": "Server=<host>\\<instance>;Database=JenianAuthDb;Trusted_Connection=True;TrustServerCertificate=True",
+    "JenianDbConnection": "Server=<host>\\<instance>;Database=JenianDb;Trusted_Connection=True;TrustServerCertificate=True"
+  },
+  "jwt": {
+    "Key": "<your-long-random-secret-at-least-32-chars>"
+  },
+  "Telegram": {
+    "BotToken": "<your-telegram-bot-token>"
+  },
+  "OpenAI": {
+    "ApiKey": "<your-openai-api-key>"
+  },
+  "AzureVision": {
+    "VisionEndpoint": "https://<your-resource>.cognitiveservices.azure.com/",
+    "VisionKey": "<your-azure-vision-key>"
+  }
+}
