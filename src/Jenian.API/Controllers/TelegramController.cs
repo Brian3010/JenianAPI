@@ -30,16 +30,14 @@ namespace Jenian.API.Controllers
      * -d "url=https:{url}/api/telegram/webhook"
      */
     [HttpPost("webhook")]
-    public async Task<IActionResult> Webhook([FromBody] TelegramUpdate update) {
+    public IActionResult Webhook([FromBody] TelegramUpdate update) {
       _logger.LogInformation("Webhook hit from Telegram!");
-      _logger.LogInformation(
-    "Telegram webhook: update_id={UpdateId}  at {UtcNow}",
-    update.Message!.Chat!.Id, DateTime.UtcNow);
       var msg = update.Message;
       if (msg == null) {
         _logger.LogInformation("Telegram webhook: update has no message.");
         return Ok();
       }
+      _logger.LogInformation("Telegram webhook: chat_id={ChatId} at {UtcNow}", msg.Chat?.Id, DateTime.UtcNow);
 
       var chatId = msg?.Chat?.Id ?? msg?.From?.Id ?? 0;
       if (chatId == 0) {

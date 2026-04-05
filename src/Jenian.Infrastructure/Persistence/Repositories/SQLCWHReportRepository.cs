@@ -58,7 +58,6 @@ namespace Jenian.Infrastructure.Persistence.Repositories
           j.Id,
           j.Result
         }).ToListAsync();
-      ;
 
       return deliveryDetails.FirstOrDefault()?.Result ?? "No result found";
     }
@@ -67,8 +66,6 @@ namespace Jenian.Infrastructure.Persistence.Repositories
      * Add or Update End of day report
      */
     public async Task<Guid> AddOrUpdateEodReportAsync(string userId, EodReport incommingReport) {
-      var start = DateTime.Today;
-      var end = start.AddDays(1);
       Guid reportId;
 
       var existingReport = await _dbContext.EodReports
