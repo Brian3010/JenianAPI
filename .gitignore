@@ -3,6 +3,7 @@ obj/
 .vs/
 .env
 .env.*
+!.env.example
 *.db
 *.suo
 *.user
