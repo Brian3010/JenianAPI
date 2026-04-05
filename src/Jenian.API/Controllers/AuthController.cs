@@ -142,7 +142,10 @@ namespace Jenian.API.Controllers
     public async Task<IActionResult> RequestPasswordReset([FromBody] string email) {
 
       var user = await _userManager.FindByEmailAsync(email);
-      if (user == null) return NotFound("User not found");
+      // Always return the same response to prevent email enumeration
+      if (user == null) {
+        return Ok(new { message = "If that email is registered, a reset token will be provided." });
+      }
 
       var token = await _userManager.GeneratePasswordResetTokenAsync(user);
 
@@ -166,7 +169,7 @@ namespace Jenian.API.Controllers
       var user = await _userManager.FindByEmailAsync(userEmail);
 
       if (user == null) {
-        return NotFound("User Not Found");
+        return BadRequest("Invalid password reset request.");
       }
 
       // Can decode from Frontend

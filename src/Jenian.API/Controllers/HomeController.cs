@@ -16,18 +16,5 @@ namespace Jenian.API.Controllers
       return Ok("Welcome to Jenian API!");
     }
 
-
-    [HttpGet("sqlDb-test")]
-    public async Task<IActionResult> GetSqlDbConnection(JenianDbContext dbContext) {
-      try {
-        var canConnect = await dbContext.Database.CanConnectAsync();
-        return Ok(new { DatabaseConnected = canConnect });
-      } catch (Exception ex) {
-
-        return Problem(ex.Message);
-      }
-    }
-
-
   }
 }
