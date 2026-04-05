@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using JwtRegisteredClaimNames = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames;
 
@@ -59,15 +60,7 @@ namespace Jenian.Infrastructure.Services.Auth
     }
 
     public string GenerateRefreshToken() {
-      const string validChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
-      StringBuilder result = new StringBuilder();
-      Random random = new();
-
-      for (int i = 0; i < 64; i++) {
-        result.Append(validChars[random.Next(validChars.Length)]);
-      }
-
-      return result.ToString();
+      return Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
     }
 
     /// <summary>
@@ -110,10 +103,8 @@ namespace Jenian.Infrastructure.Services.Auth
     /// <returns>true (exist) or false (not exist)</returns>
     public async Task<bool> DeviceAuthInfoExistsAsync(string refreshToken, Guid deviceId, string userId) {
       return await _dbContext.RefreshTokens.AnyAsync(rf =>
-          rf.UserId == userId &&
-          rf.DeviceId == deviceId ||
-          rf.Token == refreshToken &&
-          !rf.IsRevoked);
+          (rf.UserId == userId && rf.DeviceId == deviceId) ||
+          (rf.Token == refreshToken && !rf.IsRevoked));
     }
 
     public async Task StoreDeviceAuthInfoAsync(string refreshToken, Guid deviceId, string userId) {
@@ -136,7 +127,9 @@ namespace Jenian.Infrastructure.Services.Auth
     /// Update refreshToken or deviceId
     /// </summary>
     public async Task UpdateDeviceAuthInfoAsync(string refreshToken, Guid deviceId, string userId) {
-      var rfToken = await _dbContext.RefreshTokens.FirstOrDefaultAsync(r => r.UserId == userId && r.Token == refreshToken || r.DeviceId == deviceId && !r.IsRevoked);
+      var rfToken = await _dbContext.RefreshTokens.FirstOrDefaultAsync(r =>
+        (r.UserId == userId && r.Token == refreshToken) ||
+        (r.DeviceId == deviceId && !r.IsRevoked));
 
       if (rfToken != null) {
         rfToken.Token = refreshToken;

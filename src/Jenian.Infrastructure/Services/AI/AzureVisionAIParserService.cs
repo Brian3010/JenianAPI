@@ -8,9 +8,9 @@ namespace Jenian.Infrastructure.Services.AI
   {
     private readonly ILogger<AzureVisionAIParserService> _logger;
     private ImageAnalysisClient _client;
-    private readonly OpenAiService _openAiService;
+    private readonly IOpenAiService _openAiService;
 
-    public AzureVisionAIParserService(ILogger<AzureVisionAIParserService> logger, IConfiguration configuration, ImageAnalysisClient client, HttpClient httpClient, OpenAiService openAiService) {
+    public AzureVisionAIParserService(ILogger<AzureVisionAIParserService> logger, IConfiguration configuration, ImageAnalysisClient client, HttpClient httpClient, IOpenAiService openAiService) {
       _logger = logger;
       _client = client;
       _openAiService = openAiService;

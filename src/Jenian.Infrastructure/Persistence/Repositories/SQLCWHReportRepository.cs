@@ -1,25 +1,20 @@
 using Jenian.Application.Abstractions.Messaging;
+using Jenian.Application.Abstractions.Persistence;
 using Jenian.Domain.Entities;
 using Jenian.Infrastructure.Persistence.App;
-using Jenian.Infrastructure.Persistence.Auth;
 using Microsoft.EntityFrameworkCore;
 
 namespace Jenian.Infrastructure.Persistence.Repositories
 {
   /** Manage End of Day Report in the database */
-  public class SQLCWHReportRepository
+  public class SQLCWHReportRepository : ICWHReportRepository
   {
     private readonly JenianDbContext _dbContext;
     private readonly ILogger<SQLCWHReportRepository> _logger;
-    private readonly JenianAuthDbContext _authDbContext;
-    private readonly ITelegramMessenger _telegramMessenger;
 
-    public SQLCWHReportRepository(JenianDbContext dbContext, ILogger<SQLCWHReportRepository> logger,
-      JenianAuthDbContext authDbContext, ITelegramMessenger telegramMessenger) {
+    public SQLCWHReportRepository(JenianDbContext dbContext, ILogger<SQLCWHReportRepository> logger) {
       _dbContext = dbContext;
       _logger = logger;
-      _authDbContext = authDbContext;
-      _telegramMessenger = telegramMessenger;
     }
 
     /**
@@ -182,7 +177,9 @@ namespace Jenian.Infrastructure.Persistence.Repositories
         return null;
       }
 
-      var melbourneTimeZone = TimeZoneInfo.FindSystemTimeZoneById("AUS Eastern Standard Time");
+      var melbourneTimeZone = TimeZoneInfo.TryFindSystemTimeZoneById("Australia/Melbourne", out var tz)
+        ? tz
+        : TimeZoneInfo.FindSystemTimeZoneById("AUS Eastern Standard Time"); // Windows fallback
       var melbourneNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, melbourneTimeZone);
       string formattedDate = melbourneNow.ToString("dddd (dd/MM/yyyy)");
 
@@ -282,21 +279,6 @@ namespace Jenian.Infrastructure.Persistence.Repositories
       stockUpdateString += stockUpdate.AdditionalNote;
 
       return stockUpdateString;
-    }
-
-
-    /**
-     * Send format final end-of-day report to Telegram bot
-     */
-    public async Task SendReportToTelegramBotAsync(string userId, string finalReport) {
-      var telegramId = await _authDbContext.Users.Where(u => u.Id == userId).Select(u => u.TelegramUserId).FirstOrDefaultAsync();
-
-      if (telegramId == null || finalReport == null) {
-        _logger.LogWarning("Cannot send report to Telegram for user with ID {UserId} due to missing Telegram ID or final report.", userId);
-        return;
-      }
-
-      await _telegramMessenger.SendMessageAsync(long.Parse(telegramId), finalReport);
     }
 
 

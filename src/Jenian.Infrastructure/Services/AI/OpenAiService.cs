@@ -1,3 +1,4 @@
+using Jenian.Application.Abstractions.AI;
 using Jenian.Application.Common.Exceptions;
 using Jenian.Infrastructure.Services.Helpers;
 using OpenAI.Chat;
@@ -5,7 +6,7 @@ using System.Text.RegularExpressions;
 
 namespace Jenian.Infrastructure.Services.AI
 {
-  public class OpenAiService
+  public class OpenAiService : IOpenAiService
   {
     private readonly ChatClient _chatClient;
     private readonly ILogger<OpenAiService> _logger;

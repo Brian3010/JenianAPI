@@ -4,6 +4,7 @@ using Jenian.Application.Abstractions.AI;
 using Jenian.Application.Abstractions.Auth;
 using Jenian.Application.Abstractions.BackgroundJobs;
 using Jenian.Application.Abstractions.Messaging;
+using Jenian.Application.Abstractions.Persistence;
 using Jenian.Infrastructure.BackgroundJobs;
 using Jenian.Infrastructure.BackgroundJobs.JobPayloads;
 using Jenian.Infrastructure.Concurrency;
@@ -82,14 +83,14 @@ namespace Jenian.Infrastructure
       services.AddHostedService<DeliveryExtractorWorker>();
 
       services.AddScoped<IJwtTokenManager, JwtTokenManager>();
-      services.AddScoped<TelegramService>();
+      services.AddScoped<ITelegramService, TelegramService>();
       services.AddScoped<IParserService, AzureVisionAIParserService>();
-      services.AddScoped<OpenAiService>();
+      services.AddScoped<IOpenAiService, OpenAiService>();
       services.AddScoped<ITelegramMessenger, TelegramMessenger>();
-      services.AddScoped<RosterBot>();
-      services.AddScoped<ReportChemistBot>();
-      services.AddScoped<SQLCWHReportRepository>();
-      services.AddScoped<SQLJenianAuthRepository>();
+      services.AddScoped<IRosterBot, RosterBot>();
+      services.AddScoped<IReportChemistBot, ReportChemistBot>();
+      services.AddScoped<ICWHReportRepository, SQLCWHReportRepository>();
+      services.AddScoped<IJenianAuthRepository, SQLJenianAuthRepository>();
 
       return services;
     }

@@ -1,5 +1,6 @@
 using Jenian.Application.Abstractions.AI;
 using Jenian.Application.Abstractions.BackgroundJobs;
+using Jenian.Application.Abstractions.Messaging;
 using Jenian.Application.Features.Telegram.Dtos;
 using Jenian.Infrastructure.BackgroundJobs.JobPayloads;
 using System.Collections.Concurrent;
@@ -9,7 +10,7 @@ using static Jenian.Infrastructure.Services.Telegram.Bots.TelegramFileHandler;
 namespace Jenian.Infrastructure.Services.Telegram.Bots
 
 {
-  public class RosterBot
+  public class RosterBot : IRosterBot
   {
     private readonly ILogger<RosterBot> _logger;
     private readonly IConfiguration _configuration;

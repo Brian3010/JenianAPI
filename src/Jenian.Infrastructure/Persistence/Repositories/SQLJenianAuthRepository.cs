@@ -1,10 +1,11 @@
+using Jenian.Application.Abstractions.Persistence;
 using Jenian.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace Jenian.Infrastructure.Persistence.Repositories
 {
-  public class SQLJenianAuthRepository
+  public class SQLJenianAuthRepository : IJenianAuthRepository
   {
     private readonly ILogger<SQLJenianAuthRepository> _logger;
     private readonly UserManager<ApplicationUser> _userManager;

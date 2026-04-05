@@ -1,12 +1,11 @@
+using Jenian.Application.Abstractions.Messaging;
 using Jenian.Application.Features.Telegram.Dtos;
 using Jenian.Infrastructure.Concurrency;
 using Jenian.Infrastructure.Identity;
-using Jenian.Infrastructure.Services.Telegram;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
 
 namespace Jenian.API.Controllers
 {
@@ -14,12 +13,12 @@ namespace Jenian.API.Controllers
   [ApiController]
   public class TelegramController : ControllerBase
   {
-    private readonly TelegramService _telegramService;
+    private readonly ITelegramService _telegramService;
     private readonly ILogger<TelegramController> _logger;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly LatestRequestRunner _latestRequestRunner;
 
-    public TelegramController(TelegramService telegramService, ILogger<TelegramController> logger, UserManager<ApplicationUser> userManager, LatestRequestRunner latestRequestRunner) {
+    public TelegramController(ITelegramService telegramService, ILogger<TelegramController> logger, UserManager<ApplicationUser> userManager, LatestRequestRunner latestRequestRunner) {
       _telegramService = telegramService;
       _logger = logger;
       _userManager = userManager;
@@ -50,7 +49,7 @@ namespace Jenian.API.Controllers
 
       _latestRequestRunner.StartOrRestart(chatId, (sp, ct) => {
         // Resolve TelegramService inside THIS scope:
-        var svc = sp.GetRequiredService<TelegramService>();
+        var svc = sp.GetRequiredService<ITelegramService>();
 
         // 'update' is captured from the controller method
         return svc.HandleUpdateAsync(update, ct);
