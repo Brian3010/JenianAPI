@@ -1,6 +1,6 @@
+using Jenian.Application.Abstractions.Auth;
 using Jenian.Infrastructure.Identity;
 using Jenian.Infrastructure.Persistence.Auth;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
@@ -14,27 +14,6 @@ namespace Jenian.Infrastructure.Services.Auth
    * - GenerateJwtToken = sign(payload, secret, {expiresIn})
    * - Refresh tokens stored in DB table (like a "sessions" table)
    */
-  public interface IJwtTokenManager
-  {
-    public string GenerateJwtToken(ApplicationUser user, int TTLInMinute = 5); // short-lived access token
-
-
-    public string GenerateRefreshToken();
-
-    public Task UpdateDeviceAuthInfoAsync(string refreshToken, Guid deviceId, string userId);
-
-    public Task StoreDeviceAuthInfoAsync(string refreshToken, Guid deviceId, string userId);
-
-    public Task<bool> DeviceAuthInfoExistsAsync(string refreshToken, Guid deviceId, string userId);
-
-    public Task UpsertDeviceAuthInfoAsync(string refreshToken, Guid deviceId, string userId);
-
-    public Task RevokeDeviceAuthInfoAsync(string refreshToken, Guid deviceId, string userId);
-
-    public Task<string?> GetUserIdByDeviceAuthAsync(string refreshToken, Guid deviceId);
-
-  }
-
   public class JwtTokenManager : IJwtTokenManager
   {
     private readonly IConfiguration _configuration;
@@ -53,7 +32,7 @@ namespace Jenian.Infrastructure.Services.Auth
     /// <param name="user"></param>
     /// <param name="TTLInMinute"></param>
     /// <returns>A string of jwt token</returns>
-    public string GenerateJwtToken(ApplicationUser user, int TTLInMinute = 5) {
+    public string GenerateJwtToken(JwtUserClaims user, int TTLInMinute = 5) {
       _logger.LogInformation("GenerateJwtToken with userId: {0}", user.Id);
       var jwt = _configuration.GetSection("jwt");
       var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Key"]!));

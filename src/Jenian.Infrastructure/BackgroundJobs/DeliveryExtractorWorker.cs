@@ -1,3 +1,4 @@
+using Jenian.Application.Abstractions.Auth;
 using Jenian.Application.Abstractions.BackgroundJobs;
 using Jenian.Application.Abstractions.Messaging;
 using Jenian.Domain.Entities;

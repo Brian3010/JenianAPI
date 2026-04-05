@@ -1,6 +1,7 @@
 using Azure;
 using Azure.AI.Vision.ImageAnalysis;
 using Jenian.Application.Abstractions.AI;
+using Jenian.Application.Abstractions.Auth;
 using Jenian.Application.Abstractions.BackgroundJobs;
 using Jenian.Application.Abstractions.Messaging;
 using Jenian.Infrastructure.BackgroundJobs;
