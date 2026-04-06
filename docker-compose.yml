@@ -25,7 +25,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
 
       # --- Database ---
-      ConnectionStrings__JenianAuthConnection: 'Server=host.docker.internal,1433;Database=JenianAuthDb;User ID=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True'
+      ConnectionStrings__JenianAuthConnection: 'Server=host.docker.internal,1433;Database=JenianDb;User ID=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True'
       ConnectionStrings__JenianDbConnection: 'Server=host.docker.internal,1433;Database=JenianDb;User ID=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True'
 
       # --- JWT ---
