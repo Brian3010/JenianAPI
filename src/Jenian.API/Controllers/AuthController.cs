@@ -60,7 +60,7 @@ namespace Jenian.API.Controllers
 
       var deviceIdCookie = Request.Cookies["deviceId"];
       Guid deviceId = Guid.TryParse(deviceIdCookie, out var guid) ? guid : Guid.NewGuid();
-      var refreshToken = _jwtTokenManager.GenerateRefreshToken();
+      var refreshToken = Request.Cookies["refreshToken"] ?? _jwtTokenManager.GenerateRefreshToken();
       _logger.LogInformation("Cookie received: deviceId={DeviceId} refreshToken=[redacted]", deviceId);
 
       // Generate accessToken and refreshToken
