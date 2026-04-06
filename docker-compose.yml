@@ -1,0 +1,91 @@
+# ============================================================
+# docker-compose.yml  –  Local development / testing stack
+#
+# Starts the Jenian API alongside a SQL Server container so
+# you can test the full app locally without installing SQL
+# Server on your machine.
+#
+# Usage:
+#   1. Copy .env.example → .env and fill in the real values
+#   2. docker compose up --build
+#   3. Open http://localhost:8080/swagger
+#
+# IMPORTANT: This file is for LOCAL TESTING ONLY.
+# Do NOT use it for production deployment.
+# ============================================================
+
+services:
+
+  # ----------------------------------------------------------
+  # SQL Server  (Microsoft's official Linux image)
+  # ----------------------------------------------------------
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: jenian-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${SQL_SA_PASSWORD}"
+    ports:
+      - "1433:1433"   # expose SQL Server to your host machine
+    volumes:
+      - sqlserver_data:/var/opt/mssql   # persist database files
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd",
+             "-S", "localhost",
+             "-U", "sa",
+             "-P", "${SQL_SA_PASSWORD}",
+             "-C",   # trust the self-signed cert
+             "-Q", "SELECT 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+      start_period: 30s
+
+  # ----------------------------------------------------------
+  # Jenian API
+  # ----------------------------------------------------------
+  jenian-api:
+    build:
+      context: .          # repo root (so all src/ projects are visible)
+      dockerfile: Dockerfile
+    container_name: jenian-api
+    ports:
+      - "8080:8080"       # http://localhost:8080
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+
+      # --- Database ---
+      # Use the service name "sqlserver" as the host.
+      # Note: Trusted_Connection=True does NOT work with SQL Server
+      # inside Docker – use User ID / Password authentication instead.
+      ConnectionStrings__JenianAuthConnection: >-
+        Server=sqlserver,1433;Database=JenianAuthDb;
+        User ID=sa;Password=${SQL_SA_PASSWORD};
+        TrustServerCertificate=True
+      ConnectionStrings__JenianDbConnection: >-
+        Server=sqlserver,1433;Database=JenianDb;
+        User ID=sa;Password=${SQL_SA_PASSWORD};
+        TrustServerCertificate=True
+
+      # --- JWT ---
+      jwt__Key: "${JWT_KEY}"
+      jwt__Issuer: "http://localhost:8080"
+      jwt__Audience: "http://localhost:3000"
+
+      # --- External services ---
+      OpenAI__ApiKey: "${OPENAI_API_KEY}"
+      OpenAI__Model: "gpt-4o"
+      AzureVision__VisionEndpoint: "${AZURE_VISION_ENDPOINT}"
+      AzureVision__VisionKey: "${AZURE_VISION_KEY}"
+      Telegram__BotToken: "${TELEGRAM_BOT_TOKEN}"
+
+      # --- Migrations (set to true on first run to create DB schema) ---
+      RUN_MIGRATIONS: "false"
+
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  sqlserver_data:
