@@ -85,7 +85,7 @@ namespace Jenian.Infrastructure
 
       services.AddScoped<IJwtTokenManager, JwtTokenManager>();
       services.AddScoped<ITelegramService, TelegramService>();
-      services.AddScoped<IParserService, AzureVisionAIParserService>();
+      services.AddScoped<IParserService, AzureVisionParserService>();
       services.AddScoped<IOpenAiService, OpenAiService>();
       services.AddScoped<ITelegramMessenger, TelegramMessenger>();
       services.AddScoped<IRosterExtractor, TableRosterExtractor>();
