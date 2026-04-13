@@ -9,14 +9,15 @@ using static Jenian.Infrastructure.Services.Telegram.Bots.TelegramFileHandler;
 namespace Jenian.Infrastructure.Services.Telegram.Bots
 
 {
-  public class RosterBot : IRosterBot
+  public class TableRosterExtractor : IRosterExtractor
   {
-    private readonly ILogger<RosterBot> _logger;
+    private readonly ILogger<TableRosterExtractor> _logger;
     private readonly IConfiguration _configuration;
     private readonly IParserService _parserService;
     private readonly IBackgroundJobQueue<ShiftExtractionJob> _jobQueue;
     private readonly StateStore _stateStore;
     private readonly IHttpClientFactory _clientFactory;
+    private readonly ITelegramMessenger _telegramMessenger;
 
     private string BotToken => _configuration["Telegram:BotToken"] ?? string.Empty;
 
@@ -25,14 +26,74 @@ namespace Jenian.Infrastructure.Services.Telegram.Bots
 
 
 
-    public RosterBot(ILogger<RosterBot> logger, IConfiguration configuration, IParserService parserService, IBackgroundJobQueue<ShiftExtractionJob> jobQueue, StateStore stateStore, IHttpClientFactory clientFactory) {
+    public TableRosterExtractor(ILogger<TableRosterExtractor> logger,
+      IConfiguration configuration,
+      IParserService parserService,
+      IBackgroundJobQueue<ShiftExtractionJob> jobQueue,
+      StateStore stateStore,
+      IHttpClientFactory clientFactory,
+      ITelegramMessenger telegramMessenger
+      ) {
       _logger = logger;
       _configuration = configuration;
       _parserService = parserService;
       _jobQueue = jobQueue;
       _stateStore = stateStore;
       _clientFactory = clientFactory;
+      _telegramMessenger = telegramMessenger;
     }
+
+
+
+    public async Task HandleMediaAsync(TelegramMessage message, long chatId, CancellationToken ct = default) {
+
+      // step 1: pick the best fileId from the message (photo array's largest size or document)
+      var bestFileId = PickBestFileId(message);
+      if (string.IsNullOrWhiteSpace(bestFileId)) {
+        await _telegramMessenger.SendMessageAsync(chatId, "I couldn't find a valid photo/document in your message.", ct);
+        return;
+      }
+
+      // Step 2: Resolve file path via getFile
+      var downloadUrl = await GetDownloadUrlAsync(bestFileId, ct);
+
+      // Step 3: Download to memory
+      var fileByte = await DownloadToMemoryByteAsync(downloadUrl, ct);
+
+
+      // Step 4: Parse with AI (Azure Vision service you wired up)
+      var ocrText = "";
+      using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+      cts.CancelAfter(TimeSpan.FromSeconds(180)); // keep webhook snappy; Telegram retries on long timeouts
+      try {
+        await _telegramMessenger.SendMessageAsync(chatId, "🔄 Photo received, processing...", ct);
+        ocrText = await _parserService.ExtractTextFromPhotoAsync(fileByte, cts.Token);
+      } catch (TaskCanceledException) {
+        _logger.LogWarning("Parsing timed out.");
+        await _telegramMessenger.SendMessageAsync(chatId, "⏱️ Parsing took too long. Please try again with a clearer photo.", ct);
+        return;
+      } catch (Exception ex) {
+        _logger.LogError(ex, "Parsing failed.");
+        await _telegramMessenger.SendMessageAsync(chatId, "⚠️ I couldn't parse that image. Try a clearer/cropped photo of the roster.", ct);
+        return;
+      }
+
+
+      // Step 5: (Future) Save parsed shift, reply with summary, etc.
+      //await _telegramMessenger.SendMessageAsync(chatId, "⏳ Hang on, almost there...", ct);
+
+      // This name should be obtained by user specification at the frontend
+      // -> save the name that they want to extract in the database. 
+      var staffName = "Lucy";
+
+      await _jobQueue.EnqueueAsync(
+      new ShiftExtractionJob(chatId, ocrText, staffName),
+      ct);
+
+
+    }
+
+    /*
 
     // PUBLIC: start the wait flow (call this on /r)
     public void StartRosterWait(long chatId, CancellationToken ct) {
@@ -68,55 +129,6 @@ namespace Jenian.Infrastructure.Services.Telegram.Bots
       }
     }
 
-    public async Task HandleMediaAsync(TelegramMessage message, long chatId, CancellationToken ct = default) {
-
-
-      var bestFileId = PickBestFileId(message);
-      if (string.IsNullOrWhiteSpace(bestFileId)) {
-        await SafeSendMessageAsync(chatId, "I couldn't find a valid photo/document in your message.", ct);
-        return;
-      }
-
-      // Step 1: Resolve file path via getFile
-      var downloadUrl = await GetDownloadUrlAsync(bestFileId, ct);
-
-      // Step 2: Download to memory
-      var fileByte = await DownloadToMemoryByteAsync(downloadUrl, ct);
-
-      // Step 4: Parse with AI (Azure Vision service you wired up)
-      var ocrText = "";
-      using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-      cts.CancelAfter(TimeSpan.FromSeconds(180)); // keep webhook snappy; Telegram retries on long timeouts
-      try {
-        // Prepocess the photo for clearer text
-        var cleanedPhoto = AI.OcrPreprocess.PhotoCleanUp(fileByte);
-        await SafeSendMessageAsync(chatId, "The photo is processing...", ct);
-        ocrText = await _parserService.ExtractTextFromPhotoAsync(cleanedPhoto, cts.Token);
-      } catch (TaskCanceledException) {
-        _logger.LogWarning("Parsing timed out.");
-        await SafeSendMessageAsync(chatId, "⏱️ Parsing took too long. Please try again with a clearer photo.", ct);
-        return;
-      } catch (Exception ex) {
-        _logger.LogError(ex, "Parsing failed.");
-        await SafeSendMessageAsync(chatId, "⚠️ I couldn't parse that image. Try a clearer/cropped photo of the roster.", ct);
-        return;
-      }
-
-      // Step 5: (Future) Save parsed shift, reply with summary, etc.
-      await SafeSendMessageAsync(chatId, "✅ Photo processed. I'll add the shift details shortly.", ct);
-
-      // This name should be obtained by user specification at the frontend
-      // -> save the name that they want to extract in the database. 
-      //TODO: ask to save the name to extract in the database
-      var staffName = "Brian Nguyen";
-
-      await _jobQueue.EnqueueAsync(
-      new ShiftExtractionJob(chatId, ocrText, staffName),
-      ct);
-
-
-    }
-
     public async Task StartPhotoFlowAsync(long chatId, CancellationToken ct = default) {
 
 
@@ -149,7 +161,9 @@ namespace Jenian.Infrastructure.Services.Telegram.Bots
       await HandleMediaAsync(photoMsg, chatId, ct);
 
     }
+    */
 
+    /*
     /// <summary>
     /// Sends a message to Telegram; never throws to caller.
     /// </summary>
@@ -172,7 +186,7 @@ namespace Jenian.Infrastructure.Services.Telegram.Bots
       } catch (Exception ex) {
         _logger.LogError(ex, "sendMessage exception (chat {ChatId})", chatId);
       }
-    }
+    }*/
     private static string? PickBestFileId(TelegramMessage msg) {
       if (msg.Photo is { Count: > 0 }) {
         // Photo array is sized smallest→largest

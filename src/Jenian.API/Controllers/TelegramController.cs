@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.IdentityModel.Tokens.Jwt;
+using System.Threading.Tasks;
 
 namespace Jenian.API.Controllers
 {
@@ -30,7 +31,7 @@ namespace Jenian.API.Controllers
      * -d "url=https:{url}/api/telegram/webhook"
      */
     [HttpPost("webhook")]
-    public IActionResult Webhook([FromBody] TelegramUpdate update) {
+    public async Task<IActionResult> Webhook([FromBody] TelegramUpdate update) {
       _logger.LogInformation("Webhook hit from Telegram!");
       var msg = update.Message;
       if (msg == null) {
@@ -45,13 +46,15 @@ namespace Jenian.API.Controllers
         return Ok();
       }
 
-      _latestRequestRunner.StartOrRestart(chatId, (sp, ct) => {
-        // Resolve TelegramService inside THIS scope:
-        var svc = sp.GetRequiredService<ITelegramService>();
+      var cts = new CancellationTokenSource();
+      await _telegramService.HandleUpdateAsync(update, cts.Token);
+      //_latestRequestRunner.StartOrRestart(chatId, (sp, ct) => {
+      //  // Resolve TelegramService inside THIS scope:
+      //  var svc = sp.GetRequiredService<ITelegramService>();
 
-        // 'update' is captured from the controller method
-        return svc.HandleUpdateAsync(update, ct);
-      });
+      //  // 'update' is captured from the controller method
+      //  return svc.HandleUpdateAsync(update, ct);
+      //});
 
       return Ok(); // Must return 200 or Telegram will retry
     }
