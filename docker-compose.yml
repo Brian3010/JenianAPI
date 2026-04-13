@@ -35,7 +35,7 @@ services:
 
       # --- External services ---
       OpenAI__ApiKey: '${OPENAI_API_KEY}'
-      OpenAI__Model: 'gpt-4o'
+      OpenAI__Model: 'gpt-5-nano'
       AzureVision__VisionEndpoint: '${AZURE_VISION_ENDPOINT}'
       AzureVision__VisionKey: '${AZURE_VISION_KEY}'
       Telegram__BotToken: '${TELEGRAM_BOT_TOKEN}'
