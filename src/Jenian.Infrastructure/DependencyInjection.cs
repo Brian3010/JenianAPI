@@ -77,6 +77,7 @@ namespace Jenian.Infrastructure
 
       // LatestRequestRunner and StateStore are singletons to maintain shared state across the app
       services.AddSingleton<LatestRequestRunner>();
+      services.AddSingleton<RosterSessionManager>();
       services.AddSingleton<StateStore>();
 
       services.AddHostedService<ShiftExtractionWorker>();
@@ -87,7 +88,7 @@ namespace Jenian.Infrastructure
       services.AddScoped<IParserService, AzureVisionAIParserService>();
       services.AddScoped<IOpenAiService, OpenAiService>();
       services.AddScoped<ITelegramMessenger, TelegramMessenger>();
-      services.AddScoped<IRosterBot, RosterBot>();
+      services.AddScoped<IRosterExtractor, TableRosterExtractor>();
       services.AddScoped<IReportChemistBot, ReportChemistBot>();
       services.AddScoped<ICWHReportRepository, SQLCWHReportRepository>();
       services.AddScoped<IJenianAuthRepository, SQLJenianAuthRepository>();

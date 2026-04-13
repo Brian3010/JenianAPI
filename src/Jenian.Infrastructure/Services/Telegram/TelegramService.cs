@@ -1,6 +1,7 @@
 using Jenian.Application.Abstractions.AI;
 using Jenian.Application.Abstractions.Messaging;
 using Jenian.Application.Features.Telegram.Dtos;
+using Jenian.Infrastructure.Concurrency;
 using Jenian.Infrastructure.Identity;
 using Jenian.Infrastructure.Persistence.Auth;
 using Jenian.Infrastructure.Services.Telegram.Bots;
@@ -23,17 +24,29 @@ namespace Jenian.Infrastructure.Services.Telegram
   /// 6) Consistent UTC timestamps (if you add any here later).
   /// 7) Respect CancellationToken where sensible.
   /// </summary>
+  /// 
+
   public class TelegramService : ITelegramService
   {
+    public readonly string[] VALID_COMMANDS = ["/start", "/roster"];
     private readonly JenianAuthDbContext _dbContext;
     private readonly ILogger<TelegramService> _logger;
     private readonly IConfiguration _configuration;
     private readonly IParserService _parserService;
-    private readonly IRosterBot _rosterBot;
+    private readonly IRosterExtractor _rosterBot;
     private readonly ITelegramMessenger _telegramMessenger;
     private readonly IReportChemistBot _reportChemistBot;
+    private readonly LatestRequestRunner _latestRequestRunner;
+    private readonly RosterSessionManager _rosterSessionManager;
 
-    public TelegramService(JenianAuthDbContext dbContext, ILogger<TelegramService> logger, IConfiguration configuration, IParserService parserService, IRosterBot rosterBot, ITelegramMessenger telegramMessenger, IReportChemistBot reportChemistBot) {
+    public TelegramService(JenianAuthDbContext dbContext,
+      ILogger<TelegramService> logger, IConfiguration configuration,
+      IParserService parserService, IRosterExtractor rosterBot,
+      ITelegramMessenger telegramMessenger, IReportChemistBot reportChemistBot,
+      LatestRequestRunner latestRequestRunner,
+      RosterSessionManager rosterSessionManager
+
+      ) {
       _dbContext = dbContext;
       _logger = logger;
       _configuration = configuration;
@@ -41,15 +54,17 @@ namespace Jenian.Infrastructure.Services.Telegram
       _rosterBot = rosterBot;
       _telegramMessenger = telegramMessenger;
       _reportChemistBot = reportChemistBot;
+      _latestRequestRunner = latestRequestRunner;
+      _rosterSessionManager = rosterSessionManager;
     }
 
-    private string BotToken => _configuration["Telegram:BotToken"] ?? string.Empty;
-    private string ApiBase => $"https://api.telegram.org/bot{BotToken}";
-    private string FileBase => $"https://api.telegram.org/file/bot{BotToken}";
 
     // Runs on webhook POST /api/telegram/webhook
     public async Task HandleUpdateAsync(TelegramUpdate update, CancellationToken ct = default) {
       var msg = update.Message;
+
+      // Guard clauses: stop early unless the Telegram update contains
+      // a message, a valid chat ID, and supported content to process
       if (msg == null) {
         _logger.LogInformation("Telegram webhook: update has no message.");
         return;
@@ -61,7 +76,6 @@ namespace Jenian.Infrastructure.Services.Telegram
         return;
       }
 
-      // Short-circuit: empty payload (no text, no photo, no document)
       var hasAnyContent = !string.IsNullOrWhiteSpace(msg.Text) || msg.Photo != null || msg.Document != null;
       if (!hasAnyContent) {
         _logger.LogInformation("Telegram webhook: empty message (no text/photo/document).");
@@ -69,14 +83,18 @@ namespace Jenian.Infrastructure.Services.Telegram
         return;
       }
 
+
       _logger.LogInformation("Telegram webhook from @{Username} (Id:{Id}). Text:'{Text}' Photo:{HasPhoto} Doc:{HasDoc}",
         msg.From?.Username, msg.From?.Id, msg.Text, msg.Photo != null, msg.Document != null);
 
-      // 1) Handle linking flow: /start <linkToken>
+
+
+
+      // Handle Linking Flow: if message starts with "/start", attempt to link Telegram user to Jenian account
       if (!string.IsNullOrWhiteSpace(msg.Text) && msg.Text.StartsWith("/start", StringComparison.OrdinalIgnoreCase)) {
         var maybeToken = TryExtractStartToken(msg.Text);
         if (string.IsNullOrEmpty(maybeToken)) {
-          await _telegramMessenger.SendMessageAsync(chatId, "Please open the link from the Jenian app so I can connect your Telegram.", ct);
+          await _telegramMessenger.SendMessageAsync(chatId, "Invalid token after /start", ct);
           return;
         }
 
@@ -91,7 +109,7 @@ namespace Jenian.Infrastructure.Services.Telegram
           return;
         }
 
-        // Prevent one Telegram account linking to multiple Jenian users
+        // Ensure this Telegram account isn't already linked to a different Jenian user
         var telegramIdStr = (msg.From?.Id ?? 0).ToString();
         var alreadyLinked = await _dbContext
           .Users
@@ -102,6 +120,7 @@ namespace Jenian.Infrastructure.Services.Telegram
           return;
         }
 
+        // Link Telegram user to Jenian account -> save TelegramUserId and clear TelegramLinkToken
         user.TelegramUserId = telegramIdStr;
         user.TelegramLinkToken = null; // one-time token → invalidate
         await _dbContext.SaveChangesAsync(ct);
@@ -110,14 +129,61 @@ namespace Jenian.Infrastructure.Services.Telegram
         return;
       }
 
-      // 2) Gate all further interactions to linked users only
+
+      // Prevent unauthorized access: only allow messages from Telegram users who have linked their account (TelegramUserId matches)
       var fromTelegramId = (msg.From?.Id ?? 0).ToString();
       var linkedUser = await _dbContext.Users.FirstOrDefaultAsync(u => u.TelegramUserId == fromTelegramId, ct);
-      if (linkedUser == null) {
+      if (!string.IsNullOrWhiteSpace(msg.Text) && linkedUser == null) {
         _logger.LogInformation("Unauthorized Telegram user {TelegramId} tried to interact.", fromTelegramId);
         await _telegramMessenger.SendMessageAsync(chatId, "You're not authorized yet. Please connect Telegram from the Jenian app first.", ct);
         return;
       }
+
+
+      /********* Handle text with linked user **********/
+
+      // Display menu
+      if (!string.IsNullOrWhiteSpace(msg.Text) && msg.Text.Equals("/menu", StringComparison.OrdinalIgnoreCase)) {
+        await _telegramMessenger.SendMessageAsync(chatId, "Available commands:\n/roster - Submit a photo of your roster\n/menu - Show this menu", ct);
+      }
+
+
+
+      // Handle message "/roster"
+      if (!string.IsNullOrWhiteSpace(msg.Text) && msg.Text.Equals("/roster", StringComparison.OrdinalIgnoreCase)) {
+        // Start awaiting for the roster photo session - awaiting for 30 seconds, then timeout and send message if no photo received
+        // If /roster is sent again within the 30 seconds, new session starts and previous one is discarded
+        _rosterSessionManager.StartOrReplace(chatId);
+        await _telegramMessenger.SendMessageAsync(chatId, "Please send the photo of your roster within the next 1 minute.", ct);
+
+        return;
+      }
+
+      // Handle incoming photo/document: if we're awaiting a roster photo for this chatId, process it; otherwise, ignore and prompt user to send /roster first
+      if (msg.Photo != null || msg.Document != null) {
+        // Check if current chatId is awaiting for a roster photo - /roster command was issued previously and we're waiting for the photo to be sent
+        if (!_rosterSessionManager.TryConsume(chatId)) {
+          await _telegramMessenger.SendMessageAsync(chatId, "I wasn't expecting a photo. If you want to submit your roster, please send /roster first.", ct);
+          return;
+        }
+
+        // Only process the latest photo, old photo will be cancelled if user sends multiple photos/documents in a row
+        _latestRequestRunner.StartOrRestart(chatId, async (sp, ct) => {
+          var svc = sp.GetRequiredService<IRosterExtractor>();
+          await svc.HandleMediaAsync(msg, chatId, ct);
+        });
+      }
+
+      // Other messages will be prompted to use /roster - if user sends any message other than /roster or a photo/document, we can optionally guide them to use the correct command
+      if (_rosterSessionManager.HasActiveSession(chatId)) {
+        await _telegramMessenger.SendMessageAsync(chatId, "Please send the photo", ct);
+        return;
+      }
+
+
+
+
+
 
 
     }
@@ -132,24 +198,7 @@ namespace Jenian.Infrastructure.Services.Telegram
       return parts.Length >= 2 ? parts[1] : null;
     }
 
-    /// <summary>
-    /// Picks the best available file_id from photo/document payloads.
-    /// - For photos: Telegram sends an array of sizes; we take the last (largest).
-    /// - For documents: use the document's file_id.
-    /// Returns null if none present.
-    /// </summary>
-    private static string? PickBestFileId(TelegramMessage msg) {
-      if (msg.Photo is { Count: > 0 }) {
-        // Photo array is sized smallest→largest
-        return msg.Photo.Last().FileId;
-      }
 
-      if (msg.Document != null && !string.IsNullOrWhiteSpace(msg.Document.FileId)) {
-        return msg.Document.FileId;
-      }
-
-      return null;
-    }
 
 
   }
