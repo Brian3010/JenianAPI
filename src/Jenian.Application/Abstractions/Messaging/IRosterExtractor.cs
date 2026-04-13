@@ -6,7 +6,7 @@ namespace Jenian.Application.Abstractions.Messaging
   {
     //void StartRosterWait(long chatId, CancellationToken ct);
     //void TryCompleteWaitWithMessage(TelegramMessage msg);
-    Task HandleMediaAsync(TelegramMessage message, long chatId, CancellationToken ct = default);
+    Task HandleMediaAsync(string staffName, TelegramMessage message, long chatId, CancellationToken ct = default);
     //void CancelTask(long chatId);
   }
 }
