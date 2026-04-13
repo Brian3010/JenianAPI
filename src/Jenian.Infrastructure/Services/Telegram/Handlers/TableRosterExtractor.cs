@@ -45,7 +45,7 @@ namespace Jenian.Infrastructure.Services.Telegram.Bots
 
 
 
-    public async Task HandleMediaAsync(TelegramMessage message, long chatId, CancellationToken ct = default) {
+    public async Task HandleMediaAsync(string staffName, TelegramMessage message, long chatId, CancellationToken ct = default) {
 
       // step 1: pick the best fileId from the message (photo array's largest size or document)
       var bestFileId = PickBestFileId(message);
@@ -81,10 +81,6 @@ namespace Jenian.Infrastructure.Services.Telegram.Bots
 
       // Step 5: (Future) Save parsed shift, reply with summary, etc.
       //await _telegramMessenger.SendMessageAsync(chatId, "⏳ Hang on, almost there...", ct);
-
-      // This name should be obtained by user specification at the frontend
-      // -> save the name that they want to extract in the database. 
-      var staffName = "Lucy";
 
       await _jobQueue.EnqueueAsync(
       new ShiftExtractionJob(chatId, ocrText, staffName),

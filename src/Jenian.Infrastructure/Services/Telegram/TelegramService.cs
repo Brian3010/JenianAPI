@@ -168,9 +168,10 @@ namespace Jenian.Infrastructure.Services.Telegram
         }
 
         // Only process the latest photo, old photo will be cancelled if user sends multiple photos/documents in a row
+        var searchUserName = linkedUser!.UserName; // safe to use ! because we already checked linkedUser != null above
         _latestRequestRunner.StartOrRestart(chatId, async (sp, ct) => {
           var svc = sp.GetRequiredService<IRosterExtractor>();
-          await svc.HandleMediaAsync(msg, chatId, ct);
+          await svc.HandleMediaAsync(searchUserName!, msg, chatId, ct);
         });
       }
 
