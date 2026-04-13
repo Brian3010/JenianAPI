@@ -4,6 +4,7 @@ using Jenian.Application.Abstractions.BackgroundJobs;
 using Jenian.Application.Abstractions.Persistence;
 using Jenian.Domain.Entities;
 using Jenian.Infrastructure.BackgroundJobs.JobPayloads;
+using Jenian.Infrastructure.Services.AI;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.IdentityModel.Tokens.Jwt;
@@ -164,6 +165,7 @@ namespace Jenian.API.Controllers
           using var memoryStream = new MemoryStream();
           await formFile.CopyToAsync(memoryStream);
           var fileBytes = memoryStream.ToArray();
+
           var ocrText = await _parserService.ExtractTextFromPhotoAsync(fileBytes, CancellationToken.None, false);
           allOcrText.AppendLine(ocrText);
         }

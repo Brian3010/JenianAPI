@@ -1,4 +1,5 @@
 using Jenian.Application.Abstractions.Messaging;
+using Jenian.Application.Features.Telegram.Dtos;
 
 namespace Jenian.Infrastructure.Services.Telegram
 {
@@ -40,6 +41,8 @@ namespace Jenian.Infrastructure.Services.Telegram
         _logger.LogError(ex, "sendMessage exception (chat {ChatId})", chatId);
       }
     }
+
+
 
   }
 }
