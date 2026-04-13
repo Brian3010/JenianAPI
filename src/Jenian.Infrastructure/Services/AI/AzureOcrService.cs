@@ -4,13 +4,16 @@ using System.Text;
 
 namespace Jenian.Infrastructure.Services.AI
 {
-  public class AzureVisionAIParserService : IParserService
+  public class AzureVisionParserService : IParserService
   {
-    private readonly ILogger<AzureVisionAIParserService> _logger;
+    private readonly ILogger<AzureVisionParserService> _logger;
     private readonly ImageAnalysisClient _client;
     private readonly IOpenAiService _openAiService;
 
-    public AzureVisionAIParserService(ILogger<AzureVisionAIParserService> logger, ImageAnalysisClient client, IOpenAiService openAiService) {
+    public AzureVisionParserService(ILogger<AzureVisionParserService> logger,
+      ImageAnalysisClient client,
+      IOpenAiService openAiService
+      ) {
       _logger = logger;
       _client = client;
       _openAiService = openAiService;
@@ -26,7 +29,11 @@ namespace Jenian.Infrastructure.Services.AI
       if (fileByte == null || fileByte.Length == 0)
         throw new Exception("fileByte not provided or empty");
 
-      BinaryData imageData = BinaryData.FromBytes(fileByte);
+
+      // Clean up the image for better OCR results (e.g. brightness/contrast adjustments, noise reduction)
+      var filteredPhoto = OcrPreprocess.PhotoCleanUp(fileByte);
+
+      BinaryData imageData = BinaryData.FromBytes(filteredPhoto);
       _logger.LogInformation("Image size: {ImageSize} bytes", imageData.ToMemory().Length);
 
       // Ask only for text to reduce latency/cost

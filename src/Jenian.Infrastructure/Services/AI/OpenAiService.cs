@@ -1,8 +1,9 @@
 using Jenian.Application.Abstractions.AI;
 using Jenian.Application.Common.Exceptions;
+using Jenian.Infrastructure.Services.AI.Roster;
 using Jenian.Infrastructure.Services.Helpers;
 using OpenAI.Chat;
-using System.Text.RegularExpressions;
+using OpenCvSharp.Text;
 
 namespace Jenian.Infrastructure.Services.AI
 {
@@ -16,6 +17,7 @@ namespace Jenian.Infrastructure.Services.AI
       _logger = logger;
     }
 
+    // This method extracts delivery entries from OCR text using an LLM. It applies specific rules to filter and format the output.
     public async Task<string> DeliveryTextExtractor(string ocrText, CancellationToken ct = default) {
       var filteredText = TelegramOcrTextProcess.ExtractAfterLastToday(ocrText);
 
@@ -160,7 +162,12 @@ namespace Jenian.Infrastructure.Services.AI
 
     }
 
-    public async Task<string> RosterQuery(string ocrText, string staffName, CancellationToken ct = default) {
+    public async Task<string> RosterQueryLegacy(string ocrText, string staffName, CancellationToken ct = default) {
+
+
+      _logger.LogInformation("RosterQuery - ocrText: {0}", ocrText);
+
+
       var messages = new ChatMessage[]
       {
         new SystemChatMessage($$"""
@@ -222,6 +229,88 @@ namespace Jenian.Infrastructure.Services.AI
         ChatCompletion completion = await _chatClient.CompleteChatAsync(messages);
 
         return completion.Content[0].Text ?? string.Empty;
+      } catch (Exception e) {
+        throw new AppException("OpenAI query failed: " + e.Message);
+      }
+    }
+
+    // New method that does the same as RosterQueryLegacy but with intermediate C# parsing to reduce LLM load and increase reliability.
+    // You can keep this as an internal method and call it from RosterQuery, which can serve as a toggle between the old and new implementations.
+    public async Task<string> RosterQuery(string ocrText, string staffName, CancellationToken ct = default) {
+      try {
+
+        _logger.LogInformation("RosterQuery - ocrText: {0}", ocrText);
+
+        var hybridResult = await RosterQueryHybrid(ocrText, staffName, ct);
+
+        _logger.LogInformation("RosterQuery - hybridResult: {0}", hybridResult);
+
+
+        // Temporary migration strategy:
+        // if hybrid ever throws or you decide to detect invalid output later,
+        // you can still fall back to the old prompt-only method.
+        return hybridResult;
+      } catch (Exception ex) {
+        _logger.LogWarning(ex, "RosterQuery hybrid failed. Falling back to legacy method.");
+        return await RosterQueryLegacy(ocrText, staffName, ct);
+      }
+    }
+
+    //  implements the same logic as RosterQueryLegacy but does the intermediate parsing and mapping in C# instead of prompting the LLM to do it all.
+    private async Task<string> RosterQueryHybrid(string ocrText, string staffName, CancellationToken ct = default) {
+      _logger.LogInformation("RosterQueryHybrid - staffName: {StaffName}", staffName);
+
+      if (string.IsNullOrWhiteSpace(ocrText) || string.IsNullOrWhiteSpace(staffName))
+        return "I cannot find the staff name, please make sure to write their full name";
+
+      var tokens = RosterOcrParser.Parse(ocrText);
+      _logger.LogInformation("RosterQueryHybrid - Parsed {Count} OCR tokens", tokens.Count);
+
+      if (tokens.Count == 0)
+        return "I cannot find the staff name, please make sure to write their full name";
+
+      var dayColumns = RosterWeekdayLocator.BuildDayColumns(tokens);
+      _logger.LogInformation(
+        "RosterQueryHybrid - Day columns: {Days}",
+        string.Join(", ", dayColumns.Select(c => c.Day)));
+
+      if (dayColumns.Count == 0)
+        return $"{staffName} is enjoying the holiday";
+
+      var rowMatch = RosterStaffMatcher.FindBestStaffRow(tokens, staffName);
+      _logger.LogInformation(
+        "RosterQueryHybrid - Matched row: {MatchedName}",
+        rowMatch?.NameToken.Text ?? "<null>");
+
+      if (rowMatch is null)
+        return "I cannot find the staff name, please make sure to write their full name";
+
+      var mappedShifts = RosterShiftMapper.MapRawShifts(rowMatch, dayColumns);
+      _logger.LogInformation(
+        "RosterQueryHybrid - Mapped shifts: {MappedShifts}",
+        string.Join(" | ", mappedShifts.Select(s => $"{s.Day}:{s.RawShiftText}")));
+
+      if (mappedShifts.Count == 0)
+        return $"{staffName} is enjoying the holiday";
+
+      var messages = new ChatMessage[]
+      {
+      new SystemChatMessage("""
+          You normalize raw roster shift text accurately and conservatively.
+          Do not change weekdays.
+          Do not add or invent shifts.
+          Only output the final formatted result.
+       """),
+      new UserChatMessage(RosterShiftNormaliserPromptBuilder.Build(staffName, mappedShifts))
+      };
+
+      try {
+        ChatCompletion completion = await _chatClient.CompleteChatAsync(messages, cancellationToken: ct);
+        var result = completion.Content[0].Text?.Trim();
+
+        return string.IsNullOrWhiteSpace(result)
+          ? $"{staffName} is enjoying the holiday"
+          : result;
       } catch (Exception e) {
         throw new AppException("OpenAI query failed: " + e.Message);
       }
