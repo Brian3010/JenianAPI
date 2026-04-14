@@ -1,6 +1,11 @@
+using Azure.Identity;
+using Azure.Storage.Blobs;
 using Jenian.API.Configurations;
 using Jenian.API.Middleware;
+using Jenian.Application.Abstractions.Storage;
 using Jenian.Infrastructure;
+using Jenian.Infrastructure.storage;
+using Jenian.Infrastructure.Storage;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Models;
@@ -76,16 +81,16 @@ namespace Jenian.API
           Scheme = "bearer",
         });
         options.AddSecurityRequirement(new OpenApiSecurityRequirement {
-          {
-            new OpenApiSecurityScheme {
-              Reference = new OpenApiReference{Type = ReferenceType.SecurityScheme, Id = JwtBearerDefaults.AuthenticationScheme },
-              Scheme ="Oauth2",
-              Name = JwtBearerDefaults.AuthenticationScheme,
-              In = ParameterLocation.Header
-            },
-             new List<string>()
-          }
-        });
+                  {
+                    new OpenApiSecurityScheme {
+                      Reference = new OpenApiReference{Type = ReferenceType.SecurityScheme, Id = JwtBearerDefaults.AuthenticationScheme },
+                      Scheme ="Oauth2",
+                      Name = JwtBearerDefaults.AuthenticationScheme,
+                      In = ParameterLocation.Header
+                    },
+                     new List<string>()
+                  }
+                });
       });
       /**************************************************************/
 
@@ -116,6 +121,28 @@ namespace Jenian.API
               errors = context.ModelState
             });
       });
+
+      builder.Services.Configure<AzureBlobStorageOptions>(
+      builder.Configuration.GetSection("AzureBlobStorage"));
+
+      var blobOptions = builder.Configuration
+          .GetSection("AzureBlobStorage")
+          .Get<AzureBlobStorageOptions>()
+          ?? throw new InvalidOperationException("AzureBlobStorage config is missing.");
+
+      if (string.IsNullOrWhiteSpace(blobOptions.AccountUrl))
+        throw new InvalidOperationException("AzureBlobStorage:AccountUrl is missing.");
+
+      builder.Services.AddSingleton(_ => {
+        var credential = new DefaultAzureCredential();
+
+        return new BlobServiceClient(
+            new Uri(blobOptions.AccountUrl),
+            credential);
+      });
+
+      builder.Services.AddSingleton<IBlobStorageService, AzureBlobStorageService>();
+      builder.Services.AddHostedService<BlobContainerInitialiser>();
 
       var app = builder.Build();
       logger.Information("App environment: {0}", app.Environment.EnvironmentName);

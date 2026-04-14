@@ -9,14 +9,30 @@ namespace Jenian.Infrastructure.Services.AI
     /// 1) optional perspective correction
     /// 2) deskew by rotation
     /// 3) light blur / resize
+    /// Input: image stream
     /// Returns PNG bytes ready for OCR.
     /// </summary>
-    public static byte[] PhotoCleanUp(byte[] photoInput, double scale = 1.25, bool perspective = true) {
-      using var srcColor = Cv2.ImDecode(photoInput, ImreadModes.Color);
+    public static async Task<byte[]> PhotoCleanUpAsync(
+      Stream photoInputStream,
+      double scale = 1.25,
+      bool perspective = true,
+      CancellationToken cancellationToken = default) {
+      if (photoInputStream == null)
+        throw new ArgumentNullException(nameof(photoInputStream));
+
+      if (!photoInputStream.CanRead)
+        throw new ArgumentException("Input stream must be readable.", nameof(photoInputStream));
+
+      // Read stream into byte[] because Cv2.ImDecode expects bytes
+      using var memoryStream = new MemoryStream();
+      await photoInputStream.CopyToAsync(memoryStream, cancellationToken);
+
+      var photoInputBytes = memoryStream.ToArray();
+
+      using var srcColor = Cv2.ImDecode(photoInputBytes, ImreadModes.Color);
       if (srcColor.Empty())
         throw new InvalidOperationException("Invalid image.");
 
-      // Grayscale conversion is already correct; keep it.
       using var srcGray = new Mat();
       Cv2.CvtColor(srcColor, srcGray, ColorConversionCodes.BGR2GRAY);
 
@@ -35,7 +51,6 @@ namespace Jenian.Infrastructure.Services.AI
       using var rotatedColor = RotateKeepContent(alignedColor, -angle);
       using var rotatedGray = RotateKeepContent(alignedGray, -angle);
 
-      // Keep output similar to your original implementation.
       using var outMat = new Mat();
       Cv2.GaussianBlur(rotatedColor, outMat, new Size(3, 3), 0);
 
@@ -56,10 +71,8 @@ namespace Jenian.Infrastructure.Services.AI
       using var inv = new Mat();
       using var edges = new Mat();
 
-      // Light normalization for uneven lighting
       Cv2.GaussianBlur(gray, norm, new Size(3, 3), 0);
 
-      // Better for photographed documents than raw Canny on grayscale
       Cv2.AdaptiveThreshold(
         norm,
         bin,
@@ -91,10 +104,9 @@ namespace Jenian.Infrastructure.Services.AI
         if (dx == 0)
           continue;
 
-        var angle = Math.Atan2(dy, dx) * 180.0 / Math.PI; // [-180..180]
+        var angle = Math.Atan2(dy, dx) * 180.0 / Math.PI;
         var normalized = angle > 90 ? angle - 180 : (angle < -90 ? angle + 180 : angle);
 
-        // Keep only near-horizontal table/text lines
         if (Math.Abs(normalized) <= 15)
           angles.Add(normalized);
       }
@@ -105,7 +117,6 @@ namespace Jenian.Infrastructure.Services.AI
       angles.Sort();
       var median = angles[angles.Count / 2];
 
-      // Prevent wild corrections
       return Math.Max(-10.0, Math.Min(10.0, median));
     }
 
@@ -119,7 +130,6 @@ namespace Jenian.Infrastructure.Services.AI
       var center = new Point2f(src.Cols / 2f, src.Rows / 2f);
       using var rot = Cv2.GetRotationMatrix2D(center, angleDeg, 1.0);
 
-      // Compute output bounds explicitly to reduce clipping / rounding issues
       var absCos = Math.Abs(rot.Get<double>(0, 0));
       var absSin = Math.Abs(rot.Get<double>(0, 1));
 
@@ -142,7 +152,7 @@ namespace Jenian.Infrastructure.Services.AI
       return dst;
     }
 
-    // ---------- Perspective correction (page quad -> top-down) ----------
+    // ---------- Perspective correction ----------
 
     private static bool TryFindPageQuad(Mat gray, out Point2f[] quad) {
       const int maxDim = 1200;
@@ -207,7 +217,7 @@ namespace Jenian.Infrastructure.Services.AI
       var dstW = Math.Max(1, (int)Math.Round(maxW + 2 * mw));
       var dstH = Math.Max(1, (int)Math.Round(maxH + 2 * mh));
 
-      var srcPts = new[] { quad[0], quad[1], quad[2], quad[3] }; // TL,TR,BR,BL
+      var srcPts = new[] { quad[0], quad[1], quad[2], quad[3] };
       var dstPts = new[]
       {
         new Point2f(mw, mh),
