@@ -67,7 +67,7 @@ namespace Jenian.Infrastructure.Services.Telegram.Bots
       cts.CancelAfter(TimeSpan.FromSeconds(180)); // keep webhook snappy; Telegram retries on long timeouts
       try {
         await _telegramMessenger.SendMessageAsync(chatId, "🔄 Photo received, processing...", ct);
-        ocrText = await _parserService.ExtractTextFromPhotoAsync(fileByte, cts.Token);
+        ocrText = await _parserService.ExtractTextFromPhotoStreamAsync(fileByte, cts.Token);
       } catch (TaskCanceledException) {
         _logger.LogWarning("Parsing timed out.");
         await _telegramMessenger.SendMessageAsync(chatId, "⏱️ Parsing took too long. Please try again with a clearer photo.", ct);
@@ -216,12 +216,14 @@ namespace Jenian.Infrastructure.Services.Telegram.Bots
     }
 
 
-    private async Task<byte[]> DownloadToMemoryByteAsync(string url, CancellationToken ct = default) {
+    private async Task<Stream> DownloadToMemoryByteAsync(string url, CancellationToken ct = default) {
       try {
         using var client = _clientFactory.CreateClient();
 
-        var bytes = await client.GetByteArrayAsync(url, ct);
-        return bytes;
+        //var bytes = await client.GetByteArrayAsync(url, ct);
+        var stream = await client.GetStreamAsync(url, ct);
+
+        return stream;
       } catch (Exception ex) {
         _logger.LogError(ex, "Failed to download media from {Url}", url);
         throw;

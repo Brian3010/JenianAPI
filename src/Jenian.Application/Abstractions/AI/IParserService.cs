@@ -3,9 +3,9 @@ namespace Jenian.Application.Abstractions.AI
   public interface IParserService
   {
 
-    Task<string> ExtractTextFromPhotoAsync(byte[] fileByte, CancellationToken cancellationToken, bool? isPoligon = true);
+    Task<string> ExtractTextFromPhotoStreamAsync(Stream fileStreams, CancellationToken cancellationToken, bool? isPoligon = true);
 
+    Task<string> ExtractShiftsAsync(string orcText, string staffName, CancellationToken cancellationToken);
 
-    Task<string> ExtractShiftAsync(string orcText, string staffName, CancellationToken cancellationToken);
   }
 }

@@ -24,18 +24,18 @@ namespace Jenian.Infrastructure.Services.AI
     /// </summary>
     /// <param name="fileByte"></param>
     /// <returns><see cref="string"/></returns>
-    public async Task<string> ExtractTextFromPhotoAsync(byte[] fileByte, CancellationToken cancellationToken, bool? isPoligon = true) {
+    public async Task<string> ExtractTextFromPhotoStreamAsync(Stream fileStreams, CancellationToken cancellationToken, bool? isPoligon = true) {
 
-      if (fileByte == null || fileByte.Length == 0)
-        throw new Exception("fileByte not provided or empty");
+      if (fileStreams == null)
+        return "fileStreams is null";
 
 
-      // Clean up the image for better OCR results (e.g. brightness/contrast adjustments, noise reduction)
-      var filteredPhoto = OcrPreprocess.PhotoCleanUp(fileByte);
+      // Preprocess the image to enhance OCR accuracy (deskew, perspective correction, resize)
+      byte[] cleanedBytes = await OcrPreprocess.PhotoCleanUpAsync(fileStreams);
+      await using var cleanedStream = new MemoryStream(cleanedBytes);
 
-      BinaryData imageData = BinaryData.FromBytes(filteredPhoto);
-      _logger.LogInformation("Image size: {ImageSize} bytes", imageData.ToMemory().Length);
-
+      var imageData = BinaryData.FromStream(cleanedStream);
+      _logger.LogInformation("Image size : {ImageSize} bytes", imageData.ToMemory().Length);
       // Ask only for text to reduce latency/cost
       var visualFeatures = VisualFeatures.Read;
       var options = new ImageAnalysisOptions {
@@ -70,14 +70,13 @@ namespace Jenian.Infrastructure.Services.AI
       return ocrText.ToString().Trim();
     }
 
-    public async Task<string> ExtractShiftAsync(string ocrText, string staffName, CancellationToken ct = default) {
+    public async Task<string> ExtractShiftsAsync(string ocrText, string staffName, CancellationToken ct = default) {
       if (string.IsNullOrWhiteSpace(ocrText))
         return "Text is empty";
 
       var res = await _openAiService.RosterQuery(ocrText, staffName);
       return $"{res}";
     }
-
 
   }
 }
