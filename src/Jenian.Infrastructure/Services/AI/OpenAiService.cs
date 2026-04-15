@@ -111,6 +111,9 @@ namespace Jenian.Infrastructure.Services.AI
               IGNORE
               Do NOT treat these as deliveries:
 
+              5G
+              4G
+              Midtown
               usernames
               admin
               owner
