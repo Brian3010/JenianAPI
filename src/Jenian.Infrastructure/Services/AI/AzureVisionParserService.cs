@@ -65,7 +65,7 @@ namespace Jenian.Infrastructure.Services.AI
 
 
       // Preprocess the image to enhance OCR accuracy (deskew, perspective correction, resize)
-      byte[] cleanedBytes = await OcrPreprocess.PhotoCleanUpAsync(fileStreams);
+      byte[] cleanedBytes = await OcrPreprocess.PhotoCleanUpAsync(fileStreams, cancellationToken: cancellationToken);
       await using var cleanedStream = new MemoryStream(cleanedBytes);
 
       var ocrText = await GetOcrTextFromStream(cleanedStream, cancellationToken, true);
