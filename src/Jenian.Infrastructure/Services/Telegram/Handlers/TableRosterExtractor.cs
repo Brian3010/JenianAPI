@@ -67,7 +67,7 @@ namespace Jenian.Infrastructure.Services.Telegram.Bots
       cts.CancelAfter(TimeSpan.FromSeconds(180)); // keep webhook snappy; Telegram retries on long timeouts
       try {
         await _telegramMessenger.SendMessageAsync(chatId, "🔄 Photo received, processing...", ct);
-        ocrText = await _parserService.ExtractTextFromPhotoStreamAsync(fileByte, cts.Token);
+        ocrText = await _parserService.ExtractTextFromRosterPhotoStreamAsync(fileByte, cts.Token);
       } catch (TaskCanceledException) {
         _logger.LogWarning("Parsing timed out.");
         await _telegramMessenger.SendMessageAsync(chatId, "⏱️ Parsing took too long. Please try again with a clearer photo.", ct);

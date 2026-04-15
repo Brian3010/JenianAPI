@@ -68,7 +68,13 @@ namespace Jenian.Infrastructure.storage
         _logger.LogInformation("Uploaded blob {BlobName}", blobName);
         return blobName;
       } catch (RequestFailedException ex) {
-        _logger.LogError(ex, "Failed to upload blob {BlobName}", blobName);
+        _logger.LogError(
+        ex,
+        "Failed to upload blob {BlobName}. Status: {Status}, ErrorCode: {ErrorCode}, BlobUri: {BlobUri}",
+        blobName,
+        ex.Status,
+        ex.ErrorCode,
+        blobClient.Uri);
         throw;
       }
     }

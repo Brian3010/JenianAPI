@@ -122,6 +122,8 @@ namespace Jenian.API
             });
       });
 
+
+      // Azure Blob Storage configuration and service registration
       builder.Services.Configure<AzureBlobStorageOptions>(
       builder.Configuration.GetSection("AzureBlobStorage"));
 
@@ -143,6 +145,7 @@ namespace Jenian.API
 
       builder.Services.AddSingleton<IBlobStorageService, AzureBlobStorageService>();
       builder.Services.AddHostedService<BlobContainerInitialiser>();
+      /**************************************************************/
 
       var app = builder.Build();
       logger.Information("App environment: {0}", app.Environment.EnvironmentName);
