@@ -39,6 +39,11 @@ services:
       AzureVision__VisionEndpoint: '${AZURE_VISION_ENDPOINT}'
       AzureVision__VisionKey: '${AZURE_VISION_KEY}'
       Telegram__BotToken: '${TELEGRAM_BOT_TOKEN}'
+      AzureBlobStorage__AccountUrl: '${AZURE_BLOB_STORAGE_ACCOUNT_URL}'
+      AzureBlobStorage__ContainerName: '${AZURE_BLOB_STORAGE_CONTAINER_NAME}'
+      AZURE_TENANT_ID: '${AZURE_TENANT_ID}'
+      AZURE_CLIENT_ID: '${AZURE_CLIENT_ID}'
+      AZURE_CLIENT_SECRET: '${AZURE_CLIENT_SECRET}'
 
       # --- Migrations (set to true on first run to create DB schema) ---
       RUN_MIGRATIONS: 'false'

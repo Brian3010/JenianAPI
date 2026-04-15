@@ -4,6 +4,7 @@ using Jenian.Infrastructure.Services.AI.Roster;
 using Jenian.Infrastructure.Services.Helpers;
 using OpenAI.Chat;
 using OpenCvSharp.Text;
+using System.IO;
 
 namespace Jenian.Infrastructure.Services.AI
 {
@@ -19,11 +20,13 @@ namespace Jenian.Infrastructure.Services.AI
 
     // This method extracts delivery entries from OCR text using an LLM. It applies specific rules to filter and format the output.
     public async Task<string> DeliveryTextExtractor(string ocrText, CancellationToken ct = default) {
-      var filteredText = TelegramOcrTextProcess.ExtractAfterLastToday(ocrText);
 
-      _logger.LogInformation("filteredText {Value}", filteredText);
+      // 
+      var CleanedDeliveryText = TelegramOcrTextProcess.Clean(ocrText);
 
-      if (string.IsNullOrWhiteSpace(filteredText))
+      _logger.LogInformation("CleanedDeliveryText {Value}", CleanedDeliveryText);
+
+      if (string.IsNullOrWhiteSpace(CleanedDeliveryText))
         return string.Empty;
 
       var message = new ChatMessage[] {
@@ -141,7 +144,7 @@ namespace Jenian.Infrastructure.Services.AI
 
         new UserChatMessage($"""
           Here is the OCR delivery text:\n
-          {filteredText}
+          {CleanedDeliveryText}
 
           Extract only valid delivery entries.
           """)

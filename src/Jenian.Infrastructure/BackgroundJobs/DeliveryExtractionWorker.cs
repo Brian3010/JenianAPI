@@ -43,7 +43,7 @@ namespace Jenian.Infrastructure.BackgroundJobs
 
         await using var stream = await blobStorageService.OpenReadAsync(blobName, cancellationToken);
 
-        var ocrText = await azureParser.ExtractTextFromPhotoStreamAsync(
+        var ocrText = await azureParser.ExtractTextFromDeliveryPhotoStreamAsync(
             stream,
             cancellationToken
             );
