@@ -81,6 +81,7 @@ jobs:
           context: .
           file: Dockerfile
           push: true
+          no-cache: true
           tags: |
             ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
             ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:latest
