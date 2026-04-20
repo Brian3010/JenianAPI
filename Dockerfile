@@ -66,6 +66,18 @@ FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 \
     libglib2.0-0 \
+    libfreetype6 \
+    libharfbuzz0b \
+    libgtk-3-0 \
+    libpangocairo-1.0-0 \
+    libpango-1.0-0 \
+    libatk1.0-0 \
+    libcairo-gobject2 \
+    libcairo2 \
+    libgdk-pixbuf-2.0-0 \
+    libdrm2 \
+    libatomic1 \
+    libx11-6 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
