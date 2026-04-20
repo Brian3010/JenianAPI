@@ -84,6 +84,9 @@ WORKDIR /app
 # no source code, no SDK, no NuGet cache.
 COPY --from=build /app/publish .
 
+RUN find /app -name "*OpenCvSharp*" -print
+RUN sh -c 'for f in $(find /app -name "libOpenCvSharpExtern.so"); do echo "== $f =="; ldd "$f"; done' || true
+
 # Port 8080 is the default HTTP port for ASP.NET Core in Docker
 # since .NET 8 (changed from 80).  Azure Container Apps and
 # App Service also default to probing port 8080.
