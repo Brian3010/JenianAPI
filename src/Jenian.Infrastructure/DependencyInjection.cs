@@ -24,97 +24,97 @@ using OpenAI.Chat;
 
 namespace Jenian.Infrastructure
 {
-    public static class DependencyInjection
-    {
-        public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration) {
+  public static class DependencyInjection
+  {
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration) {
 
-            /* EF Core with SQL Server - register both Auth and App contexts. */
-            services.AddDbContext<JenianAuthDbContext>(options =>
-              options.UseSqlServer(configuration.GetConnectionString("JenianAuthConnection")));
-            services.AddDbContext<JenianDbContext>(options =>
-              options.UseSqlServer(configuration.GetConnectionString("JenianDbConnection")));
+      /* EF Core with SQL Server - register both Auth and App contexts. */
+      services.AddDbContext<JenianAuthDbContext>(options =>
+        options.UseSqlServer(configuration.GetConnectionString("JenianAuthConnection")));
+      services.AddDbContext<JenianDbContext>(options =>
+        options.UseSqlServer(configuration.GetConnectionString("JenianDbConnection")));
 
-            /** Add Identity system to the ASP.NET Core service container */
-            services.AddIdentityCore<ApplicationUser>()
-              .AddEntityFrameworkStores<JenianAuthDbContext>()
-              .AddDefaultTokenProviders();
+      /** Add Identity system to the ASP.NET Core service container */
+      services.AddIdentityCore<ApplicationUser>()
+        .AddEntityFrameworkStores<JenianAuthDbContext>()
+        .AddDefaultTokenProviders();
 
-            services.Configure<IdentityOptions>(options => {
-                options.Password.RequireDigit = true;
-                options.Password.RequireLowercase = true;
-                options.Password.RequireNonAlphanumeric = true;
-                options.Password.RequireUppercase = true;
-                options.Password.RequiredLength = 6;
-                options.Password.RequiredUniqueChars = 1;
+      services.Configure<IdentityOptions>(options => {
+        options.Password.RequireDigit = true;
+        options.Password.RequireLowercase = true;
+        options.Password.RequireNonAlphanumeric = true;
+        options.Password.RequireUppercase = true;
+        options.Password.RequiredLength = 6;
+        options.Password.RequiredUniqueChars = 1;
 
-                options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";
-                options.User.RequireUniqueEmail = true;
-            });
+        options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";
+        options.User.RequireUniqueEmail = true;
+      });
 
-            // Register Azure Vision client with endpoint and key
-            services.AddSingleton(serviceProvider => {
-                var config = serviceProvider.GetRequiredService<IConfiguration>();
-                var endpoint = new Uri(config["AzureVision:VisionEndpoint"]!);
-                var key = config["AzureVision:VisionKey"];
+      // Register Azure Vision client with endpoint and key
+      services.AddSingleton(serviceProvider => {
+        var config = serviceProvider.GetRequiredService<IConfiguration>();
+        var endpoint = new Uri(config["AzureVision:VisionEndpoint"]!);
+        var key = config["AzureVision:VisionKey"];
 
-                return new ImageAnalysisClient(endpoint, new AzureKeyCredential(key!));
-            });
+        return new ImageAnalysisClient(endpoint, new AzureKeyCredential(key!));
+      });
 
-            // Register background job queues with a capacity of 200 (tune as needed)
-            services.AddSingleton<IBackgroundJobQueue<ShiftExtractionJob>>(
-                  _ => new BackgroundJobQueue<ShiftExtractionJob>(capacity: 200));
-            services.AddSingleton<IBackgroundJobQueue<DeliveryWorkerJob>>(
-                  _ => new BackgroundJobQueue<DeliveryWorkerJob>(capacity: 200));
+      // Register background job queues with a capacity of 200 (tune as needed)
+      services.AddSingleton<IBackgroundJobQueue<ShiftExtractionJob>>(
+            _ => new BackgroundJobQueue<ShiftExtractionJob>(capacity: 200));
+      services.AddSingleton<IBackgroundJobQueue<DeliveryWorkerJob>>(
+            _ => new BackgroundJobQueue<DeliveryWorkerJob>(capacity: 200));
 
-            /** OpenAI Setup */
-            services.AddSingleton<ChatClient>(serviceProvider => {
-                var config = serviceProvider.GetRequiredService<IConfiguration>();
-                var apiKey = config["OpenAI:ApiKey"];
-                var model = config["OpenAI:Model"];
+      /** OpenAI Setup */
+      services.AddSingleton<ChatClient>(serviceProvider => {
+        var config = serviceProvider.GetRequiredService<IConfiguration>();
+        var apiKey = config["OpenAI:ApiKey"];
+        var model = config["OpenAI:Model"];
 
-                return new ChatClient(model, apiKey);
-            });
+        return new ChatClient(model, apiKey);
+      });
 
-            // LatestRequestRunner and StateStore are singletons to maintain shared state across the app
-            services.AddSingleton<LatestRequestRunner>();
-            services.AddSingleton<RosterSessionManager>();
-            services.AddSingleton<StateStore>();
+      // LatestRequestRunner and StateStore are singletons to maintain shared state across the app
+      services.AddSingleton<LatestRequestRunner>();
+      services.AddSingleton<RosterSessionManager>();
+      services.AddSingleton<StateStore>();
 
-            services.AddHostedService<ShiftExtractionWorker>();
-            services.AddHostedService<DeliveryExtractionWorker>();
+      services.AddHostedService<ShiftExtractionWorker>();
+      services.AddHostedService<DeliveryExtractionWorker>();
 
-            services.AddScoped<IJwtTokenManager, JwtTokenManager>();
-            services.AddScoped<ITelegramService, TelegramService>();
-            services.AddScoped<IParserService, AzureVisionParserService>();
-            services.AddScoped<IOpenAiService, OpenAiService>();
-            services.AddScoped<ITelegramMessenger, TelegramMessenger>();
-            services.AddScoped<IRosterExtractor, TableRosterExtractor>();
-            services.AddScoped<IReportChemistBot, ReportChemistBot>();
-            services.AddScoped<ICWHReportRepository, SQLCWHReportRepository>();
-            services.AddScoped<IJenianAuthRepository, SQLJenianAuthRepository>();
+      services.AddScoped<IJwtTokenManager, JwtTokenManager>();
+      services.AddScoped<ITelegramService, TelegramService>();
+      services.AddScoped<IParserService, AzureVisionParserService>();
+      services.AddScoped<IOpenAiService, OpenAiService>();
+      services.AddScoped<ITelegramMessenger, TelegramMessenger>();
+      services.AddScoped<IRosterExtractor, TableRosterExtractor>();
+      //services.AddScoped<IReportChemistBot, ReportChemistBot>();
+      services.AddScoped<ICWHReportRepository, SQLCWHReportRepository>();
+      services.AddScoped<IJenianAuthRepository, SQLJenianAuthRepository>();
 
-            return services;
-        }
-        public static async Task RunMigrationsAsync(this IServiceProvider serviceProvider, ILogger logger) {
-            logger.LogWarning("### RUN_MIGRATIONS=true - starting EF migrations ###");
-
-            try {
-                using var scope = serviceProvider.CreateScope();
-                var sp = scope.ServiceProvider;
-
-                var authDb = sp.GetRequiredService<JenianAuthDbContext>();
-                await authDb.Database.MigrateAsync();
-                logger.LogWarning("### AuthDbContext migrated ###");
-
-                var appDb = sp.GetRequiredService<JenianDbContext>();
-                await appDb.Database.MigrateAsync();
-                logger.LogWarning("### AppDbContext migrated ###");
-
-                logger.LogWarning("### EF migrations completed successfully ###");
-            } catch (Exception ex) {
-                logger.LogError(ex, "### EF migrations FAILED ###");
-                throw;
-            }
-        }
+      return services;
     }
+    public static async Task RunMigrationsAsync(this IServiceProvider serviceProvider, ILogger logger) {
+      logger.LogWarning("### RUN_MIGRATIONS=true - starting EF migrations ###");
+
+      try {
+        using var scope = serviceProvider.CreateScope();
+        var sp = scope.ServiceProvider;
+
+        var authDb = sp.GetRequiredService<JenianAuthDbContext>();
+        await authDb.Database.MigrateAsync();
+        logger.LogWarning("### AuthDbContext migrated ###");
+
+        var appDb = sp.GetRequiredService<JenianDbContext>();
+        await appDb.Database.MigrateAsync();
+        logger.LogWarning("### AppDbContext migrated ###");
+
+        logger.LogWarning("### EF migrations completed successfully ###");
+      } catch (Exception ex) {
+        logger.LogError(ex, "### EF migrations FAILED ###");
+        throw;
+      }
+    }
+  }
 }
