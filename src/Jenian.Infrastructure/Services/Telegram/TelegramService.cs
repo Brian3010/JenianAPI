@@ -31,29 +31,22 @@ namespace Jenian.Infrastructure.Services.Telegram
     public readonly string[] VALID_COMMANDS = ["/start", "/roster"];
     private readonly JenianAuthDbContext _dbContext;
     private readonly ILogger<TelegramService> _logger;
-    private readonly IConfiguration _configuration;
-    private readonly IParserService _parserService;
-    private readonly IRosterExtractor _rosterBot;
+
     private readonly ITelegramMessenger _telegramMessenger;
-    private readonly IReportChemistBot _reportChemistBot;
     private readonly LatestRequestRunner _latestRequestRunner;
     private readonly RosterSessionManager _rosterSessionManager;
 
     public TelegramService(JenianAuthDbContext dbContext,
       ILogger<TelegramService> logger, IConfiguration configuration,
       IParserService parserService, IRosterExtractor rosterBot,
-      ITelegramMessenger telegramMessenger, IReportChemistBot reportChemistBot,
+      ITelegramMessenger telegramMessenger,
       LatestRequestRunner latestRequestRunner,
       RosterSessionManager rosterSessionManager
 
       ) {
       _dbContext = dbContext;
       _logger = logger;
-      _configuration = configuration;
-      _parserService = parserService;
-      _rosterBot = rosterBot;
       _telegramMessenger = telegramMessenger;
-      _reportChemistBot = reportChemistBot;
       _latestRequestRunner = latestRequestRunner;
       _rosterSessionManager = rosterSessionManager;
     }
