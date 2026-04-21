@@ -11,13 +11,14 @@ namespace Jenian.Infrastructure.Services.AI.Roster
       foreach (var shift in mappedShifts.OrderBy(x => RosterDayOrder.GetOrder(x.Day))) {
         sb.AppendLine($"{shift.Day}: {shift.RawShiftText}");
       }
+      Console.WriteLine(sb);
 
       return $"""
-          You normalize already-mapped raw roster shift text for exactly one staff member.
+          You normalize already-mapped roster shift text for exactly one staff member.
 
           The weekday mapping has already been done in code.
-          Do not change the weekday.
-          Only normalize the shift text.
+          You must NOT change the weekday.
+          You must output one result line for every input line.
 
           Staff name:
           {staffName}
@@ -26,62 +27,53 @@ namespace Jenian.Infrastructure.Services.AI.Roster
           {sb}
 
           Rules:
-          1. Standard output format for each valid shift:
-             DAY: h:mm AM/PM - h:mm AM/PM
 
-          2. Normalize messy formats BEFORE interpreting:
-             - Replace "." with ":" when used in times (e.g., 4.30 → 4:30)
-             - Replace ".", "|" or extra spaces between numbers with "-" (e.g., 3 . 9 → 3 - 9, 1.9 → 1 - 9)
-             - Remove duplicate spaces
+          1. Every input line is valid and must appear in the output.
+          - Never skip a line
+          - Never remove a day
+          - Never add a day
 
-          3. Handle incomplete shifts:
-             - "11 -" → start_time = 11, end_time = null
-             - "- 9" → start_time = null, end_time = 9
-             - If either start or end is missing, treat the shift as VALID and and replace with either ? - 9 or 11 - ?
+          2. Normalize the shift separator.
+          - If "." appears between two time values, treat it as "-"
+          - If ":" appears between two time values, treat it as "-"
+          - If "-" has missing spaces, normalize it to " - "
+          Examples:
+          - "1 . 9" => "1 - 9"
+          - "11 . 9" => "11 - 9"
+          - "1:9" => "1 - 9"
+          - "1 -9" => "1 - 9"
+          - "6-2" => "6 - 2"
 
-          4. Valid shift examples:
-             - 8 - 4 → 8:00 AM - 4:00 PM
-             - 8 - 4:30 → 8:00 AM - 4:30 PM
-             - 1 - 9 → 1:00 PM - 9:00 PM
-             - 3 - 9 → 3:00 PM - 9:00 PM
-             - 11 - 7 → 11:00 AM - 7:00 PM
-             - 9 - 5 → 9:00 AM - 5:00 PM
-             - 9 - 7 → 9:00 AM - 7:00 PM
-             - 9 - 9 → 9:00 AM - 9:00 PM
-             - 8 - → 8:00 AM - ?
-             - 8 - ? → ? - 4:00 PM
-             -   -   → ? - ?
+          3. Keep the left and right values as they are.
+          - Do not add AM
+          - Do not add PM
+          - Do not convert to 12-hour format
+          - Do not infer meaning
+          - Do not judge whether the shift is logical
+          - Do not infer overnight shifts
 
-          5. AM/PM rules:
-             - Start hours 8–11 → AM
-             - Start hours 1–7 → PM
-             - End time must be later than start time on the same day
-             - Do NOT create overnight shifts
+          4. Final output format for each line:
+          DAY: start - end
 
-          6. Tags:
-             - If a trailing tag exists (e.g., MT), preserve it in parentheses
-
-          7. Important:
-             - Only include VALID shifts (both start and end present and logical)
-             - Valid entries can include missing time (e.g., "11 -" or "- 9" or " - ")
+          5. Do not do any extra reasoning.
+          - Do not change the weekday
+          - Do not change the numbers
+          - Do not rewrite to any other format
+          - Only normalize the separator to " - "
 
           Strict output:
 
-          - If no valid shifts remain:
-            {staffName} is enjoying the holiday
-
-          - Otherwise output exactly:
-            {staffName} has shifts on:
-            MON: ...
-            TUE: ...
-            WED: ...
-            THU: ...
-            FRI: ...
-            SAT: ...
-            SUN: ...
+          {staffName}:
+          MON: ...
+          TUE: ...
+          WED: ...
+          THU: ...
+          FRI: ...
+          SAT: ...
+          SUN: ...
 
           Output rules:
-          - Include only days that have valid shifts
+          - Include only the days present in the input
           - Order must be MON to SUN
           - No markdown
           - No explanations
