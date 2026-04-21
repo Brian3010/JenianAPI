@@ -302,11 +302,17 @@ namespace Jenian.Infrastructure.Services.AI
       var messages = new ChatMessage[]
       {
       new SystemChatMessage("""
-          You normalize raw roster shift text accurately and conservatively.
-          Do not change weekdays.
-          Do not add or invent shifts.
-          Only output the final formatted result.
-       """),
+        You transform already-mapped roster shift lines into the final output format.
+        Rules:
+        - Do not add AM/PM.
+        - You must follow the rules exactly.
+        - Do not interpret the meaning of the time.
+        - Do not correct or guess missing values.
+        - Preserve the original time text exactly as given.
+        - Only output the final formatted result.
+        - Only normalize the separator into ' - '.
+       """){
+      },
       new UserChatMessage(RosterShiftNormaliserPromptBuilder.Build(staffName, mappedShifts))
       };
 
