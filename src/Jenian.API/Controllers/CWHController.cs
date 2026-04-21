@@ -151,6 +151,10 @@ namespace Jenian.API.Controllers
         return BadRequest("Invalid report data.");
       }
 
+      if (CWHReportRequest.DeliveryScreenShots.Count > 5) {
+        return BadRequest("You can upload a maximum of 5 photos.");
+      }
+
       // create data for DeliveryExtractionJob table
       var deliveryExtractionData = new DeliveryExtractionJob {
 
@@ -234,6 +238,7 @@ namespace Jenian.API.Controllers
 
           await using var stream = file.OpenReadStream();
 
+          // Upload to blob storage
           var blobName = await _blobStorageService.UploadAsync(
               fileStream: stream,
               originalFileName: file.FileName,
