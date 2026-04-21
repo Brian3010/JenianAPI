@@ -29,7 +29,7 @@ namespace Jenian.Infrastructure.BackgroundJobs
         try {
           await telegramMessenger.SendMessageAsync(job.ChatId, "🐢 Brian is reading...", stoppingToken);
           var answer = await parser.ExtractShiftsAsync(job.OcrText, job.StaffName, stoppingToken);
-          await telegramMessenger.SendMessageAsync(job.ChatId, $"✅ Here is the roster: \n {answer}");
+          await telegramMessenger.SendMessageAsync(job.ChatId, $"You have shifts on: \n {answer}");
         } catch (OperationCanceledException) {
 
         } catch (Exception e) {

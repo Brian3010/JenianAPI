@@ -80,6 +80,7 @@ namespace Jenian.API.Contracts.Cwh
   public class CWHReportRequestDTOs
   {
     [Required]
+    [MaxLength(5, ErrorMessage = "You can upload a maximum of 5 photos.")]
     public required List<IFormFile> DeliveryScreenShots { get; set; } = new();
 
     [Required]
