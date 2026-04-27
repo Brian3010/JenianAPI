@@ -77,7 +77,7 @@ namespace Jenian.API.Contracts.Cwh
   }
 
 
-  public class CWHReportRequestDTOs
+  public class CWHReportRequest
   {
     [Required]
     [MaxLength(5, ErrorMessage = "You can upload a maximum of 5 photos.")]

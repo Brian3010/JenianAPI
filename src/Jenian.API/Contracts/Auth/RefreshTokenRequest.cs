@@ -1,6 +1,6 @@
 namespace Jenian.API.Contracts.Auth
 {
-  public class RefreshTokenRequestDto
+  public class RefreshTokenRequest
   {
     public required string UserId { get; set; }
 

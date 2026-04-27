@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Jenian.API.Contracts.Auth
 {
-  public class ResetPasswordRequestDto
+  public class ResetPasswordRequest
   {
     [Required]
     [EmailAddress]

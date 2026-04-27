@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Jenian.API.Contracts.Auth
 {
-  public class LoginRequestDto
+  public class LoginRequest
   {
     [Required]
     [DataType(DataType.Text)]

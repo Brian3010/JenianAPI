@@ -1,6 +1,7 @@
 using Jenian.API.Contracts.Auth;
 using Jenian.Application.Abstractions.Auth;
 using Jenian.Application.Abstractions.Persistence;
+using Jenian.Application.Features.Auth.Commands;
 using Jenian.Infrastructure.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -14,12 +15,14 @@ namespace Jenian.API.Controllers
   [ApiController]
   public class AuthController : ControllerBase
   {
+    private readonly IAuthService _authService;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IJwtTokenManager _jwtTokenManager;
     private readonly ILogger<AuthController> _logger;
     private readonly IJenianAuthRepository _jenainAuthRepository;
 
-    public AuthController(UserManager<ApplicationUser> userManager, IJwtTokenManager jwtTokenManager, ILogger<AuthController> logger, IJenianAuthRepository jenainAuthRepository) {
+    public AuthController(IAuthService authService, UserManager<ApplicationUser> userManager, IJwtTokenManager jwtTokenManager, ILogger<AuthController> logger, IJenianAuthRepository jenainAuthRepository) {
+      _authService = authService;
       _userManager = userManager;
       _jwtTokenManager = jwtTokenManager;
       _logger = logger;
@@ -28,47 +31,48 @@ namespace Jenian.API.Controllers
 
 
     [HttpPost("register")]
-    public async Task<IActionResult> Register(RegisterRequestDto registerRequest) {
-      // Check matching passwords
-      if (registerRequest.Password != registerRequest.ConfirmPassword) {
-        return BadRequest("Password and Confirm Password does not match");
-      }
+    public async Task<IActionResult> Register(RegisterRequest registerRequest) {
 
-
-      var newUser = new ApplicationUser() {
-        UserName = registerRequest.UserName,
+      var command = new RegisterCommand {
+        ConfirmPassword = registerRequest.ConfirmPassword,
+        Password = registerRequest.Password,
         Email = registerRequest.Email,
+        UserName = registerRequest.UserName,
       };
+      var result = await _authService.RegisterAsync(command, CancellationToken.None);
 
-      // Register user
-      var identityResult = await _userManager.CreateAsync(newUser, registerRequest.Password);
-
-      if (!identityResult.Succeeded) {
-        return BadRequest(identityResult.Errors);
+      if (!result.IsSuccess) {
+        return BadRequest(result.Errors);
       }
+
       return Ok("Registered succesffully");
     }
 
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequestDto loginRequest) {
-
-      var user = await _userManager.FindByEmailAsync(loginRequest.UserName) ?? await _userManager.FindByNameAsync(loginRequest.UserName);
-      // Check valid user
-      if (user == null || !await _userManager.CheckPasswordAsync(user, loginRequest.Password)) {
-        return Unauthorized(new { message = "Invalid username or password" });
-      }
+    public async Task<IActionResult> Login([FromBody] LoginRequest loginRequest) {
 
       var deviceIdCookie = Request.Cookies["deviceId"];
       Guid deviceId = Guid.TryParse(deviceIdCookie, out var guid) ? guid : Guid.NewGuid();
       var refreshToken = Request.Cookies["refreshToken"] ?? _jwtTokenManager.GenerateRefreshToken();
       _logger.LogInformation("Cookie received: deviceId={DeviceId} refreshToken=[redacted]", deviceId);
 
-      // Generate accessToken and refreshToken
-      var accessToken = _jwtTokenManager.GenerateJwtToken(new JwtUserClaims(user.Id, user.UserName!, user.Email!), 30);
+      var loginCommand = new LoginCommand {
+        UserName = loginRequest.UserName,
+        Password = loginRequest.Password,
+        DeviceId = deviceId,
+        RefreshToken = refreshToken
+      };
 
-      await _jwtTokenManager.UpsertDeviceAuthInfoAsync(refreshToken, deviceId, user.Id);
+      var loginResult = await _authService.LoginAsync(loginCommand, CancellationToken.None);
 
-      Response.Cookies.Append("refreshToken", refreshToken, new CookieOptions {
+      if (!loginResult.IsSuccess) {
+        return Unauthorized(new {
+          loginResult.Errors
+        });
+      }
+
+
+      Response.Cookies.Append("refreshToken", loginResult.Data!.RefreshToken, new CookieOptions {
         HttpOnly = true,
         Secure = true, // only over HTTPS
         SameSite = SameSiteMode.Lax,
@@ -76,21 +80,18 @@ namespace Jenian.API.Controllers
       });
 
 
-      Response.Cookies.Append("deviceId", deviceId.ToString(), new CookieOptions {
+      Response.Cookies.Append("deviceId", loginResult.Data.DeviceId, new CookieOptions {
         HttpOnly = true,
         Secure = true, // only over HTTPS
         SameSite = SameSiteMode.Lax,
         Expires = DateTime.UtcNow.AddDays(60)
       });
 
-      // Create a response
-      var response = new {
+      return Ok(new LoginResponse {
         Message = "Login Successfully",
-        AccessToken = accessToken,
-        User = new UserDto { Id = user.Id, Email = user.Email, UserName = user.UserName },
-      };
-
-      return Ok(response);
+        AccessToken = loginResult.Data.AccessToken,
+        User = loginResult.Data.User,
+      });
 
     }
 
@@ -100,24 +101,18 @@ namespace Jenian.API.Controllers
       _logger.LogInformation("Logout API hit");
 
       var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
-      var refreshToken = Request.Cookies["refreshToken"];
-      string? deviceIdCookie = Request.Cookies["deviceId"];
-      Guid? deviceId = Guid.TryParse(deviceIdCookie, out var guid) ? guid : null;
+      var refreshTokenCookie = Request.Cookies["refreshToken"];
+      var deviceIdCookie = Request.Cookies["deviceId"];
+      //Guid? deviceId = Guid.TryParse(deviceIdCookie, out var guid) ? guid : null;
 
+      var logoutCommand = new LogoutCommand {
+        UserId = userId,
+        RefreshToken = refreshTokenCookie,
+        DeviceId = deviceIdCookie
+      };
 
-      if (!string.IsNullOrEmpty(userId) && !string.IsNullOrEmpty(refreshToken) && deviceId.HasValue) {
-        var actualDeviceId = deviceId.Value;
-        _logger.LogInformation("Logout: userId: {UserId}, refreshToken=[redacted], deviceId {DeviceId}", userId, deviceId);
+      await _authService.LogoutAsync(logoutCommand, CancellationToken.None);
 
-        var deviceAuthInfoExist = await _jwtTokenManager.DeviceAuthInfoExistsAsync(refreshToken, actualDeviceId, userId);
-
-        _logger.LogInformation("deviceAuthInfoExist {0}", deviceAuthInfoExist);
-
-        if (deviceAuthInfoExist)
-          await _jwtTokenManager.RevokeDeviceAuthInfoAsync(refreshToken, actualDeviceId, userId);
-      }
-
-      _logger.LogInformation("Logout processed: userId={UserId}, refreshToken=[redacted], deviceId={DeviceId}", userId, deviceId);
 
       // remove refreshToken cookie
       Response.Cookies.Append("refreshToken", "", new CookieOptions {
@@ -163,7 +158,7 @@ namespace Jenian.API.Controllers
     }
 
     [HttpPost("reset-password")]
-    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequestDto resetPasswordRequestDto) {
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest resetPasswordRequestDto) {
       var userEmail = resetPasswordRequestDto.UserEmail;
 
       var user = await _userManager.FindByEmailAsync(userEmail);
@@ -190,37 +185,22 @@ namespace Jenian.API.Controllers
       var refreshTokenCookie = Request.Cookies["refreshToken"];
       string? deviceIdCookie = Request.Cookies["deviceId"];
 
-      // 1. Check for missing cookies
-      if (string.IsNullOrEmpty(refreshTokenCookie) || string.IsNullOrEmpty(deviceIdCookie)) {
-        _logger.LogWarning("Refresh attempt failed: Missing cookies (refreshToken={HasRefreshToken}, deviceId={HasDeviceId})",
-          !string.IsNullOrEmpty(refreshTokenCookie), !string.IsNullOrEmpty(deviceIdCookie));
-        return Unauthorized("Session expired. Please login again.");
-      }
+      var refreshTokenCommand = new RefreshTokenCommand {
+        DeviceId = deviceIdCookie,
+        RefreshToken = refreshTokenCookie,
+      };
 
-      Guid? deviceId = Guid.TryParse(deviceIdCookie, out var guid) ? guid : null;
+      var refreshTokenResult = await _authService.RefreshTokenAsync(refreshTokenCommand, CancellationToken.None);
 
-      if (deviceId is null) {
-        return BadRequest("DeviceId is null");
-      }
-
-      var userId = await _jwtTokenManager.GetUserIdByDeviceAuthAsync(refreshTokenCookie, deviceId.Value);
-      if (userId == null) return Unauthorized("Invalid session.");
-
-      if (!await _jwtTokenManager.DeviceAuthInfoExistsAsync(refreshTokenCookie, deviceId.Value, userId)) {
-        return Unauthorized("Invalid Refresh Token");
-      }
-
-      var user = await _userManager.FindByIdAsync(userId);
-      if (user == null) return Unauthorized("User no longer exists.");
-
-      var newAccessToken = _jwtTokenManager.GenerateJwtToken(new JwtUserClaims(user.Id, user.UserName!, user.Email!), 30);
+      if (!refreshTokenResult.IsSuccess)
+        return Unauthorized(refreshTokenResult.Errors);
 
 
       // Create a response
       var response = new {
         Message = "Auth session (refreshToken - deviceId) processed successfully",
-        AccessToken = newAccessToken,
-        User = new UserDto { Id = user.Id, Email = user.Email, UserName = user.UserName },
+        refreshTokenResult.Data!.AccessToken,
+        refreshTokenResult.Data.User,
       };
 
       return Ok(response);
