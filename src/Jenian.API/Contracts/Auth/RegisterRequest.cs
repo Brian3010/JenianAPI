@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Jenian.API.Contracts.Auth
 {
-  public class RegisterRequestDto
+  public class RegisterRequest
   {
     [Required]
     [DataType(DataType.EmailAddress)]

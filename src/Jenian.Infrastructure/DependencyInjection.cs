@@ -92,6 +92,7 @@ namespace Jenian.Infrastructure
       //services.AddScoped<IReportChemistBot, ReportChemistBot>();
       services.AddScoped<ICWHReportRepository, SQLCWHReportRepository>();
       services.AddScoped<IJenianAuthRepository, SQLJenianAuthRepository>();
+      services.AddScoped<IAuthService, AuthService>();
 
       return services;
     }

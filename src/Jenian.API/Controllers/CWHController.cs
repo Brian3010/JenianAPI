@@ -142,7 +142,7 @@ namespace Jenian.API.Controllers
 
     [Authorize]
     [HttpPost("eod-report")]
-    public async Task<IActionResult> HandleReport([FromForm] CWHReportRequestDTOs CWHReportRequest, CancellationToken cancellationToken) {
+    public async Task<IActionResult> HandleReport([FromForm] CWHReportRequest CWHReportRequest, CancellationToken cancellationToken) {
       _logger.LogInformation("EOD-REPORT POST API HIT");
       var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
       if (userId == null) return NotFound("Cannot Find User Information");
