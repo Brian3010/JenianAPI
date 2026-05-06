@@ -1,17 +1,17 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-  </PropertyGroup>
+		<PropertyGroup>
+				<TargetFramework>net9.0</TargetFramework>
+				<Nullable>enable</Nullable>
+				<ImplicitUsings>enable</ImplicitUsings>
+		</PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="../Jenian.Domain/Jenian.Domain.csproj" />
-  </ItemGroup>
+		<ItemGroup>
+				<ProjectReference Include="../Jenian.Domain/Jenian.Domain.csproj" />
+		</ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="System.Text.Json" Version="9.0.4" />
-  </ItemGroup>
+		<ItemGroup>
+				<PackageReference Include="System.Text.Json" Version="9.0.4" />
+		</ItemGroup>
 
 </Project>
