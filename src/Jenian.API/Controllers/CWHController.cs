@@ -1,4 +1,3 @@
-using Azure.Core;
 using Jenian.API.Contracts.Cwh;
 using Jenian.Application.Abstractions.AI;
 using Jenian.Application.Abstractions.BackgroundJobs;
@@ -6,19 +5,14 @@ using Jenian.Application.Abstractions.Persistence;
 using Jenian.Application.Abstractions.Storage;
 using Jenian.Domain.Entities;
 using Jenian.Infrastructure.BackgroundJobs.JobPayloads;
-using Jenian.Infrastructure.Services.AI;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.IdentityModel.Tokens.Jwt;
-using System.Text;
-using System.Threading;
 
-namespace Jenian.API.Controllers
-{
+namespace Jenian.API.Controllers {
   [Route("api/[controller]")]
   [ApiController]
-  public class CWHController : ControllerBase
-  {
+  public class CWHController : ControllerBase {
     private readonly ILogger<CWHController> _logger;
     private readonly IParserService _parserService;
     private readonly IOpenAiService _openAiService;
@@ -308,6 +302,10 @@ namespace Jenian.API.Controllers
     //  }
     //  return allOcrText.ToString();
     //}
+
+    //TODO: Add an POST endpoint for users to submit their shifts
+    //TODO: Add an GEt endpoint to get userShifts based on date range
+
 
 
   }
