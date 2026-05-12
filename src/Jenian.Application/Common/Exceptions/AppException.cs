@@ -1,6 +1,6 @@
 namespace Jenian.Application.Common.Exceptions
 {
-  public sealed class AppException : Exception
+  public class AppException : Exception
   {
     public int StatusCode { get; }
     public string? ErrorCode { get; }
