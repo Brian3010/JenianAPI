@@ -1,8 +1,16 @@
+using Jenian.Application.Features.Shifts.Services;
+using Microsoft.Extensions.DependencyInjection;
+
 namespace Jenian.Application
 {
   public static class DependencyInjection
   {
-    // Application layer has no services to register directly;
-    // its abstractions (interfaces) are registered in Jenian.Infrastructure.
+
+    public static IServiceCollection AddApplication(this IServiceCollection services) {
+      services.AddScoped<IShiftService, ShiftService>();
+
+      return services;
+    }
+
   }
 }

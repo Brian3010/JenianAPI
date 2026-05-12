@@ -1,15 +1,10 @@
 ﻿using Jenian.Domain.Entities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Jenian.Application.Features.Shifts.Dtos
 {
   public class ShiftDto
   {
-    public Guid Id { get; set; }
+    public Guid? Id { get; set; }
     public DateTimeOffset StartAt { get; set; }
 
     public DateTimeOffset EndAt { get; set; }
