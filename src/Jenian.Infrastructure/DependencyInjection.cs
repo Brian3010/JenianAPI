@@ -18,8 +18,6 @@ using Jenian.Infrastructure.Services.Telegram;
 using Jenian.Infrastructure.Services.Telegram.Bots;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using OpenAI.Chat;
 
 namespace Jenian.Infrastructure
@@ -93,6 +91,7 @@ namespace Jenian.Infrastructure
       services.AddScoped<ICWHReportRepository, SQLCWHReportRepository>();
       services.AddScoped<IJenianAuthRepository, SQLJenianAuthRepository>();
       services.AddScoped<IAuthService, AuthService>();
+      services.AddScoped<IShiftRepository, SQLShiftRepository>();
 
       return services;
     }
