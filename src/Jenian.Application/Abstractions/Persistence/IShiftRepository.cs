@@ -1,22 +1,18 @@
 ﻿using Jenian.Domain.Entities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Jenian.Application.Abstractions.Persistence
 {
   public interface IShiftRepository
   {
-    Task<UserShift> AddAsync(UserShift userShift, CancellationToken cancellationToken = default);
+    Task AddAsync(UserShift userShift, CancellationToken cancellationToken = default);
 
-    Task<UserShift> UpdateAsync(UserShift userShift, CancellationToken cancellationToken = default);
+    Task UpdateAsync(UserShift userShift, CancellationToken cancellationToken = default);
 
-    Task<IEnumerable<UserShift>> AddRangeAsync(IEnumerable<UserShift> shifts, CancellationToken cancellationToken = default);
+    Task AddRangeAsync(IEnumerable<UserShift> shifts, CancellationToken cancellationToken = default);
 
     Task<UserShift?> GetByIdForUserAsync(string userId, Guid shiftId, CancellationToken cancellationToken = default);
 
+    Task<IEnumerable<UserShift>> GetByIdsAndRangeAsync(string userId, DateOnly from, DateOnly to, CancellationToken cancellationToken = default);
     Task<IEnumerable<UserShift>> GetByIdsForUserAsync(string userId, IEnumerable<Guid> shiftIds, CancellationToken cancellationToken = default);
 
     Task<IEnumerable<UserShift>> GetByUserAndDateRangeAsync(string userId, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default);
@@ -25,6 +21,10 @@ namespace Jenian.Application.Abstractions.Persistence
 
     Task RemoveByIdsForUserAsync(string userId, IEnumerable<Guid> shiftIds, CancellationToken cancellationToken = default);
 
-    Task SaveChangesAsync(CancellationToken cancellationToken = default);
+    /** PayCycleSetting  **/
+    Task<PayCycleSetting?> GetPayCycleSettingByUserIdAsync(string userId, CancellationToken cancellationToken = default);
+    Task UpdatePayCycleSettingsForUserAsync(string userId, PayCycleSetting payCycleSetting, CancellationToken cancellationToken = default);
+
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
   }
 }

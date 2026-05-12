@@ -1,12 +1,8 @@
 ﻿using Jenian.Application.Abstractions.Persistence;
+using Jenian.Application.Common;
 using Jenian.Application.Features.Shifts.Commands;
 using Jenian.Application.Features.Shifts.Dtos;
 using Jenian.Domain.Entities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Jenian.Application.Features.Shifts.Services
 {
@@ -20,10 +16,12 @@ namespace Jenian.Application.Features.Shifts.Services
       _shiftRepository = shiftRepository;
     }
 
-    public async Task<IEnumerable<ShiftDto>> CreateShiftsAsync(CreateShiftsCommand command, CancellationToken cancellationToken) {
+
+    /* Shift Management */
+    public async Task<ServiceResult<IEnumerable<ShiftDto>>> CreateShiftsAsync(CreateShiftsCommand command, CancellationToken cancellationToken) {
 
       if (!command.ShiftDtos.Any()) {
-        throw new InvalidOperationException("At least one shift must be provided.");
+        return ServiceResult<IEnumerable<ShiftDto>>.Failure(["At least one shift must be provided."]);
       }
 
       var shifts = command.ShiftDtos.Select(item => new UserShift {
@@ -39,9 +37,9 @@ namespace Jenian.Application.Features.Shifts.Services
 
       });
 
-      var addedShifts = await _shiftRepository.AddRangeAsync(shifts, cancellationToken);
+      await _shiftRepository.AddRangeAsync(shifts, cancellationToken);
 
-      return addedShifts.Select(shift => new ShiftDto {
+      return ServiceResult<IEnumerable<ShiftDto>>.Success(shifts.Select(shift => new ShiftDto {
         Id = shift.Id,
         StartAt = shift.StartAt,
         EndAt = shift.EndAt,
@@ -51,41 +49,42 @@ namespace Jenian.Application.Features.Shifts.Services
         EntryType = shift.EntryType,
         EmploymentType = shift.EmploymentType,
         Source = shift.Source
-      });
+      }));
+
     }
 
-    public async Task DeleteShiftsAsync(DeleteShiftsCommand command, CancellationToken cancellationToken) {
+    public async Task<ServiceResult<bool>> DeleteShiftsAsync(DeleteShiftsCommand command, CancellationToken cancellationToken) {
 
       if (!command.ShiftIds.Any()) {
-        throw new InvalidOperationException("At least one shift ID must be provided.");
+        return ServiceResult<bool>.Failure(["At least one shift ID must be provided."]);
       }
       await _shiftRepository.RemoveByIdsForUserAsync(command.UserId, command.ShiftIds, cancellationToken);
+      return ServiceResult<bool>.Success(true);
 
     }
 
-    public async Task<IEnumerable<ShiftDto>> GetShiftsForUserAsync(GetShiftsForUserCommand command, CancellationToken cancellationToken) {
-      if (!command.ShiftIds.Any()) {
-        throw new InvalidOperationException("At least one shift ID must be provided.");
-      }
 
-      var shifts = await _shiftRepository.GetByIdsForUserAsync(command.UserId, command.ShiftIds, cancellationToken);
 
-      return shifts.Select(shift => new ShiftDto {
+    public async Task<ServiceResult<IEnumerable<ShiftDto>>> GetShiftsByUserAndDateRangeAsync(GetShiftsForUserByDateRangeCommand command, CancellationToken cancellationToken) {
+
+      var shifts = await _shiftRepository.GetByIdsAndRangeAsync(command.UserId, command.From, command.To, cancellationToken);
+
+      return ServiceResult<IEnumerable<ShiftDto>>.Success(shifts.Select(shift => new ShiftDto {
         Id = shift.Id,
         StartAt = shift.StartAt,
         EndAt = shift.EndAt,
         TimeZoneId = shift.TimeZoneId,
         UnpaidBreakMinutes = shift.UnpaidBreakMinutes,
         PaidBreakMinutes = shift.PaidBreakMinutes,
-        EntryType = shift.EntryType,
-        EmploymentType = shift.EmploymentType,
-        Source = shift.Source
-      });
+      }));
+
+
     }
 
-    public async Task<IEnumerable<ShiftDto>> SaveShiftsAsync(SaveShiftsCommand command, CancellationToken cancellationToken) {
+
+    public async Task<ServiceResult<IEnumerable<ShiftDto>>> SaveShiftsAsync(SaveShiftsCommand command, CancellationToken cancellationToken) {
       // 1. Get all ids that need updating
-      var updateIds = command.ShiftCommandDtos
+      var updateIds = command.ShiftDtos
           .Where(x => x.Id.HasValue)
           .Select(x => x.Id!.Value)
           .ToList();
@@ -96,12 +95,18 @@ namespace Jenian.Application.Features.Shifts.Services
           updateIds,
           cancellationToken);
 
+      // 3. Create a map of existing shifts for easy lookup
       var existingShiftMap = existingShifts.ToDictionary(x => x.Id);
 
       var newShifts = new List<UserShift>();
       var resultShifts = new List<UserShift>();
 
-      foreach (var item in command.ShiftCommandDtos) {
+      // Delete shifts if any
+      if (command.DeletedShiftIds.Count != 0) {
+        await _shiftRepository.RemoveByIdsForUserAsync(command.UserId, command.DeletedShiftIds, cancellationToken);
+      }
+
+      foreach (var item in command.ShiftDtos) {
         if (item.Id is null) {
           // CREATE
           var newShift = new UserShift {
@@ -121,7 +126,8 @@ namespace Jenian.Application.Features.Shifts.Services
         } else {
           // UPDATE
           if (!existingShiftMap.TryGetValue(item.Id.Value, out var existingShift))
-            throw new InvalidOperationException("Shift not found.");
+            return ServiceResult<IEnumerable<ShiftDto>>.Failure(
+                    [$"Shift '{item.Id.Value}' was not found."]);
 
           existingShift.StartAt = item.StartAt;
           existingShift.EndAt = item.EndAt;
@@ -136,13 +142,14 @@ namespace Jenian.Application.Features.Shifts.Services
         }
       }
 
+      // Add new shifts
       if (newShifts.Count > 0) {
         await _shiftRepository.AddRangeAsync(newShifts, cancellationToken);
       }
 
       await _shiftRepository.SaveChangesAsync(cancellationToken);
 
-      return resultShifts.Select(shift => new ShiftDto {
+      return ServiceResult<IEnumerable<ShiftDto>>.Success(resultShifts.Select(shift => new ShiftDto {
         Id = shift.Id,
         StartAt = shift.StartAt,
         EndAt = shift.EndAt,
@@ -152,12 +159,12 @@ namespace Jenian.Application.Features.Shifts.Services
         EntryType = shift.EntryType,
         EmploymentType = shift.EmploymentType,
         Source = shift.Source
-      });
+      }));
     }
 
-    public async Task<IEnumerable<ShiftDto>> UpdateShiftsAsync(UpdateShiftsCommand command, CancellationToken cancellationToken) {
+    public async Task<ServiceResult<IEnumerable<ShiftDto>>> UpdateShiftsAsync(UpdateShiftsCommand command, CancellationToken cancellationToken) {
       if (!command.ShiftDtos.Any()) {
-        throw new InvalidOperationException("At least one shift must be provided.");
+        return ServiceResult<IEnumerable<ShiftDto>>.Failure(["At least one shift must be provided."]);
       }
 
       var shiftsToUpdate = command.ShiftDtos.Select(item => new UserShift {
@@ -172,13 +179,10 @@ namespace Jenian.Application.Features.Shifts.Services
         Source = item.Source,
       });
 
-      var updatedShifts = new List<UserShift>();
       foreach (var shift in shiftsToUpdate) {
-        var updatedShift = await _shiftRepository.UpdateAsync(shift, cancellationToken);
-        updatedShifts.Add(updatedShift);
+        await _shiftRepository.UpdateAsync(shift, cancellationToken);
       }
-
-      return updatedShifts.Select(shift => new ShiftDto {
+      return ServiceResult<IEnumerable<ShiftDto>>.Success(shiftsToUpdate.Select(shift => new ShiftDto {
         Id = shift.Id,
         StartAt = shift.StartAt,
         EndAt = shift.EndAt,
@@ -188,7 +192,89 @@ namespace Jenian.Application.Features.Shifts.Services
         EntryType = shift.EntryType,
         EmploymentType = shift.EmploymentType,
         Source = shift.Source
+      }));
+
+    }
+
+
+    /* Pay Cycle Settings */
+
+    public async Task<ServiceResult<PayCycleSettingsDto>> UpdatePayCycleSettingsForUserAsync(CreatePayCycleSettingsCommand command, CancellationToken cancellationToken) {
+
+      var payCycleSetting = new PayCycleSetting {
+        UserId = command.UserId,
+        AnchorStartDate = command.AnchorStartDate,
+        PayCycleType = (PayCycleType)command.PayCycleType
+      };
+
+      await _shiftRepository.UpdatePayCycleSettingsForUserAsync(command.UserId, payCycleSetting, cancellationToken);
+
+      await _shiftRepository.SaveChangesAsync(cancellationToken);
+
+      return ServiceResult<PayCycleSettingsDto>.Success(new PayCycleSettingsDto {
+        HasPayCycleSettings = true,
+        AnchorStartDate = payCycleSetting.AnchorStartDate,
+        PayCycle = (PayCycleTypeDTO)payCycleSetting.PayCycleType
       });
     }
+
+
+
+    public async Task<ServiceResult<PayCycleSettingsDto>> GetCurrentPayCycleSettingsForUserAsync(string userId, CancellationToken cancellationToken) {
+
+      var userPayCycle = await _shiftRepository.GetPayCycleSettingByUserIdAsync(userId, cancellationToken);
+
+      if (userPayCycle == null) {
+        return ServiceResult<PayCycleSettingsDto>.Success(new PayCycleSettingsDto {
+          HasPayCycleSettings = false,
+        });
+      }
+
+      var todayDate = DateOnly.FromDateTime(DateTime.UtcNow);
+      DateOnly cycleStartDate;
+      DateOnly cycleEndDate;
+      switch (userPayCycle.PayCycleType) {
+        case PayCycleType.Weekly:
+          var daysSinceWeeklyAnchor = todayDate.DayNumber - userPayCycle.AnchorStartDate.DayNumber;
+          var weeklyIndex = Math.Floor(daysSinceWeeklyAnchor / 7.0);
+          var currentWeekStart = userPayCycle.AnchorStartDate.AddDays((int)weeklyIndex * 7);
+
+          cycleStartDate = currentWeekStart;
+          cycleEndDate = currentWeekStart.AddDays(6);
+          break;
+
+        case PayCycleType.Fortnightly:
+          var daysSinceFortnightlyAnchor = todayDate.DayNumber - userPayCycle.AnchorStartDate.DayNumber;
+          var fortnightIndex = Math.Floor(daysSinceFortnightlyAnchor / 14.0);
+          var currentFortnightStart = userPayCycle.AnchorStartDate.AddDays((int)fortnightIndex * 14);
+
+          cycleStartDate = currentFortnightStart;
+          cycleEndDate = currentFortnightStart.AddDays(13);
+          break;
+
+        case PayCycleType.Monthly:
+          cycleStartDate = new DateOnly(todayDate.Year, todayDate.Month, 1);
+          cycleEndDate = new DateOnly(
+              todayDate.Year,
+              todayDate.Month,
+              DateTime.DaysInMonth(todayDate.Year, todayDate.Month)
+          );
+          break;
+
+        default:
+          throw new ArgumentOutOfRangeException(nameof(userPayCycle.PayCycleType));
+      }
+
+
+      return ServiceResult<PayCycleSettingsDto>.Success(new PayCycleSettingsDto {
+        HasPayCycleSettings = true,
+        AnchorStartDate = userPayCycle.AnchorStartDate,
+        PayCycle = (PayCycleTypeDTO)userPayCycle.PayCycleType,
+        PayCycleStartDate = cycleStartDate,
+        PayCycleEndDate = cycleEndDate
+      });
+
+    }
+
   }
 }

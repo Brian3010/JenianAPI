@@ -2,6 +2,7 @@ using Azure.Identity;
 using Azure.Storage.Blobs;
 using Jenian.API.Configurations;
 using Jenian.API.Middleware;
+using Jenian.Application;
 using Jenian.Application.Abstractions.Storage;
 using Jenian.Infrastructure;
 using Jenian.Infrastructure.storage;
@@ -94,8 +95,10 @@ namespace Jenian.API
       });
       /**************************************************************/
 
-      /** Register Infrastructure services (DbContexts, Identity, repositories, workers, etc.) */
+      /** Register Infrastructure and Application services (DbContexts, Identity, repositories, workers, etc.) */
       builder.Services.AddInfrastructure(builder.Configuration);
+      builder.Services.AddApplication();
+
       /**************************************************************/
 
       /* HTTP clients */

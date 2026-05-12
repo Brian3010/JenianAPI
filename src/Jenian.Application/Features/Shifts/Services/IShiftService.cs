@@ -1,29 +1,29 @@
-﻿using Jenian.Application.Features.Shifts.Commands;
+﻿using Jenian.Application.Common;
+using Jenian.Application.Features.Shifts.Commands;
 using Jenian.Application.Features.Shifts.Dtos;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Jenian.Application.Features.Shifts.Services
 {
   public interface IShiftService
   {
 
-    Task<IEnumerable<ShiftDto>> CreateShiftsAsync(CreateShiftsCommand command, CancellationToken cancellationToken);
+    /* Shift Management */
+    Task<ServiceResult<IEnumerable<ShiftDto>>> CreateShiftsAsync(CreateShiftsCommand command, CancellationToken cancellationToken);
 
-    Task<IEnumerable<ShiftDto>> UpdateShiftsAsync(UpdateShiftsCommand command, CancellationToken cancellationToken);
+    Task<ServiceResult<IEnumerable<ShiftDto>>> UpdateShiftsAsync(UpdateShiftsCommand command, CancellationToken cancellationToken);
 
-    Task<IEnumerable<ShiftDto>> SaveShiftsAsync(
+    Task<ServiceResult<IEnumerable<ShiftDto>>> SaveShiftsAsync(
         SaveShiftsCommand command,
         CancellationToken cancellationToken);
 
-    Task DeleteShiftsAsync(DeleteShiftsCommand command, CancellationToken cancellationToken);
+    Task<ServiceResult<bool>> DeleteShiftsAsync(DeleteShiftsCommand command, CancellationToken cancellationToken);
+    Task<ServiceResult<IEnumerable<ShiftDto>>> GetShiftsByUserAndDateRangeAsync(GetShiftsForUserByDateRangeCommand command, CancellationToken cancellationToken);
 
-    Task<IEnumerable<ShiftDto>> GetShiftsForUserAsync(GetShiftsForUserCommand command, CancellationToken cancellationToken);
 
+    /* Pay Cycle Settings */
+    Task<ServiceResult<PayCycleSettingsDto>> GetCurrentPayCycleSettingsForUserAsync(string userId, CancellationToken cancellationToken);
 
+    Task<ServiceResult<PayCycleSettingsDto>> UpdatePayCycleSettingsForUserAsync(CreatePayCycleSettingsCommand command, CancellationToken cancellationToken);
 
 
   }
