@@ -2,6 +2,7 @@
 using Jenian.Application.Common;
 using Jenian.Application.Features.Shifts.Commands;
 using Jenian.Application.Features.Shifts.Dtos;
+using Jenian.Application.Features.Shifts.Validations;
 using Jenian.Domain.Entities;
 
 namespace Jenian.Application.Features.Shifts.Services
@@ -9,11 +10,14 @@ namespace Jenian.Application.Features.Shifts.Services
   public class ShiftService : IShiftService
   {
     private readonly IShiftRepository _shiftRepository;
+    private readonly IShiftValidator _shiftValidator;
 
     public ShiftService(
-      IShiftRepository shiftRepository
+      IShiftRepository shiftRepository,
+      IShiftValidator shiftValidator
       ) {
       _shiftRepository = shiftRepository;
+      _shiftValidator = shiftValidator;
     }
 
 
@@ -69,6 +73,7 @@ namespace Jenian.Application.Features.Shifts.Services
 
       var shifts = await _shiftRepository.GetByIdsAndRangeAsync(command.UserId, command.From, command.To, cancellationToken);
 
+
       return ServiceResult<IEnumerable<ShiftDto>>.Success(shifts.Select(shift => new ShiftDto {
         Id = shift.Id,
         StartAt = shift.StartAt,
@@ -83,19 +88,26 @@ namespace Jenian.Application.Features.Shifts.Services
 
 
     public async Task<ServiceResult<IEnumerable<ShiftDto>>> SaveShiftsAsync(SaveShiftsCommand command, CancellationToken cancellationToken) {
-      // 1. Get all ids that need updating
+
+      // Validate shifts
+      var validationResult = _shiftValidator.ValidateSaveShifts(command.ShiftDtos, command.RangeStartDate, command.RangeEndDate);
+      if (!validationResult.IsValid) {
+        return ServiceResult<IEnumerable<ShiftDto>>.Failure(validationResult.Errors);
+      }
+
+      // Get all ids that need updating
       var updateIds = command.ShiftDtos
           .Where(x => x.Id.HasValue)
           .Select(x => x.Id!.Value)
           .ToList();
 
-      // 2. Load existing shifts for this user
+      // Load existing shifts for this user
       var existingShifts = await _shiftRepository.GetByIdsForUserAsync(
           command.UserId,
           updateIds,
           cancellationToken);
 
-      // 3. Create a map of existing shifts for easy lookup
+      // Create a map of existing shifts for easy lookup
       var existingShiftMap = existingShifts.ToDictionary(x => x.Id);
 
       var newShifts = new List<UserShift>();
@@ -148,6 +160,9 @@ namespace Jenian.Application.Features.Shifts.Services
       }
 
       await _shiftRepository.SaveChangesAsync(cancellationToken);
+
+      // calculate/re-calculator the cycle pay
+
 
       return ServiceResult<IEnumerable<ShiftDto>>.Success(resultShifts.Select(shift => new ShiftDto {
         Id = shift.Id,
