@@ -243,7 +243,7 @@ namespace Jenian.API.Controllers
 
 
     // PUT /api/shifts/bulks?cycleStartDate=2026-05-01&cycleEndDate=2026-05-14, submitting shift data for a specified pay cycle
-    [HttpPut("/shifts/bulk")]
+    [HttpPut("/shifts/bulks")]
     public async Task<IActionResult> SubmitShifts(
       [FromQuery] DateOnly cycleStartDate,
       [FromQuery] DateOnly cycleEndDate,
@@ -276,7 +276,7 @@ namespace Jenian.API.Controllers
 
     }
 
-    //TODO: Add endpoint to get all shifts in a given period
+    // GET /api/shifts/by-date-range?from=2026-05-01&to=2026-05-14, retrieving shifts for the user within a specified date range
     [Authorize]
     [HttpGet("shifts/by-date-range")]
     public async Task<IActionResult> GetShiftsByDateRange(
