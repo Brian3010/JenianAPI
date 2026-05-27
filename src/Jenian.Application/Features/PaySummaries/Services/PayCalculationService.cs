@@ -1,54 +1,25 @@
 ﻿using Jenian.Application.Abstractions.Persistence;
+using Jenian.Application.Features.Payroll;
+using Jenian.Application.Features.PaySummaries.Dtos;
 using Jenian.Application.Features.Shifts.Dtos;
 using Jenian.Domain.Entities;
 
-namespace Jenian.Application.Features.Shifts.Services
+namespace Jenian.Application.Features.PaySummaries.Services
 {
   public class PayCalculationService : IPayCalculationService
   {
-    private readonly IAwardRateService _awardRateService;
-    private readonly IPublicHolidayService _publicHolidayService;
     private readonly IPaySummaryRepository _paySummaryRepository;
     private readonly IShiftRepository _shiftRepository;
+    private readonly IPayCalculator _payCalculator;
 
     public PayCalculationService(
-      IAwardRateService awardRateService,
-      IPublicHolidayService publicHolidayService,
       IPaySummaryRepository paySummaryRepository,
-      IShiftRepository shiftRepository
+      IShiftRepository shiftRepository,
+      IPayCalculator payCalculator
       ) {
-      _awardRateService = awardRateService;
-      _publicHolidayService = publicHolidayService;
       _paySummaryRepository = paySummaryRepository;
       _shiftRepository = shiftRepository;
-    }
-    public UserDailyPaySummaryDto CalculateDailyPay(List<ShiftDto> shifts, string userId) {
-
-      //Note: 'VIC' later will be determined by user's location or shift location
-      var isPublicHoliday = _publicHolidayService.IsPublicHoliday(DateOnly.FromDateTime(shifts[0].StartAt.DateTime), "VIC");
-      const decimal baseHourlyRate = 26.55m; //Note: latter need to get from user profile from database or jwt token claims
-
-      var results = new List<TotalPaySummary>();
-      foreach (var shift in shifts) {
-        if (shift.StartAt.DateTime.Date != shifts[0].StartAt.DateTime.Date) {
-          throw new ArgumentException("All shifts must be on the same day for daily pay calculation.");
-        }
-        results.Add(_awardRateService.GetPaySegmentsForShift(shift, isPublicHoliday, baseHourlyRate));
-      }
-
-
-      var userDailyPaySummary = new UserDailyPaySummaryDto {
-        WorkDate = DateOnly.FromDateTime(shifts[0].StartAt.DateTime),
-        UserId = userId,
-        BaseRateUsed = baseHourlyRate,
-        GrossPay = results.Sum(r => r.GrossPay),
-        TotalEveningPenaltyMinutes = results.Sum(r => r.TotalEveningPenaltyMinutes),
-        TotalOvertimeMinutes = results.Sum(r => r.TotalOvertimeMinutes),
-        TotalPayableMinutes = results.Sum(r => r.TotalPayableMinutes),
-        TotalUnpaidBreakMinutes = results.Sum(r => r.TotalUnpaidBreakMinutes)
-      };
-
-      return userDailyPaySummary;
+      _payCalculator = payCalculator;
     }
 
     // Note:
@@ -92,7 +63,7 @@ namespace Jenian.Application.Features.Shifts.Services
           EmploymentType = s.EmploymentType,
           EntryType = s.EntryType
         }));
-        var calculatedDailySummary = CalculateDailyPay(shiftsToCalculate, userId);
+        var calculatedDailySummary = _payCalculator.CalculateDailyPay(shiftsToCalculate, userId);
 
         // Update existing summary or create new summary
         var summary = existingSummaryForDate ?? new UserDailyPaySummary {

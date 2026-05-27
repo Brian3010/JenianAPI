@@ -2,7 +2,7 @@
 using Jenian.Application.Features.Shifts.Dtos;
 using Jenian.Domain.Entities;
 
-namespace Jenian.Application.Features.Shifts.Services
+namespace Jenian.Application.Features.Payroll
 {
 
   // Pharmacy Award ordinary-hours multipliers.

@@ -1,4 +1,4 @@
-﻿namespace Jenian.Application.Features.Shifts.Services
+﻿namespace Jenian.Application.Features.Payroll
 {
   public class PublicHolidayService : IPublicHolidayService
   {

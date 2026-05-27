@@ -1,4 +1,4 @@
-﻿namespace Jenian.Application.Features.Shifts.Dtos
+﻿namespace Jenian.Application.Features.PaySummaries.Dtos
 {
   public class UserDailyPaySummaryDto
   {

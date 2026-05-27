@@ -1,4 +1,6 @@
-﻿namespace Jenian.Application.Features.Shifts.Dtos
+﻿using Jenian.Application.Features.PaySummaries.Dtos;
+
+namespace Jenian.Application.Features.Shifts.Dtos
 {
   public class ShiftSummaryResult
   {

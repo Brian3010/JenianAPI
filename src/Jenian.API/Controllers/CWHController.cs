@@ -270,9 +270,9 @@ namespace Jenian.API.Controllers
       var result = await _shiftService.SaveShiftsAsync(command, cancellationToken);
 
       if (!result.IsSuccess) {
-        return BadRequest(new { result.Errors });
+        return BadRequest(result.Errors);
       }
-      return Ok(new { message = "Shifts saved successfully.", Shifts = result.Data });
+      return Ok(result.Data);
 
     }
 
