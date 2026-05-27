@@ -31,6 +31,9 @@
 .git/
 .gitignore
 
+# ----- Test projects (not needed inside production Docker build) -----
+tests/
+
 # ----- Documentation and project management files -----
 *.md
 docs/
