@@ -10,6 +10,9 @@ namespace Jenian.Application
     public static IServiceCollection AddApplication(this IServiceCollection services) {
       services.AddScoped<IShiftService, ShiftService>();
       services.AddScoped<IShiftValidator, ShiftValidator>();
+      services.AddScoped<IPayCalculationService, PayCalculationService>();
+      services.AddScoped<IAwardRateService, PharmacyAwardRateService>();
+      services.AddScoped<IPublicHolidayService, PublicHolidayService>();
 
       return services;
     }

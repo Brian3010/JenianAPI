@@ -12,12 +12,12 @@ namespace Jenian.Application.Features.Shifts.Services
 
     Task<ServiceResult<IEnumerable<ShiftDto>>> UpdateShiftsAsync(UpdateShiftsCommand command, CancellationToken cancellationToken);
 
-    Task<ServiceResult<IEnumerable<ShiftDto>>> SaveShiftsAsync(
+    Task<ServiceResult<ShiftSummaryResult>> SaveShiftsAsync(
         SaveShiftsCommand command,
         CancellationToken cancellationToken);
 
     Task<ServiceResult<bool>> DeleteShiftsAsync(DeleteShiftsCommand command, CancellationToken cancellationToken);
-    Task<ServiceResult<IEnumerable<ShiftDto>>> GetShiftsByUserAndDateRangeAsync(GetShiftsForUserByDateRangeCommand command, CancellationToken cancellationToken);
+    Task<ServiceResult<ShiftSummaryResult>> GetShiftsByUserAndDateRangeAsync(GetShiftsForUserByDateRangeCommand command, CancellationToken cancellationToken);
 
 
     /* Pay Cycle Settings */

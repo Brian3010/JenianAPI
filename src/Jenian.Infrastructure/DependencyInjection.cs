@@ -9,6 +9,7 @@ using Jenian.Infrastructure.BackgroundJobs;
 using Jenian.Infrastructure.BackgroundJobs.JobPayloads;
 using Jenian.Infrastructure.Concurrency;
 using Jenian.Infrastructure.Identity;
+using Jenian.Infrastructure.Persistence;
 using Jenian.Infrastructure.Persistence.App;
 using Jenian.Infrastructure.Persistence.Auth;
 using Jenian.Infrastructure.Persistence.Repositories;
@@ -92,6 +93,9 @@ namespace Jenian.Infrastructure
       services.AddScoped<IJenianAuthRepository, SQLJenianAuthRepository>();
       services.AddScoped<IAuthService, AuthService>();
       services.AddScoped<IShiftRepository, SQLShiftRepository>();
+      services.AddScoped<IPaySummaryRepository, SQLPaySummaryRepository>();
+      services.AddScoped<IUnitOfWork, UnitOfWork>();
+
 
       return services;
     }

@@ -15,7 +15,7 @@ namespace Jenian.Application.Abstractions.Persistence
     Task<IEnumerable<UserShift>> GetByIdsAndRangeAsync(string userId, DateOnly from, DateOnly to, CancellationToken cancellationToken = default);
     Task<IEnumerable<UserShift>> GetByIdsForUserAsync(string userId, IEnumerable<Guid> shiftIds, CancellationToken cancellationToken = default);
 
-    Task<IEnumerable<UserShift>> GetByUserAndDateRangeAsync(string userId, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default);
+    Task<IEnumerable<UserShift>> GetByDateAndUserAsync(string userId, DateOnly date, CancellationToken cancellationToken = default);
 
     Task RemoveByIdForUserAsync(string userId, Guid shiftId, CancellationToken cancellationToken = default);
 
@@ -25,6 +25,6 @@ namespace Jenian.Application.Abstractions.Persistence
     Task<PayCycleSetting?> GetPayCycleSettingByUserIdAsync(string userId, CancellationToken cancellationToken = default);
     Task UpdatePayCycleSettingsForUserAsync(string userId, PayCycleSetting payCycleSetting, CancellationToken cancellationToken = default);
 
-    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+    //Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);  
   }
 }
