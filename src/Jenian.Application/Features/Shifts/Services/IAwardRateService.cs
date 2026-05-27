@@ -11,10 +11,19 @@ namespace Jenian.Application.Features.Shifts.Services
     Sunday
   }
   public record TimeSegment(
-  DateTimeOffset Start,
-  DateTimeOffset End,
-  int Hours
-);
+    DateTimeOffset Start,
+    DateTimeOffset End,
+    int Hours
+  );
+
+  public record TotalPaySummary(
+    int TotalPayableMinutes,
+    int TotalUnpaidBreakMinutes,
+    int TotalOvertimeMinutes,
+    int TotalEveningPenaltyMinutes,
+    decimal GrossPay
+  );
+
   public interface IAwardRateService
   {
     decimal GetMultiplier(
@@ -28,7 +37,7 @@ namespace Jenian.Application.Features.Shifts.Services
 
     List<TimeSegment> GetTimeSegmentsForShift(DateTimeOffset startTime, DateTimeOffset endTime);
 
-    decimal CalculateGrossPayForShift(
+    TotalPaySummary GetPaySegmentsForShift(
       ShiftDto shiftDto,
       bool isPublicHoliday,
       decimal baseHourlyRate
@@ -36,3 +45,4 @@ namespace Jenian.Application.Features.Shifts.Services
 
   }
 }
+

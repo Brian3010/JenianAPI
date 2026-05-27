@@ -1,8 +1,6 @@
 ﻿using Jenian.Application.Abstractions.Persistence;
-using Jenian.Application.Common.Exceptions;
 using Jenian.Domain.Entities;
 using Jenian.Infrastructure.Persistence.App;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace Jenian.Infrastructure.Persistence.Repositories
@@ -81,19 +79,19 @@ namespace Jenian.Infrastructure.Persistence.Repositories
       await _dbContext.UserShifts.Where(s => s.UserId == userId && shiftIds.Contains(s.Id)).ExecuteDeleteAsync(cancellationToken);
     }
 
-    private static bool IsDuplicateShiftViolation(DbUpdateException exception) {
-      return exception.InnerException is SqlException sqlException &&
-             (sqlException.Number == 2601 || sqlException.Number == 2627) &&
-             sqlException.Message.Contains("IX_UserShifts_UserId_StartAt_EndAt");
-    }
+    //private static bool IsDuplicateShiftViolation(DbUpdateException exception) {
+    //  return exception.InnerException is SqlException sqlException &&
+    //         (sqlException.Number == 2601 || sqlException.Number == 2627) &&
+    //         sqlException.Message.Contains("IX_UserShifts_UserId_StartAt_EndAt");
+    //}
 
-    public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) {
-      try {
-        return await _dbContext.SaveChangesAsync(cancellationToken);
-      } catch (DbUpdateException ex) when (IsDuplicateShiftViolation(ex)) {
-        throw new DuplicateShiftException();
-      }
-    }
+    //public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) {
+    //  try {
+    //    return await _dbContext.SaveChangesAsync(cancellationToken);
+    //  } catch (DbUpdateException ex) when (IsDuplicateShiftViolation(ex)) {
+    //    throw new DuplicateShiftException();
+    //  }
+    //}
 
     public Task UpdateAsync(UserShift userShift, CancellationToken cancellationToken = default) {
       throw new NotImplementedException();
@@ -101,6 +99,10 @@ namespace Jenian.Infrastructure.Persistence.Repositories
 
     public async Task<IEnumerable<UserShift>> GetByIdsForUserAsync(string userId, IEnumerable<Guid> shiftIds, CancellationToken cancellationToken = default) {
       return await _dbContext.UserShifts.Where(s => s.UserId == userId && shiftIds.Contains(s.Id)).ToListAsync(cancellationToken);
+    }
+
+    public async Task<IEnumerable<UserShift>> GetByDateAndUserAsync(string userId, DateOnly date, CancellationToken cancellationToken = default) {
+      return await _dbContext.UserShifts.Where(s => s.UserId == userId && s.StartAt.Date == date.ToDateTime(TimeOnly.MinValue).Date).ToListAsync(cancellationToken);
     }
   }
 }

@@ -1,4 +1,5 @@
-﻿using Jenian.Application.Features.Shifts.Dtos;
+﻿using Jenian.Application.Common;
+using Jenian.Application.Features.Shifts.Dtos;
 using Jenian.Domain.Entities;
 
 namespace Jenian.Application.Features.Shifts.Services
@@ -37,9 +38,15 @@ namespace Jenian.Application.Features.Shifts.Services
 
   public class PharmacyAwardRateService : IAwardRateService
   {
-    public decimal CalculateGrossPayForShift(ShiftDto shiftDto, bool isPublicHoliday, decimal baseHourlyRate) {
+    public TotalPaySummary GetPaySegmentsForShift(ShiftDto shiftDto, bool isPublicHoliday, decimal baseHourlyRate) {
+      // convert to local Timezone
+      var timeZone = ShiftDateHelper.GetTimeZoneInfo(shiftDto.TimeZoneId);
+      var localStartAt = TimeZoneInfo.ConvertTime(shiftDto.StartAt, timeZone);
+      var localEndAt = TimeZoneInfo.ConvertTime(shiftDto.EndAt, timeZone);
+
+
       // Get segments without break adjustment
-      List<TimeSegment> segments = GetTimeSegmentsForShift(shiftDto.StartAt, shiftDto.EndAt);
+      List<TimeSegment> segments = GetTimeSegmentsForShift(localStartAt, localEndAt);
       decimal totalGrossPay = 0.0m;
 
       var regularHoursStart = TimeSpan.Parse("08:00");
@@ -64,7 +71,22 @@ namespace Jenian.Application.Features.Shifts.Services
         totalGrossPay += segmentPay;
       }
 
-      return totalGrossPay;
+      var totalPayableMinutes = segments.Sum(s => s.Hours * 60) - shiftDto.UnpaidBreakMinutes;
+      var totalOvertimeMinutes = 0; // Overtime will depend on actual business rule
+      var totalEveningPenaltyMinutes = segments.Where(s =>
+        (s.Start.TimeOfDay >= TimeSpan.Parse("19:00") && s.Start.TimeOfDay < TimeSpan.Parse("21:00")) ||
+        (s.End.TimeOfDay > TimeSpan.Parse("19:00") && s.End.TimeOfDay <= TimeSpan.Parse("21:00"))
+      ).Sum(s => s.Hours * 60);
+      var totalUnpaidBreakMinutes = shiftDto.UnpaidBreakMinutes;
+
+
+      return new TotalPaySummary(
+        TotalPayableMinutes: (int)totalPayableMinutes,
+        TotalUnpaidBreakMinutes: totalUnpaidBreakMinutes,
+        TotalOvertimeMinutes: (int)totalOvertimeMinutes,
+        TotalEveningPenaltyMinutes: (int)totalEveningPenaltyMinutes,
+        GrossPay: totalGrossPay
+       );
     }
 
     public decimal GetMultiplier(DateTimeOffset startTime, EmploymentType employmentType, bool isPublicHoliday, ShiftEntryType shiftEntryType) {
