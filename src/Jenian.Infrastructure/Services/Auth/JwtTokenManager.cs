@@ -103,8 +103,8 @@ namespace Jenian.Infrastructure.Services.Auth
     /// <returns>true (exist) or false (not exist)</returns>
     public async Task<bool> DeviceAuthInfoExistsAsync(string refreshToken, Guid deviceId, string userId) {
       return await _dbContext.RefreshTokens.AnyAsync(rf =>
-          (rf.UserId == userId && rf.DeviceId == deviceId && !rf.IsRevoked && rf.ExpiredAt > DateTime.UtcNow) ||
-          (rf.UserId == userId && rf.Token == refreshToken && !rf.IsRevoked && rf.ExpiredAt > DateTime.UtcNow));
+          (rf.UserId == userId && rf.DeviceId == deviceId && !rf.IsRevoked) ||
+          (rf.UserId == userId && rf.Token == refreshToken && !rf.IsRevoked));
     }
 
     public async Task StoreDeviceAuthInfoAsync(string refreshToken, Guid deviceId, string userId) {
@@ -128,13 +128,14 @@ namespace Jenian.Infrastructure.Services.Auth
     /// </summary>
     public async Task UpdateDeviceAuthInfoAsync(string refreshToken, Guid deviceId, string userId) {
       var rfToken = await _dbContext.RefreshTokens.FirstOrDefaultAsync(r =>
-        (r.UserId == userId && r.Token == refreshToken && !r.IsRevoked && r.ExpiredAt > DateTime.UtcNow) ||
-        (r.UserId == userId && r.DeviceId == deviceId && !r.IsRevoked && r.ExpiredAt > DateTime.UtcNow));
+        (r.UserId == userId && r.Token == refreshToken && !r.IsRevoked) ||
+        (r.UserId == userId && r.DeviceId == deviceId && !r.IsRevoked));
 
       if (rfToken != null) {
         rfToken.Token = refreshToken;
         rfToken.DeviceId = deviceId;
         rfToken.IsRevoked = false;
+        rfToken.ExpiredAt = DateTime.UtcNow.AddDays(7);
       }
       await _dbContext.SaveChangesAsync();
     }
@@ -146,6 +147,14 @@ namespace Jenian.Infrastructure.Services.Auth
       if (user == null) return null;
 
       return user.UserId;
+    }
+    // expiredAt = 31/05/2026
+    // user comes back and refresh Token at 25/05/2026
+    // user comes back and refresh Token at 1/07/2026
+    public async Task<bool> IsRefreshTokenExpiredAsync(string refreshToken) {
+      var rfToken = await _dbContext.RefreshTokens.AsNoTracking().FirstOrDefaultAsync(r => r.Token == refreshToken);
+      if (rfToken == null) return true;
+      return rfToken.ExpiredAt <= DateTime.UtcNow;
     }
   }
 }

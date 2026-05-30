@@ -6,5 +6,7 @@ namespace Jenian.API.Contracts.Auth
     public string? UserName { get; set; }
 
     public string? Email { get; set; }
+    public required bool IsTelegramConnected { get; set; }
+
   }
 }

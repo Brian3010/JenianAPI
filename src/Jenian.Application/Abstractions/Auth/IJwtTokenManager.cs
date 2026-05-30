@@ -18,6 +18,8 @@ namespace Jenian.Application.Abstractions.Auth
 
     Task<bool> DeviceAuthInfoExistsAsync(string refreshToken, Guid deviceId, string userId);
 
+    Task<bool> IsRefreshTokenExpiredAsync(string refreshToken);
+
     Task UpsertDeviceAuthInfoAsync(string refreshToken, Guid deviceId, string userId);
 
     Task RevokeDeviceAuthInfoAsync(string refreshToken, Guid deviceId, string userId);
