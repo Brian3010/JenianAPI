@@ -1,11 +1,6 @@
 ﻿using Jenian.Application.Common;
 using Jenian.Application.Features.Auth.Commands;
 using Jenian.Application.Features.Auth.Dtos;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Jenian.Application.Abstractions.Auth
 {
@@ -19,6 +14,11 @@ namespace Jenian.Application.Abstractions.Auth
     Task<ServiceResult<RegisterResultDto>> RegisterAsync(RegisterCommand command, CancellationToken cancellationToken);
 
     Task<ServiceResult<bool>> ResetPasswordAsync(ResetPasswordCommand command, CancellationToken cancellationToken);
+
+    Task<ServiceResult<RequestResetPasswordDto>> RequestPasswordResetAsync(string email, CancellationToken cancellationToken);
+
+
+    Task<ServiceResult<bool>> HasTelegramConnectedAsync(string userId, CancellationToken cancellationToken);
 
 
   }

@@ -1,10 +1,11 @@
 ﻿using Jenian.API.Contracts.Auth;
 using Jenian.Application.Abstractions.Auth;
+using Jenian.Application.Abstractions.Persistence;
 using Jenian.Application.Common;
 using Jenian.Application.Features.Auth.Commands;
 using Jenian.Application.Features.Auth.Dtos;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.Data;
+using System.Web;
 
 namespace Jenian.Infrastructure.Identity
 {
@@ -12,16 +13,28 @@ namespace Jenian.Infrastructure.Identity
   {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IJwtTokenManager _jwtTokenManager;
+    private readonly IJenianAuthRepository _jenainAuthRepository;
     private readonly ILogger<AuthService> _logger;
 
     public AuthService(UserManager<ApplicationUser> userManager,
       IJwtTokenManager jwtTokenManager,
+      IJenianAuthRepository jenainAuthRepository,
       ILogger<AuthService> logger
       ) {
       _userManager = userManager;
       _jwtTokenManager = jwtTokenManager;
+      _jenainAuthRepository = jenainAuthRepository;
       _logger = logger;
     }
+
+    public async Task<ServiceResult<bool>> HasTelegramConnectedAsync(string userId, CancellationToken cancellationToken) {
+      var isConnected = await _jenainAuthRepository.IsTelegramConnectedAsync(userId);
+      return isConnected
+        ? ServiceResult<bool>.Success(true)
+        : ServiceResult<bool>.Failure(["Telegram is not connected."]);
+
+    }
+
     public async Task<ServiceResult<AuthResultDto>> LoginAsync(LoginCommand command, CancellationToken cancellationToken) {
       var user = await _userManager.FindByEmailAsync(command.UserName) ?? await _userManager.FindByNameAsync(command.UserName);
       // Check valid user
@@ -36,6 +49,8 @@ namespace Jenian.Infrastructure.Identity
 
       await _jwtTokenManager.UpsertDeviceAuthInfoAsync(command.RefreshToken, command.DeviceId, user.Id);
 
+      var isTelegramConnected = await _jenainAuthRepository.IsTelegramConnectedAsync(user.Id);
+
 
       var authResultDto = new AuthResultDto {
         AccessToken = accessToken,
@@ -44,7 +59,9 @@ namespace Jenian.Infrastructure.Identity
         User = new UserDto {
           Id = user.Id,
           UserName = user.UserName!,
-          Email = user.Email!
+          Email = user.Email!,
+          IsTelegramConnected = isTelegramConnected
+
         }
       };
 
@@ -92,10 +109,24 @@ namespace Jenian.Infrastructure.Identity
       if (userId == null) return ServiceResult<AuthResultDto>.Failure(
           ["Invalid Session"]);
 
-      if (!await _jwtTokenManager.DeviceAuthInfoExistsAsync(command.RefreshToken, deviceIdGuid.Value, userId)) {
+      var hasAuthInfo = await _jwtTokenManager.DeviceAuthInfoExistsAsync(command.RefreshToken, deviceIdGuid.Value, userId);
+      if (!hasAuthInfo) {
         return ServiceResult<AuthResultDto>.Failure(
           ["Invalid Refresh Token"]);
+      } else {
+        var isExpired = await _jwtTokenManager.IsRefreshTokenExpiredAsync(command.RefreshToken);
+        if (isExpired) {
+          await _jwtTokenManager.RevokeDeviceAuthInfoAsync(command.RefreshToken, deviceIdGuid.Value, userId);
+          return ServiceResult<AuthResultDto>.Failure(
+            ["Refresh Token Expired. Please log in again"]);
+        }
+        // Update the last used time of the refresh token to extend its validity
+        // TODO: using the same refresh token -> securer if generate a new refresh token, implemented later
+        await _jwtTokenManager.UpdateDeviceAuthInfoAsync(command.RefreshToken, deviceIdGuid.Value, userId);
+
       }
+
+
 
       var user = await _userManager.FindByIdAsync(userId);
       if (user == null) return ServiceResult<AuthResultDto>.Failure(
@@ -103,6 +134,7 @@ namespace Jenian.Infrastructure.Identity
 
       var newAccessToken = _jwtTokenManager.GenerateJwtToken(new JwtUserClaims(user.Id, user.UserName!, user.Email!), 30);
 
+      var isTelegramConnected = await _jenainAuthRepository.IsTelegramConnectedAsync(user.Id);
 
       var AuthResultDto = new AuthResultDto {
         AccessToken = newAccessToken,
@@ -110,7 +142,9 @@ namespace Jenian.Infrastructure.Identity
         User = new UserDto {
           Id = user.Id,
           UserName = user.UserName!,
-          Email = user.Email!
+          Email = user.Email!,
+          IsTelegramConnected = isTelegramConnected
+
         }
       };
 
@@ -144,8 +178,41 @@ namespace Jenian.Infrastructure.Identity
       return ServiceResult<RegisterResultDto>.Success(new RegisterResultDto { message = "Registered succesffully" });
     }
 
-    public Task<ServiceResult<bool>> ResetPasswordAsync(ResetPasswordCommand command, CancellationToken cancellationToken) {
-      throw new NotImplementedException();
+    public async Task<ServiceResult<RequestResetPasswordDto>> RequestPasswordResetAsync(string email, CancellationToken cancellationToken) {
+      var user = await _userManager.FindByEmailAsync(email);
+      // Always return the same response to prevent email enumeration
+      if (user == null) {
+        return ServiceResult<RequestResetPasswordDto>.Failure(["If an account with that email exists, a password reset link has been sent."]);
+      }
+
+      var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+
+      var encodedToken = HttpUtility.UrlEncode(token);
+
+      return ServiceResult<RequestResetPasswordDto>.Success(new RequestResetPasswordDto { EncodedToken = encodedToken });
+    }
+
+    public async Task<ServiceResult<bool>> ResetPasswordAsync(ResetPasswordCommand command, CancellationToken cancellationToken) {
+
+      var user = await _userManager.FindByEmailAsync(command.UserEmail);
+
+      if (user == null) {
+        return ServiceResult<bool>.Failure(["Invalid password reset request."]);
+      }
+
+      // Can decode from Frontend
+      var decodedToken = HttpUtility.UrlDecode(command.EmailToken);
+
+      var res = await _userManager.ResetPasswordAsync(user, decodedToken, command.NewPassword);
+
+      if (res == null) {
+        return ServiceResult<bool>.Failure(["An error occurred while resetting the password. Please try again."]);
+      }
+
+      return res.Succeeded
+        ? ServiceResult<bool>.Success(true)
+        : ServiceResult<bool>.Failure(res.Errors.Select(e => e.Description).ToList());
+
     }
   }
 }
