@@ -1,5 +1,6 @@
 ﻿using Jenian.Application.Abstractions.Persistence;
 using Jenian.Application.Common;
+using Jenian.Application.Features.Payroll;
 using Jenian.Application.Features.PaySummaries.Dtos;
 using Jenian.Application.Features.PaySummaries.Services;
 using Jenian.Application.Features.Shifts.Commands;
@@ -16,19 +17,23 @@ namespace Jenian.Application.Features.Shifts.Services
     private readonly IPayCalculationService _payCalculationService;
     private readonly IPaySummaryRepository _paySummaryRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IPayCalculator _payCalculator;
 
     public ShiftService(
       IShiftRepository shiftRepository,
       IShiftValidator shiftValidator,
       IPayCalculationService payCalculationService,
       IPaySummaryRepository paySummaryRepository,
-      IUnitOfWork unitOfWork
+      IUnitOfWork unitOfWork,
+      IPayCalculator payCalculator
+
       ) {
       _shiftRepository = shiftRepository;
       _shiftValidator = shiftValidator;
       _payCalculationService = payCalculationService;
       _paySummaryRepository = paySummaryRepository;
       _unitOfWork = unitOfWork;
+      _payCalculator = payCalculator;
     }
 
 
@@ -82,8 +87,19 @@ namespace Jenian.Application.Features.Shifts.Services
 
     public async Task<ServiceResult<ShiftSummaryResult>> GetShiftsByUserAndDateRangeAsync(GetShiftsForUserByDateRangeCommand command, CancellationToken cancellationToken) {
 
-      var shifts = await _shiftRepository.GetByIdsAndRangeAsync(command.UserId, command.From, command.To, cancellationToken);
-      var summaries = await _paySummaryRepository.GetByIdAndRangeAsync(command.UserId, command.From, command.To, cancellationToken);
+      // validate the payUserCycle param, making sure it match the user's pay cycle settings
+      var userPaySetting = await _shiftRepository.GetPayCycleSettingByUserIdAsync(command.UserId, cancellationToken);
+      if (userPaySetting == null) {
+        return ServiceResult<ShiftSummaryResult>.Failure(
+                [$"User has not set up pay cycle settings."]);
+      }
+
+      var calculatedCycle = _payCalculator.CalculatePayCycleDateRange(userPaySetting.PayCycleType, userPaySetting.AnchorStartDate);
+      if (calculatedCycle == null) return ServiceResult<ShiftSummaryResult>.Failure(["Failed to calculate pay cycle."]);
+
+
+      var shifts = await _shiftRepository.GetByIdsAndRangeAsync(command.UserId, calculatedCycle.StartDate, calculatedCycle.EndDate, cancellationToken);
+      var summaries = await _paySummaryRepository.GetByIdAndRangeAsync(command.UserId, calculatedCycle.StartDate, calculatedCycle.EndDate, cancellationToken);
 
 
       return ServiceResult<ShiftSummaryResult>.Success(new ShiftSummaryResult {
@@ -121,8 +137,7 @@ namespace Jenian.Application.Features.Shifts.Services
       var shiftSummaries = new List<UserDailyPaySummaryDto>();
       var affectedWorkDates = new HashSet<DateOnly>(); // making sure other untouched shifts on the same day will also have their pay recalculated
 
-
-      affectedWorkDates.UnionWith(command.ShiftDtos.Select(shift => ShiftDateHelper.GetWorkDate(shift.StartAt, shift.TimeZoneId)));
+      affectedWorkDates.UnionWith(command.ShiftDtos.Select(shift => DateOnly.FromDateTime(shift.StartAt.Date)));
 
       // Validate shifts
       var validationResult = _shiftValidator.ValidateSaveShifts(command.ShiftDtos, command.RangeStartDate, command.RangeEndDate);
@@ -146,7 +161,7 @@ namespace Jenian.Application.Features.Shifts.Services
 
       // Collect existing shifts' work dates
       if (existingShifts.Any())
-        affectedWorkDates.UnionWith(existingShifts.Select(shift => ShiftDateHelper.GetWorkDate(shift.StartAt, shift.TimeZoneId)));
+        affectedWorkDates.UnionWith(existingShifts.Select(shift => DateOnly.FromDateTime(shift.StartAt.Date)));
 
 
       // Create lookup for updates only
@@ -348,13 +363,19 @@ namespace Jenian.Application.Features.Shifts.Services
           throw new ArgumentOutOfRangeException(nameof(userPayCycle.PayCycleType));
       }
 
+      // when user has set up pay cycle settings
+      // TODO: these 2 callers can be optimized
+      var paySummary = await _paySummaryRepository.GetByIdAndRangeAsync(userId, cycleStartDate, cycleEndDate, cancellationToken);
+      var shifts = await _shiftRepository.GetByIdsAndRangeAsync(userId, cycleStartDate, cycleEndDate, cancellationToken);
 
       return ServiceResult<PayCycleSettingsDto>.Success(new PayCycleSettingsDto {
         HasPayCycleSettings = true,
         AnchorStartDate = userPayCycle.AnchorStartDate,
         PayCycle = (PayCycleTypeDTO)userPayCycle.PayCycleType,
         PayCycleStartDate = cycleStartDate,
-        PayCycleEndDate = cycleEndDate
+        PayCycleEndDate = cycleEndDate,
+        EstimatedGrossPay = paySummary.Sum(summary => summary.GrossPay),
+        ShiftCountInCycle = shifts.Count()
       });
 
     }

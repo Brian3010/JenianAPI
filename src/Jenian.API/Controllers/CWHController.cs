@@ -209,11 +209,10 @@ namespace Jenian.API.Controllers
       var result = await _shiftService.GetCurrentPayCycleSettingsForUserAsync(userId, cancellationToken);
 
       if (!result.IsSuccess) {
-        return BadRequest(new { result.Errors });
+        return BadRequest(result.Errors);
       }
 
-
-      return Ok(new { PayCycleSetting = result.Data });
+      return Ok(result.Data);
     }
 
     // POST /api/pay-cycle-settings/update, allowing users to update their pay cycle settings
@@ -276,32 +275,27 @@ namespace Jenian.API.Controllers
 
     }
 
-    // GET /api/shifts/by-date-range?from=2026-05-01&to=2026-05-14, retrieving shifts for the user within a specified date range
+    // GET /api/shifts/by-cycle-date?userPayCycle=2, returning all shifts (calculated based on user's pay cycle settings)
     [Authorize]
-    [HttpGet("shifts/by-date-range")]
+    [HttpGet("shifts/by-cycle-date")]
     public async Task<IActionResult> GetShiftsByDateRange(
-      [FromQuery] DateOnly from,
-      [FromQuery] DateOnly to,
+      [FromQuery] PayCycleType userPayCycle,
       CancellationToken cancellationToken) {
       var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
       if (string.IsNullOrWhiteSpace(userId)) {
         return Unauthorized("Cannot find user information from token.");
 
       }
-      if (to < from) {
-        return BadRequest("Invalid date range. 'from' date must be before or equal to 'to' date.");
-      }
 
       var command = new GetShiftsForUserByDateRangeCommand {
         UserId = userId,
-        From = from,
-        To = to,
+        PayCycleType = userPayCycle
       };
       var result = await _shiftService.GetShiftsByUserAndDateRangeAsync(command, cancellationToken);
       if (!result.IsSuccess) {
-        return BadRequest(new { result.Errors });
+        return BadRequest(result.Errors);
       }
-      return Ok(new { From = from, To = to, Shifts = result.Data });
+      return Ok(result.Data);
 
 
 

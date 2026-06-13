@@ -38,7 +38,7 @@ namespace Jenian.Application.Features.PaySummaries.Services
     public async Task RecalculateForDatesAsync(string userId, HashSet<DateOnly> affectedWorkDates, CancellationToken cancellationToken) {
 
       var summaries = new List<UserDailyPaySummaryDto>();
-
+      Console.WriteLine("affectedworkdates: " + string.Join(", ", affectedWorkDates.Select(d => d.ToString("yyyy-MM-dd"))));
 
       // e.g. affectedWorkDates = { 2024-06-01, 2024-06-02 }
       foreach (var workDate in affectedWorkDates) {

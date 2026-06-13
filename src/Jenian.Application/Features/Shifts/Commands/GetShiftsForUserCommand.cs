@@ -1,10 +1,11 @@
-﻿namespace Jenian.Application.Features.Shifts.Commands
+﻿using Jenian.Domain.Entities;
+
+namespace Jenian.Application.Features.Shifts.Commands
 {
   public class GetShiftsForUserByDateRangeCommand
   {
     public required string UserId { get; set; }
 
-    public required DateOnly From { get; set; }
-    public required DateOnly To { get; set; }
+    public required PayCycleType PayCycleType { get; set; }
   }
 }
