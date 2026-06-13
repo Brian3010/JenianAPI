@@ -1,194 +1,336 @@
 using System.Text.RegularExpressions;
 
-namespace Jenian.Infrastructure.Services.Helpers
+namespace Jenian.Infrastructure.Services.Helpers;
+
+/// <summary>
+/// Cleans Telegram OCR text and keeps date markers and supplier delivery lines.
+///
+/// Main delivery formats supported:
+/// - Sigma - 77
+/// - Sigma-77
+/// - Warehouse- 60
+/// - Sigma: 78 boxes
+/// - Sigma ? - 1
+/// - Startrack - 60 blackmores, pharmacare
+/// - Linfox healthcare - 1 sanofi
+///
+/// Timestamp behaviour:
+/// - A standalone Telegram timestamp is treated as the end of the current message/batch.
+/// - Any pending delivery lines above that timestamp receive the same time.
+/// - Example:
+///     Startrack - 7
+///     metagenics-1
+///     15:37
+///   becomes:
+///     Startrack - 7 @ 15:37
+///     metagenics - 1 @ 15:37
+/// </summary>
+public static class TelegramOcrTextProcess
 {
-  public static class TelegramOcrTextProcess
+  public static string ExtractAfterLastToday(string ocrText) {
+    if (string.IsNullOrWhiteSpace(ocrText))
+      return string.Empty;
+
+    var lines = ocrText
+        .Split(new[] { "\r\n", "\n" }, StringSplitOptions.None)
+        .ToList();
+
+    static bool IsTodayMarker(string line) {
+      var value = (line ?? string.Empty).Trim();
+
+      return value.Equals("Today", StringComparison.OrdinalIgnoreCase)
+          || value.Equals("oday", StringComparison.OrdinalIgnoreCase)
+          || value.Equals("Taday", StringComparison.OrdinalIgnoreCase)
+          || value.Equals("Todav", StringComparison.OrdinalIgnoreCase);
+    }
+
+    var lastTodayIndex = -1;
+
+    for (var i = 0; i < lines.Count; i++) {
+      if (IsTodayMarker(lines[i]))
+        lastTodayIndex = i;
+    }
+
+    if (lastTodayIndex == -1 || lastTodayIndex == lines.Count - 1)
+      return ocrText;
+
+    return string.Join("\n", lines.Skip(lastTodayIndex + 1));
+  }
+
+  // Keep this small and explicit.
+  // These are obvious Telegram/UI noise lines that should not help extraction.
+  private static readonly HashSet<string> ExactNoiseLines = new(StringComparer.OrdinalIgnoreCase)
   {
+    "TELEGRAM",
+    "Message",
+    "messages",
+    "member",
+    "members",
+    "<",
+    ">",
+    "<<",
+    ">>",
+    "M",
+    "OB",
+    "V",
+    "C",
+    "JD",
+    "NK",
+    "ZL"
+  };
 
-    public static string ExtractAfterLastToday(string ocrText) {
-      if (string.IsNullOrWhiteSpace(ocrText))
-        return string.Empty;
+  // Optional known usernames from your chat.
+  // Remove these as standalone lines only.
+  private static readonly HashSet<string> KnownUserLines = new(StringComparer.OrdinalIgnoreCase)
+  {
+    "Alish",
+    "Alish Thapa",
+    "Bindu",
+    "Oakar",
+    "Oakar Bo",
+    "Nick Kyaw",
+    "Nick Kvaw", // OCR typo seen in sample
+    "Darren",
+    "Brian",
+    "Nabil",
+    "Volkan",
+    "Claudio",
+    "Claudio CW",
+    "qinlan",
+    "Zheng Xian Lau"
+  };
 
-      var lines = ocrText
-          .Split(new[] { "\r\n", "\n" }, StringSplitOptions.None)
-          .ToList();
+  // Optional supplier-like OCR/header false positives.
+  // Add items here only when a line looks like "name - number" but is not a real supplier.
+  private static readonly HashSet<string> IgnoredSupplierNames = new(StringComparer.OrdinalIgnoreCase)
+  {
+    "ella"
+  };
 
-      static bool IsTodayMarker(string line) {
-        var s = (line ?? "").Trim();
-        return s.Equals("Today", StringComparison.OrdinalIgnoreCase)
-            || s.Equals("oday", StringComparison.OrdinalIgnoreCase)
-            || s.Equals("Taday", StringComparison.OrdinalIgnoreCase)
-            || s.Equals("Todav", StringComparison.OrdinalIgnoreCase);
+  // Lines that are only page/header/footer junk like:
+  // 37
+  // 38
+  // 1:25 S
+  // 02:47 G
+  // Important: timestamp lines are handled before this regex in Clean().
+  private static readonly Regex HeaderFooterNoiseRegex = new(
+      @"^(?:\d{1,3}|\d{1,2}:\d{2}(?:\s?[A-Za-z]|\s?V/|\s?/|\s?\?)?)$",
+      RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+  // Telegram timestamp line:
+  // 09:22
+  // 14:29
+  // 10:20 AM
+  // 13:51 V/
+  // 04:12 ?
+  private static readonly Regex TelegramTimestampLineRegex = new(
+      @"^(?<time>(?:[01]?\d|2[0-3]):[0-5]\d(?:\s?(?:AM|PM))?)(?:\s?(?:[A-Za-z]|V/|/|\?))?$",
+      RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+  // Timestamp attached at the end of a useful line:
+  // Sigma ? - 1 9:44 AM -> Sigma ? - 1 + 9:44 AM
+  // Blackmores - 3 4:13 PM V/ -> Blackmores - 3 + 4:13 PM
+  private static readonly Regex TrailingTimestampRegex = new(
+      @"\s+\b(?<time>(?:[01]?\d|2[0-3]):[0-5]\d(?:\s?(?:AM|PM))?)\b(?:\s?(?:[A-Za-z]|V/|/|\?))?\s*$",
+      RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+  // edited 12:35 PM -> 12:35 PM
+  private static readonly Regex EditedTimestampRegex = new(
+      @"^edited\s+(?<time>(?:[01]?\d|2[0-3]):[0-5]\d(?:\s?(?:AM|PM))?)$",
+      RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+  // Keep date markers because they help separate delivery days.
+  // Examples:
+  // Today
+  // Yesterday
+  // June 12
+  // December 29, 2025
+  // March 5
+  private static readonly Regex DateMarkerRegex = new(
+      @"^(Today|Yesterday|[A-Za-z]+\s+\d{1,2}(?:,\s*\d{4})?)$",
+      RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+  // Supplier delivery line:
+  // sigma - 80
+  // Loreal- 9
+  // Pierre fabre - 3
+  // Sigma: 78 boxes
+  // Sigma ? - 1
+  // Startrack - 60 blackmores, pharmacare
+  //
+  // Supplier must start with a letter, so a time like "14:29" will not become "14 - 29".
+  private static readonly Regex DeliveryReportRegex = new(
+      @"^\s*(?<supplier>[\p{L}][\p{L}\p{N}&'’./\s]*?)(?:\s*\?)?\s*[-:–—]\s*(?<quantity>\d+)(?:\s*box(?:es)?)?\b(?<note>.*)$",
+      RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+  public static string Clean(string rawText, bool removeKnownUserLines = true) {
+    var filteredTodayText = ExtractAfterLastToday(rawText);
+
+    if (string.IsNullOrWhiteSpace(filteredTodayText))
+      return string.Empty;
+
+    var lines = filteredTodayText.Split('\n', StringSplitOptions.None);
+    var kept = new List<string>();
+    var pendingDeliveryLines = new List<string>();
+
+    void FlushPendingDeliveries(string? timestamp = null) {
+      foreach (var deliveryLine in pendingDeliveryLines) {
+        kept.Add(string.IsNullOrWhiteSpace(timestamp)
+            ? deliveryLine
+            : $"{deliveryLine} @ {timestamp}");
       }
 
-      int lastTodayIndex = -1;
-      for (int i = 0; i < lines.Count; i++) {
-        if (IsTodayMarker(lines[i]))
-          lastTodayIndex = i;
-      }
-
-      if (lastTodayIndex == -1 || lastTodayIndex == lines.Count - 1)
-        return ocrText;
-
-      return string.Join("\n", lines.Skip(lastTodayIndex + 1));
+      pendingDeliveryLines.Clear();
     }
 
-    // Keep this small and explicit.
-    // These are obvious Telegram/UI noise lines that should not help the model.
-    private static readonly HashSet<string> ExactNoiseLines = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "TELEGRAM",
-        "Message",
-        "messages",
-        "member",
-        "members",
-        "<",
-        ">",
-        "<<",
-        ">>",
-        "M",
-        "OB"
-    };
+    foreach (var rawLine in lines) {
+      var line = rawLine.Trim();
 
-    // Optional known usernames from your chat.
-    // Remove these as standalone lines only.
-    private static readonly HashSet<string> KnownUserLines = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "Alish",
-        "Alish Thapa",
-        "Bindu",
-        "Oakar",
-        "Oakar Bo",
-        "Nick Kyaw",
-        "Darren",
-        "Brian",
-        "Nabil",
-        "Volkan",
-        "Claudio",
-        "qinlan",
-        "NK"
-    };
+      if (string.IsNullOrWhiteSpace(line))
+        continue;
 
-    // Lines that are only page/header/footer junk like:
-    // 37
-    // 38
-    // 1:25 S
-    // 1:25
-    private static readonly Regex HeaderFooterNoiseRegex = new(
-        @"^(?:\d{1,3}|\d{1,2}:\d{2}(?:\s?[A-Za-z])?)$",
-        RegexOptions.Compiled);
+      if (ExactNoiseLines.Contains(line))
+        continue;
 
-    // Timestamp line:
-    // 10:21 AM
-    // 3:29 PM
-    // 10:52 am
-    private static readonly Regex TimeOnlyRegex = new(
-        @"^\d{1,2}:\d{2}\s?(?:AM|PM|am|pm)$",
-        RegexOptions.Compiled);
+      if (removeKnownUserLines && KnownUserLines.Contains(line))
+        continue;
 
-    // Keep date markers because your prompt may use them.
-    private static readonly Regex DateMarkerRegex = new(
-        @"^(Today|Yesterday|[A-Za-z]+\s+\d{1,2})$",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
-    // Delivery-like line:
-    // sigma - 80
-    // Loreal- 9
-    // Pierre fabre - 3
-    // Statrack- 4 - 2 3:00 PM   (still delivery-like, prompt can decide later)
-    private static readonly Regex DeliveryLikeRegex = new(
-        @"[A-Za-z].*\d",
-        RegexOptions.Compiled);
-
-    // Question line:
-    // What is in StarTrack
-    private static readonly Regex QuestionRegex = new(
-        @"\?$|^(what|where|why|who|when|how|is|are|can|could|should|would)\b",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
-    public static string Clean(string rawText, bool removeKnownUserLines = true, bool keepQuestions = true) {
-
-      var filteredTodayText = ExtractAfterLastToday(rawText);
-
-      if (string.IsNullOrWhiteSpace(filteredTodayText))
-        return string.Empty;
-
-      // 2. Split into individual lines
-      var lines = filteredTodayText
-          .Split('\n', StringSplitOptions.None)
-          .ToList();
-
-      var kept = new List<string>();
-
-      foreach (var line in lines) {
-        if (string.IsNullOrWhiteSpace(line))
-          continue;
-
-        // Remove obvious exact noise
-        if (ExactNoiseLines.Contains(line))
-          continue;
-
-        // Remove standalone known usernames if wanted
-        if (removeKnownUserLines && KnownUserLines.Contains(line))
-          continue;
-
-        // Remove header/footer junk like "37", "38", "1:25 S"
-        // BUT do not remove real timestamp lines like "10:21 AM"
-        if (!TimeOnlyRegex.IsMatch(line) && HeaderFooterNoiseRegex.IsMatch(line))
-          continue;
-
-        // Keep date markers
-        if (DateMarkerRegex.IsMatch(line)) {
-          kept.Add(line);
-          continue;
-        }
-
-        // Convert "edited 4:00 PM" -> "4:00 PM"
-        if (line.StartsWith("edited ", StringComparison.OrdinalIgnoreCase)) {
-          var editedTime = line["edited ".Length..].Trim();
-
-          if (TimeOnlyRegex.IsMatch(editedTime)) {
-            kept.Add(editedTime);
-            continue;
-          }
-        }
-
-        // Keep pure timestamp lines
-        if (TimeOnlyRegex.IsMatch(line)) {
-          kept.Add(line);
-          continue;
-        }
-
-        // Optionally keep question lines so the prompt can explicitly ignore them
-        if (keepQuestions && QuestionRegex.IsMatch(line)) {
-          kept.Add(line);
-          continue;
-        }
-
-        // Keep likely delivery lines / other useful content
-        if (DeliveryLikeRegex.IsMatch(line)) {
-          kept.Add(line);
-          continue;
-        }
-
-        // Otherwise drop it.
+      // "edited 12:35 PM" usually belongs to the message above it.
+      // Treat it as a timestamp and flush pending deliveries.
+      if (TryGetEditedTimestamp(line, out var editedTimestamp)) {
+        FlushPendingDeliveries(editedTimestamp);
+        continue;
       }
 
+      // If this line is a Telegram timestamp, attach it to delivery lines collected above it.
+      // This must run before HeaderFooterNoiseRegex because values like "14:29" look like header noise too.
+      if (TryGetTelegramTimestamp(line, out var timestamp)) {
+        FlushPendingDeliveries(timestamp);
+        continue;
+      }
 
-      // 4. Return cleaned text
-      return string.Join("\n", kept);
+      // Remove header/footer junk like "37", "38", "1:25 S".
+      if (HeaderFooterNoiseRegex.IsMatch(line))
+        continue;
+
+      if (DateMarkerRegex.IsMatch(line)) {
+        FlushPendingDeliveries();
+        kept.Add(line);
+        continue;
+      }
+
+      // Handle inline timestamp:
+      // "Sigma ? - 1 9:44 AM" -> "Sigma ? - 1" + "9:44 AM"
+      var trailingTimestamp = string.Empty;
+
+      if (TryRemoveTrailingTimestamp(line, out var lineWithoutTimestamp, out var extractedTrailingTimestamp)) {
+        line = lineWithoutTimestamp;
+        trailingTimestamp = extractedTrailingTimestamp;
+      }
+
+      if (DeliveryReportRegex.IsMatch(line)) {
+        if (IsIgnoredSupplierLine(line))
+          continue;
+
+        var normalizedDeliveryLine = NormalizeDeliveryLine(line);
+
+        if (string.IsNullOrWhiteSpace(trailingTimestamp))
+          pendingDeliveryLines.Add(normalizedDeliveryLine);
+        else
+          kept.Add($"{normalizedDeliveryLine} @ {trailingTimestamp}");
+
+        continue;
+      }
     }
 
+    // If OCR ends without a timestamp after the last delivery batch, still keep them.
+    FlushPendingDeliveries();
 
+    return DeliveryDeduplicator.RemoveDuplicates(string.Join("\n", kept));
+  }
+
+  private static bool TryGetTelegramTimestamp(string line, out string timestamp) {
+    timestamp = string.Empty;
+
+    var match = TelegramTimestampLineRegex.Match(line);
+
+    if (!match.Success)
+      return false;
+
+    timestamp = match.Groups["time"].Value.Trim();
+    return true;
+  }
+
+  private static bool TryGetEditedTimestamp(string line, out string timestamp) {
+    timestamp = string.Empty;
+
+    var match = EditedTimestampRegex.Match(line);
+
+    if (!match.Success)
+      return false;
+
+    timestamp = match.Groups["time"].Value.Trim();
+    return true;
+  }
+
+  private static bool TryRemoveTrailingTimestamp(
+      string line,
+      out string cleanedLine,
+      out string timestamp) {
+    cleanedLine = line;
+    timestamp = string.Empty;
+
+    var match = TrailingTimestampRegex.Match(line);
+
+    if (!match.Success)
+      return false;
+
+    timestamp = match.Groups["time"].Value.Trim();
+    cleanedLine = TrailingTimestampRegex.Replace(line, string.Empty).Trim();
+
+    return true;
+  }
+
+  private static bool IsIgnoredSupplierLine(string line) {
+    var match = DeliveryReportRegex.Match(line);
+
+    if (!match.Success)
+      return false;
+
+    var supplier = NormalizeText(match.Groups["supplier"].Value);
+
+    return IgnoredSupplierNames.Contains(supplier);
+  }
+
+  private static string NormalizeDeliveryLine(string line) {
+    var match = DeliveryReportRegex.Match(line);
+
+    if (!match.Success)
+      return line.Trim();
+
+    var supplier = Regex.Replace(match.Groups["supplier"].Value.Trim(), @"\s+", " ");
+    var quantity = match.Groups["quantity"].Value.Trim();
+    var note = Regex.Replace(match.Groups["note"].Value.Trim(), @"\s+", " ");
+
+    return string.IsNullOrWhiteSpace(note)
+        ? $"{supplier} - {quantity}"
+        : $"{supplier} - {quantity} {note}";
+  }
+
+  private static string NormalizeText(string value) {
+    value = Regex.Replace(value.Trim(), @"\s+", " ");
+    return value.ToLowerInvariant();
   }
 }
 
-
 public static class DeliveryDeduplicator
 {
-  private static readonly System.Text.RegularExpressions.Regex DeliveryLineRegex =
-      new(@"^(?<name>.+?)\s-\s(?<qty>\d+)(?:\s(?<extra>\(.+\)))?\s@\s(?<time>\d{1,2}:\d{2}(?:am|pm))$",
-          System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+  // This matches the normalized output from TelegramOcrTextProcess.Clean:
+  // Sigma - 77 @ 13:12
+  // Startrack - 60 blackmores, pharmacare @ 13:51
+  private static readonly Regex DeliveryLineRegex = new(
+      @"^\s*(?<name>.+?)\s+-\s+(?<qty>\d+)\b(?<note>.*?)\s+@\s+(?<time>(?:[01]?\d|2[0-3]):[0-5]\d(?:\s?(?:AM|PM))?)\s*$",
+      RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
   public static string RemoveDuplicates(string text) {
     if (string.IsNullOrWhiteSpace(text))
@@ -199,52 +341,33 @@ public static class DeliveryDeduplicator
 
     var lines = text
         .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
-        .Select(x => x.Trim())
-        .Where(x => !string.IsNullOrWhiteSpace(x));
+        .Select(line => line.Trim())
+        .Where(line => !string.IsNullOrWhiteSpace(line));
 
     foreach (var line in lines) {
       var match = DeliveryLineRegex.Match(line);
 
-      // Keep unparseable lines as-is, or skip them if you prefer strict mode.
+      // Keep date markers or other unparseable kept lines as-is.
       if (!match.Success) {
         output.Add(line);
         continue;
       }
 
-      var name = NormalizeName(match.Groups["name"].Value);
-      var qty = match.Groups["qty"].Value.Trim();
-      var extra = NormalizeExtra(match.Groups["extra"].Value);
-      var time = NormalizeTime(match.Groups["time"].Value);
-
-      var key = $"{name}|{qty}|{extra}|{time}";
+      var name = NormalizeText(match.Groups["name"].Value);
+      var quantity = match.Groups["qty"].Value.Trim();
+      var note = NormalizeText(match.Groups["note"].Value);
+      var time = NormalizeText(match.Groups["time"].Value);
+      var key = $"{name}|{quantity}|{note}|{time}";
 
       if (seen.Add(key))
-        output.Add($"{match.Groups["name"].Value.Trim()} - {qty}" +
-                   $"{(string.IsNullOrWhiteSpace(match.Groups["extra"].Value) ? "" : " " + match.Groups["extra"].Value.Trim())} @ {time}");
+        output.Add(line);
     }
 
     return string.Join(Environment.NewLine, output);
   }
 
-  private static string NormalizeName(string value) {
-    value = System.Text.RegularExpressions.Regex.Replace(value.Trim(), @"\s+", " ");
+  private static string NormalizeText(string value) {
+    value = Regex.Replace(value.Trim(), @"\s+", " ");
     return value.ToLowerInvariant();
-  }
-
-  private static string NormalizeExtra(string value) {
-    value ??= "";
-    value = value.Trim();
-
-    if (string.IsNullOrWhiteSpace(value))
-      return "";
-
-    value = System.Text.RegularExpressions.Regex.Replace(value, @"\s+", " ");
-    return value.ToLowerInvariant();
-  }
-
-  private static string NormalizeTime(string value) {
-    value = value.Trim().ToLowerInvariant();
-    value = value.Replace(" ", "");
-    return value;
   }
 }

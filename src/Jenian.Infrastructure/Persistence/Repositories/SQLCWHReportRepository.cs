@@ -1,4 +1,3 @@
-using Jenian.Application.Abstractions.Messaging;
 using Jenian.Application.Abstractions.Persistence;
 using Jenian.Domain.Entities;
 using Jenian.Infrastructure.Persistence.App;
@@ -152,7 +151,7 @@ namespace Jenian.Infrastructure.Persistence.Repositories
     /** Check if user submited the report today
      *  Return: Boolean
      */
-    public async Task<Boolean> IsReportSubmitedToday(string userId) {
+    public async Task<bool> IsReportSubmitedToday(string userId) {
       var today = DateTime.UtcNow.Date;
       var isAnyReport = await _dbContext.EodReports.Where(e => e.UserId == userId && e.SubmitedAt.Date == today).AnyAsync();
       if (!isAnyReport) {
@@ -183,7 +182,8 @@ namespace Jenian.Infrastructure.Persistence.Repositories
         "Night Protocol " + formattedDate + "\n\n" +
         "Scan GAPs using Augmodo ✅\n\n" +
         "Deliveries\n" +
-        rawReport.Delivery + "\n\n" +
+        //(string.IsNullOrEmpty(rawReport.Delivery) ? rawReport.StockUpdate.AdditionalNote : rawReport.Delivery) + "\n\n" +
+        (rawReport.Delivery) + "\n\n" +
         "Stock Updates\n" +
         FormatStockUpdate(rawReport.StockUpdate) + "\n\n" +
 
@@ -270,9 +270,10 @@ namespace Jenian.Infrastructure.Persistence.Repositories
       }
 
       // other notes
+      stockUpdateString += "\n";
       stockUpdateString += stockUpdate.AdditionalStock;
       stockUpdateString += "\n";
-      stockUpdateString += stockUpdate.AdditionalNote;
+      //stockUpdateString += stockUpdate.AdditionalNote;
 
       return stockUpdateString;
     }

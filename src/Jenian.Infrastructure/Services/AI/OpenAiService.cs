@@ -3,8 +3,6 @@ using Jenian.Application.Common.Exceptions;
 using Jenian.Infrastructure.Services.AI.Roster;
 using Jenian.Infrastructure.Services.Helpers;
 using OpenAI.Chat;
-using OpenCvSharp.Text;
-using System.IO;
 
 namespace Jenian.Infrastructure.Services.AI
 {
@@ -18,12 +16,9 @@ namespace Jenian.Infrastructure.Services.AI
       _logger = logger;
     }
 
-    // This method extracts delivery entries from OCR text using an LLM. It applies specific rules to filter and format the output.
+    // takes a raw OCR text from Telegram and extracts delivery entries using the LLM, following the specified rules and format.
     public async Task<string> DeliveryTextExtractor(string ocrText, CancellationToken ct = default) {
-
-      // 
       var CleanedDeliveryText = TelegramOcrTextProcess.Clean(ocrText);
-
       _logger.LogInformation("CleanedDeliveryText {Value}", CleanedDeliveryText);
 
       if (string.IsNullOrWhiteSpace(CleanedDeliveryText))
@@ -154,18 +149,15 @@ namespace Jenian.Infrastructure.Services.AI
       };
       try {
         ChatCompletion completion = await _chatClient.CompleteChatAsync(message);
-        var raw = completion.Content[0].Text ?? string.Empty;
+        var result = completion.Content[0].Text ?? string.Empty;
+        _logger.LogInformation("Result from OpenAI: {Value}", result);
 
-        _logger.LogInformation("raw {Value}", raw);
-        var finalDelivery = DeliveryDeduplicator.RemoveDuplicates(raw);
+        var finalDeliveryText = DeliveryDeduplicator.RemoveDuplicates(result);
 
-        _logger.LogInformation("final delivery {Value}", finalDelivery);
-
-        return finalDelivery;
+        return finalDeliveryText;
       } catch (Exception e) {
-        throw new AppException("OpenAI query failed: " + e.Message);
+        throw new AppException("OpenAI query failed: " + e.Message, 502);
       }
-
     }
 
     public async Task<string> RosterQueryLegacy(string ocrText, string staffName, CancellationToken ct = default) {

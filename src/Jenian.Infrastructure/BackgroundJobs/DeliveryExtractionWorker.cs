@@ -41,6 +41,7 @@ namespace Jenian.Infrastructure.BackgroundJobs
         if (string.IsNullOrWhiteSpace(blobName))
           continue;
 
+        // Get blob stream from storage and extract text using Azure OCR
         await using var stream = await blobStorageService.OpenReadAsync(blobName, cancellationToken);
 
         var ocrText = await azureParser.ExtractTextFromDeliveryPhotoStreamAsync(
@@ -82,6 +83,7 @@ namespace Jenian.Infrastructure.BackgroundJobs
             ocrText = await BuildOcrTextAsync(job.BlobNames, blobStorage, parserService, stoppingToken);
           }
 
+          // read OCR text and extract delivery information using OpenAI service  
           var answer = await openAi.DeliveryTextExtractor(ocrText, stoppingToken);
           _logger.LogInformation("DeliveryExtractorWorker processed job. Result: {Result}", answer);
           // update job status
