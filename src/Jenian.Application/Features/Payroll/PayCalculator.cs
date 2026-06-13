@@ -1,5 +1,6 @@
 ﻿using Jenian.Application.Features.PaySummaries.Dtos;
 using Jenian.Application.Features.Shifts.Dtos;
+using Jenian.Domain.Entities;
 
 
 namespace Jenian.Application.Features.Payroll
@@ -19,6 +20,8 @@ namespace Jenian.Application.Features.Payroll
     }
 
     public UserDailyPaySummaryDto CalculateDailyPay(List<ShiftDto> shifts, string userId) {
+
+
       // Note: 'VIC' later will be determined by user's location or shift location
       var isPublicHoliday = _publicHolidayService.IsPublicHoliday(DateOnly.FromDateTime(shifts[0].StartAt.DateTime), "VIC");
       const decimal baseHourlyRate = 26.55m; //Note: latter need to get from user profile from database or jwt token claims
@@ -44,6 +47,44 @@ namespace Jenian.Application.Features.Payroll
       };
 
       return userDailyPaySummary;
+    }
+
+    public PayCycleDateRange CalculatePayCycleDateRange(PayCycleType userPayCycle, DateOnly anchorStartDate) {
+      var todayDate = DateOnly.FromDateTime(DateTime.UtcNow);
+      DateOnly cycleStartDate;
+      DateOnly cycleEndDate;
+      switch (userPayCycle) {
+        case PayCycleType.Weekly:
+          var daysSinceWeeklyAnchor = todayDate.DayNumber - anchorStartDate.DayNumber;
+          var weeklyIndex = Math.Floor(daysSinceWeeklyAnchor / 7.0);
+          var currentWeekStart = anchorStartDate.AddDays((int)weeklyIndex * 7);
+
+          cycleStartDate = currentWeekStart;
+          cycleEndDate = currentWeekStart.AddDays(6);
+          break;
+
+        case PayCycleType.Fortnightly:
+          var daysSinceFortnightlyAnchor = todayDate.DayNumber - anchorStartDate.DayNumber;
+          var fortnightIndex = Math.Floor(daysSinceFortnightlyAnchor / 14.0);
+          var currentFortnightStart = anchorStartDate.AddDays((int)fortnightIndex * 14);
+
+          cycleStartDate = currentFortnightStart;
+          cycleEndDate = currentFortnightStart.AddDays(13);
+          break;
+
+        case PayCycleType.Monthly:
+          cycleStartDate = new DateOnly(todayDate.Year, todayDate.Month, 1);
+          cycleEndDate = new DateOnly(
+              todayDate.Year,
+              todayDate.Month,
+              DateTime.DaysInMonth(todayDate.Year, todayDate.Month)
+          );
+          break;
+
+        default:
+          throw new ArgumentOutOfRangeException(nameof(userPayCycle));
+      }
+      return new PayCycleDateRange(cycleStartDate, cycleEndDate);
     }
   }
 }

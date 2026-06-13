@@ -18,5 +18,9 @@ namespace Jenian.Application.Features.Shifts.Dtos
     public DateOnly? PayCycleStartDate { get; set; }
     public DateOnly? PayCycleEndDate { get; set; }
 
+    public int? ShiftCountInCycle { get; set; } = 0;
+
+    public decimal? EstimatedGrossPay { get; set; } = 0;
+
   }
 }
