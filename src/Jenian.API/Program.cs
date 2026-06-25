@@ -1,5 +1,6 @@
 using Azure.Identity;
 using Azure.Storage.Blobs;
+using Jenian.API.Auth;
 using Jenian.API.Configurations;
 using Jenian.API.Middleware;
 using Jenian.Application;
@@ -64,6 +65,11 @@ namespace Jenian.API
       /* Global error handling - using ProblemDetails for consistent API error responses.*/
       builder.Services.AddProblemDetails();
       builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
+
+      /** Auth cookie settings */
+      builder.Services.Configure<AuthCookieSettings>(builder.Configuration.GetSection("AuthCookies"));
+
 
 
 
