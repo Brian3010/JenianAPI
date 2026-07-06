@@ -1,9 +1,11 @@
+using Jenian.API.Contracts.Common;
 using Jenian.API.Contracts.Cwh;
 using Jenian.Application.Abstractions.AI;
 using Jenian.Application.Abstractions.BackgroundJobs;
 using Jenian.Application.Abstractions.Persistence;
 using Jenian.Application.Abstractions.Storage;
 using Jenian.Application.Features.Shifts.Commands;
+using Jenian.Application.Features.Shifts.Dtos;
 using Jenian.Application.Features.Shifts.Services;
 using Jenian.Domain.Entities;
 using Jenian.Infrastructure.BackgroundJobs.JobPayloads;
@@ -209,10 +211,10 @@ namespace Jenian.API.Controllers
       var result = await _shiftService.GetCurrentPayCycleSettingsForUserAsync(userId, cancellationToken);
 
       if (!result.IsSuccess) {
-        return BadRequest(result.Errors);
+        return BadRequest(ApiResponse<PayCycleSettingsDto>.Ok(result.Data));
       }
 
-      return Ok(result.Data);
+      return Ok(ApiResponse<PayCycleSettingsDto>.Ok(result.Data));
     }
 
     // POST /api/pay-cycle-settings/update, allowing users to update their pay cycle settings
@@ -293,12 +295,9 @@ namespace Jenian.API.Controllers
       };
       var result = await _shiftService.GetShiftsByUserAndDateRangeAsync(command, cancellationToken);
       if (!result.IsSuccess) {
-        return BadRequest(result.Errors);
+        return BadRequest(ApiResponse<ShiftSummaryResult>.Fail(result.Errors));
       }
-      return Ok(result.Data);
-
-
-
+      return Ok(ApiResponse<ShiftSummaryResult>.Ok(result.Data));
 
     }
   }
