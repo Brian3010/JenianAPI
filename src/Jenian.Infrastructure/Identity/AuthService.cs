@@ -28,10 +28,12 @@ namespace Jenian.Infrastructure.Identity
     }
 
     public async Task<ServiceResult<bool>> HasTelegramConnectedAsync(string userId, CancellationToken cancellationToken) {
-      var isConnected = await _jenainAuthRepository.IsTelegramConnectedAsync(userId);
-      return isConnected
-        ? ServiceResult<bool>.Success(true)
-        : ServiceResult<bool>.Failure(["Telegram is not connected."]);
+      try {
+        var isConnected = await _jenainAuthRepository.IsTelegramConnectedAsync(userId);
+        return ServiceResult<bool>.Success(isConnected);
+      } catch {
+        return ServiceResult<bool>.Failure(["Couldn't determine Telegram connection status."]);
+      }
 
     }
 

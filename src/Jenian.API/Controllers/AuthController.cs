@@ -69,9 +69,7 @@ namespace Jenian.API.Controllers
       var loginResult = await _authService.LoginAsync(loginCommand, CancellationToken.None);
 
       if (!loginResult.IsSuccess) {
-        return Unauthorized(new {
-          loginResult.Errors
-        });
+        return Unauthorized(ApiResponse<object>.Fail(loginResult.Errors));
       }
 
 
@@ -210,15 +208,19 @@ namespace Jenian.API.Controllers
     public async Task<IActionResult> getMe() {
       // JWT is already validated + "decoded" into claims
       var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
-      if (userId == null) return NotFound("GET: get-me - cannot find userId");
+      if (userId == null) return NotFound(ApiResponse<object>.Fail(["User not found."]));
 
       var userName = User.FindFirst(JwtRegisteredClaimNames.Name)?.Value;
       var email = User.FindFirst(JwtRegisteredClaimNames.Email)?.Value;
-      var isTelegramConnected = await _authService.HasTelegramConnectedAsync(userId, CancellationToken.None);
-      if (!isTelegramConnected.IsSuccess) {
-        return BadRequest(new { message = isTelegramConnected.Errors });
+      var telegramConnectionResult = await _authService.HasTelegramConnectedAsync(userId, CancellationToken.None);
+      if (!telegramConnectionResult.IsSuccess) {
+        return BadRequest(ApiResponse<object>.Fail(telegramConnectionResult.Errors));
       }
-      return Ok(new { userName, isTelegramConnected = isTelegramConnected.Data, email });
+      return Ok(ApiResponse<object>.Ok(new {
+        UserName = userName,
+        Email = email,
+        IsTelegramConnected = telegramConnectionResult.Data
+      }));
     }
 
 
