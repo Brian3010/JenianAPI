@@ -1,5 +1,6 @@
 using Jenian.API.Auth;
 using Jenian.API.Contracts.Auth;
+using Jenian.API.Contracts.Common;
 using Jenian.Application.Abstractions.Auth;
 using Jenian.Application.Abstractions.Persistence;
 using Jenian.Application.Features.Auth.Commands;
@@ -82,14 +83,14 @@ namespace Jenian.API.Controllers
       });
 
 
-      Response.Cookies.Append("deviceId", loginResult.Data.DeviceId, new CookieOptions {
+      Response.Cookies.Append(AuthCookieNames.DeviceId, loginResult.Data.DeviceId, new CookieOptions {
         HttpOnly = true,
         Secure = true, // only over HTTPS
         SameSite = SameSiteMode.Lax,
         Expires = DateTime.UtcNow.AddDays(_authCookieOptions.Value.DeviceIdDays)
       });
 
-      Response.Cookies.Append("accessToken", loginResult.Data.AccessToken, new CookieOptions {
+      Response.Cookies.Append(AuthCookieNames.AccessToken, loginResult.Data.AccessToken, new CookieOptions {
         HttpOnly = true,
         Secure = true, // only over HTTPS
         SameSite = SameSiteMode.Lax,
