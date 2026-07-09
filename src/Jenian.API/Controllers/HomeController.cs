@@ -1,5 +1,3 @@
-using Jenian.Infrastructure.Persistence.App;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Jenian.API.Controllers
@@ -13,7 +11,7 @@ namespace Jenian.API.Controllers
 
     [HttpGet("health")]
     public IActionResult Get() {
-      return Ok("Welcome to Jenian API!");
+      return NoContent();
     }
 
   }
