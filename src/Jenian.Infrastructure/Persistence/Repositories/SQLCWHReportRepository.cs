@@ -182,8 +182,7 @@ namespace Jenian.Infrastructure.Persistence.Repositories
         "Night Protocol " + formattedDate + "\n\n" +
         "Scan GAPs using Augmodo ✅\n\n" +
         "Deliveries\n" +
-        //(string.IsNullOrEmpty(rawReport.Delivery) ? rawReport.StockUpdate.AdditionalNote : rawReport.Delivery) + "\n\n" +
-        (rawReport.Delivery) + "\n\n" +
+        (string.IsNullOrEmpty(rawReport.Delivery) ? rawReport.StockUpdate.AdditionalNote : rawReport.Delivery) + "\n\n" +
         "Stock Updates\n" +
         FormatStockUpdate(rawReport.StockUpdate) + "\n\n" +
 
