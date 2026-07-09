@@ -45,10 +45,10 @@ namespace Jenian.API.Controllers
       var result = await _authService.RegisterAsync(command, CancellationToken.None);
 
       if (!result.IsSuccess) {
-        return BadRequest(result.Errors);
+        return BadRequest(ApiResponse<object>.Fail(result.Errors));
       }
 
-      return Ok("Registered succesffully");
+      return Ok(ApiResponse<object>.Ok(new { message = "Registered successfully." }));
     }
 
     [HttpPost("login")]
@@ -140,7 +140,7 @@ namespace Jenian.API.Controllers
         Expires = DateTime.UtcNow.AddDays(-1), // Set expiration in the past
       });
 
-      return Ok("Logged out successfully.");
+      return NoContent();
     }
 
     [HttpPost("request-password-reset")]
@@ -154,7 +154,7 @@ namespace Jenian.API.Controllers
        * For now, This API will send back a random token to use for reseting password
        */
 
-      return Ok(new { ResetToken = resetToken.Data! });
+      return Ok(ApiResponse<object>.Ok(new { ResetToken = resetToken.Data! }));
     }
 
     [HttpPost("reset-password")]
@@ -171,9 +171,9 @@ namespace Jenian.API.Controllers
       var res = await _authService.ResetPasswordAsync(command, CancellationToken.None);
 
       if (!res.IsSuccess)
-        return BadRequest(res.Errors);
+        return BadRequest(ApiResponse<object>.Fail(res.Errors));
 
-      return Ok("Password has been reset successfully.");
+      return Ok(ApiResponse<object>.Ok(new { message = "Password has been reset successfully." }));
 
     }
 
@@ -191,7 +191,7 @@ namespace Jenian.API.Controllers
       var tokenRes = await _authService.RefreshTokenAsync(refreshTokenCommand, CancellationToken.None);
 
       if (!tokenRes.IsSuccess)
-        return Unauthorized(new { message = tokenRes.Errors });
+        return Unauthorized(ApiResponse<object>.Fail(tokenRes.Errors ?? new[] { "Failed to refresh token." }));
 
       Response.Cookies.Append(AuthCookieNames.AccessToken, tokenRes.Data!.AccessToken, new CookieOptions {
         HttpOnly = true,

@@ -1,3 +1,4 @@
+using Jenian.API.Contracts.Common;
 using Jenian.Application.Abstractions.Messaging;
 using Jenian.Application.Features.Telegram.Dtos;
 using Jenian.Infrastructure.Concurrency;
@@ -6,7 +7,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.IdentityModel.Tokens.Jwt;
-using System.Threading.Tasks;
 
 namespace Jenian.API.Controllers
 {
@@ -77,7 +77,7 @@ namespace Jenian.API.Controllers
 
       }
 
-      return Ok(new { linkToken = user.TelegramLinkToken });
+      return Ok(ApiResponse<object>.Ok(new { linkToken = user.TelegramLinkToken }));
     }
 
     // Can you this function in to check if user linked before adding token
