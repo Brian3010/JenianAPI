@@ -244,6 +244,7 @@ namespace Jenian.API.Controllers
 
 
     // PUT /api/shifts/bulks?cycleStartDate=2026-05-01&cycleEndDate=2026-05-14, submitting shift data for a specified pay cycle
+    [Authorize]
     [HttpPut("/shifts/bulks")]
     public async Task<IActionResult> SubmitShifts(
       [FromQuery] DateOnly cycleStartDate,
