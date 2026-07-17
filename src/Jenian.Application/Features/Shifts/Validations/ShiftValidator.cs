@@ -7,8 +7,15 @@ namespace Jenian.Application.Features.Shifts.Validations
   {
     public ValidationResult ValidateSaveShifts(List<ShiftDto> shitfs, DateOnly cycleStartDate, DateOnly cycleEndDate) {
       List<string> errors = [];
+      HashSet<(DateTimeOffset, DateTimeOffset endTime)>
+         seenShifts = [];
 
       foreach (var shift in shitfs) {
+        var key = (shift.StartAt, shift.EndAt);
+        if (!seenShifts.Add(key)) {
+          errors.Add($"Duplicate shift found with Id {shift.Id}.");
+        }
+
         if (shift.StartAt >= shift.EndAt) {
           errors.Add($"Shift with Id {shift.Id} has StartAt greater than or equal to EndAt.");
         }
