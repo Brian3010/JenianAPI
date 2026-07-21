@@ -13,7 +13,7 @@ namespace Jenian.Application.Features.Payroll
   public record TimeSegment(
     DateTimeOffset Start,
     DateTimeOffset End,
-    int Hours
+    decimal Hours
   );
 
   public record TotalPaySummary(
