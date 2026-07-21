@@ -51,11 +51,11 @@ namespace Jenian.Application.Features.Payroll
 
       var regularHoursStart = TimeSpan.Parse("08:00");
       var regularHoursEnd = TimeSpan.Parse("18:00");
-      var breakHoursRemaining = shiftDto.UnpaidBreakMinutes / 60.0m;
+      decimal breakHoursRemaining = shiftDto.UnpaidBreakMinutes / 60.0m;
 
       foreach (var segment in segments) {
         decimal multiplier = GetMultiplier(segment.Start, shiftDto.EmploymentType, isPublicHoliday, shiftDto.EntryType);
-        var paidHours = (decimal)segment.Hours; // e.g. 3 hours in segment
+        var paidHours = segment.Hours; // e.g. 3 hours in segment
 
         // Deduct unpaid break ONLY from segments between 08:00-18:00
         if (breakHoursRemaining > 0 &&
@@ -67,16 +67,16 @@ namespace Jenian.Application.Features.Payroll
           breakHoursRemaining -= hoursToDeduct;
         }
 
-        decimal segmentPay = paidHours * baseHourlyRate * multiplier;
+        decimal segmentPay = paidHours * Math.Round((baseHourlyRate * multiplier), 2, MidpointRounding.AwayFromZero);
         totalGrossPay += segmentPay;
       }
 
       var totalPayableMinutes = segments.Sum(s => s.Hours * 60) - shiftDto.UnpaidBreakMinutes;
       var totalOvertimeMinutes = 0; // Overtime will depend on actual business rule
-      var totalEveningPenaltyMinutes = segments.Where(s =>
+      var totalEveningPenaltyMinutes = segments.Where(s => s.Start.DayOfWeek != DayOfWeek.Sunday && (
         (s.Start.TimeOfDay >= TimeSpan.Parse("19:00") && s.Start.TimeOfDay < TimeSpan.Parse("21:00")) ||
         (s.End.TimeOfDay > TimeSpan.Parse("19:00") && s.End.TimeOfDay <= TimeSpan.Parse("21:00"))
-      ).Sum(s => s.Hours * 60);
+      )).Sum(s => s.Hours * 60);
       var totalUnpaidBreakMinutes = shiftDto.UnpaidBreakMinutes;
 
 
@@ -186,7 +186,7 @@ namespace Jenian.Application.Features.Payroll
           segmentList.Add(new TimeSegment(
             new DateTimeOffset(startTime.Date + from, startTime.Offset),
             new DateTimeOffset(startTime.Date + timeSlots[i], startTime.Offset),
-            (int)(timeSlots[i] - from).TotalHours
+            (decimal)(timeSlots[i] - from).TotalHours
           ));
           from = timeSlots[i];
         }
@@ -196,7 +196,7 @@ namespace Jenian.Application.Features.Payroll
       segmentList.Add(new TimeSegment(
         new DateTimeOffset(startTime.Date + from, startTime.Offset),
         new DateTimeOffset(startTime.Date + to, startTime.Offset),
-        (int)(to - from).TotalHours
+        (decimal)(to - from).TotalHours
       ));
 
       return segmentList;
