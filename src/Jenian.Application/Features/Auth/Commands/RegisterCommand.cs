@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Jenian.Application.Features.Auth.Commands
+﻿namespace Jenian.Application.Features.Auth.Commands
 {
   public class RegisterCommand
   {
@@ -14,6 +8,7 @@ namespace Jenian.Application.Features.Auth.Commands
 
     public required string ConfirmPassword { get; set; }
     //public required string DeviveId { get; set; }
+    public required string SecretToken { get; set; }
 
   }
 }

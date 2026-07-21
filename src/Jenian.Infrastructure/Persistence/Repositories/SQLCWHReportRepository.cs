@@ -221,15 +221,15 @@ namespace Jenian.Infrastructure.Persistence.Repositories
         "Consulting room: " + rawReport.Cleaning.ConsultingRoom + "\n\n" +
 
         "General Checks:\n" +
-        "Free Trolleys: " + rawReport.GeneralCheck.FreeTrolleys + "/14\n" +
-        "Free Cages: " + rawReport.GeneralCheck.FreeCages + "/9\n" +
+        "Free Trolleys: " + rawReport.GeneralCheck.FreeTrolleys + "\n" +
+        "Free Cages: " + rawReport.GeneralCheck.FreeCages + "\n" +
         "# of Outstanding Click & Collect: " + rawReport.GeneralCheck.NumOfClickCollect + "\n" +
         "# of Catalogue Bundles: " + rawReport.GeneralCheck.NumOfCataBundle + "\n" +
         "# of Magazone Bundles: " + rawReport.GeneralCheck.NumOfMagaBundle + "\n" +
-        "My Pals on charge: " + rawReport.GeneralCheck.NumOfMyPals + "/5\n" +
-        "Fragrance keys on security desk: " + rawReport.GeneralCheck.NumOfFragKeys + "/3\n" +
-        "Lift Passes in dispensary: " + rawReport.GeneralCheck.NumOfLiftPasses + "/2\n" +
-        "Augmodo in consulting room: " + rawReport.GeneralCheck.NumOfAugmodos + "/4\n"
+        "My Pals on charge: " + rawReport.GeneralCheck.NumOfMyPals + "\n" +
+        "Fragrance keys on security desk: " + rawReport.GeneralCheck.NumOfFragKeys + "\n" +
+        "Lift Passes in dispensary: " + rawReport.GeneralCheck.NumOfLiftPasses + "\n" +
+        "Augmodo in consulting room: " + rawReport.GeneralCheck.NumOfAugmodos + "\n"
        ;
       return finalReport;
     }

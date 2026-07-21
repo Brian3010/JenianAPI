@@ -41,6 +41,7 @@ namespace Jenian.API.Controllers
         Password = registerRequest.Password,
         Email = registerRequest.Email,
         UserName = registerRequest.UserName,
+        SecretToken = registerRequest.SecretToken
       };
       var result = await _authService.RegisterAsync(command, CancellationToken.None);
 
