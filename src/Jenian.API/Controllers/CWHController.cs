@@ -238,7 +238,7 @@ namespace Jenian.API.Controllers
         return BadRequest(ApiResponse<object>.Fail(result.Errors));
       }
 
-      return Ok(ApiResponse<object>.Ok(new { message = "Pay cycle settings updated successfully.", PayCycleSetting = result.Data }));
+      return Ok(ApiResponse<PayCycleSettingsDto>.Ok(result.Data));
 
     }
 

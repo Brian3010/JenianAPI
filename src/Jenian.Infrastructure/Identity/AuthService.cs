@@ -155,6 +155,12 @@ namespace Jenian.Infrastructure.Identity
     }
 
     public async Task<ServiceResult<RegisterResultDto>> RegisterAsync(RegisterCommand command, CancellationToken cancellationToken) {
+
+      // I know it shouldnt be hardcoded, but for now, this is the only way to register a user
+      if (command.SecretToken != "***REMOVED***") {
+        return ServiceResult<RegisterResultDto>.Failure(["Invalid secret token"]);
+      }
+
       if (command.Password != command.ConfirmPassword) {
         return ServiceResult<RegisterResultDto>.Failure(["Password and Confirm Password does not match"]);
       }

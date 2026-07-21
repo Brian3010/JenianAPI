@@ -20,6 +20,8 @@ namespace Jenian.API.Contracts.Auth
     [DataType(DataType.Password)]
     public required string ConfirmPassword { get; set; }
 
-
+    [Required]
+    [DataType(DataType.Text)]
+    public required string SecretToken { get; set; }
   }
 }
