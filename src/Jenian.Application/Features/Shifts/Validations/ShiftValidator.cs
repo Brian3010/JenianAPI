@@ -13,7 +13,7 @@ namespace Jenian.Application.Features.Shifts.Validations
       foreach (var shift in shitfs) {
         var key = (shift.StartAt, shift.EndAt);
         if (!seenShifts.Add(key)) {
-          errors.Add($"Duplicate shift found with Id {shift.Id}.");
+          errors.Add($"Duplicate shift found, starting at {shift.StartAt.Date:d}.");
         }
 
         if (shift.StartAt >= shift.EndAt) {
@@ -26,14 +26,14 @@ namespace Jenian.Application.Features.Shifts.Validations
         var totalBreakMinutes = shift.UnpaidBreakMinutes + shift.PaidBreakMinutes;
 
         if (totalBreakMinutes > durationMinutes) {
-          errors.Add($"Shift with Id {shift.Id} has break minutes exceeding shift duration.");
+          errors.Add($"Shift starting at {shift.StartAt.Date:d} has break minutes exceeding shift duration.");
         }
 
         var startDate = DateOnly.FromDateTime(shift.StartAt.DateTime);
         var endDate = DateOnly.FromDateTime(shift.EndAt.DateTime);
 
         if (startDate < cycleStartDate || endDate > cycleEndDate) {
-          errors.Add($"Shift with Id {shift.Id} has StartAt or EndAt outside of the cycle date range.");
+          errors.Add($"Shift starting at {shift.StartAt.Date:d} has StartAt or EndAt outside of the cycle date range.");
         }
 
       }
