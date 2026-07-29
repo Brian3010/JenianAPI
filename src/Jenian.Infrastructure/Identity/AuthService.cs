@@ -47,7 +47,7 @@ namespace Jenian.Infrastructure.Identity
       }
 
       // Generate JWT token
-      var accessToken = _jwtTokenManager.GenerateJwtToken(new JwtUserClaims(user.Id, user.UserName!, user.Email!), 30);
+      var accessToken = _jwtTokenManager.GenerateJwtToken(new JwtUserClaims(user.Id, user.UserName!, user.Email!, user.IsDemoUser), 30);
 
       await _jwtTokenManager.UpsertDeviceAuthInfoAsync(command.RefreshToken, command.DeviceId, user.Id);
 
@@ -56,6 +56,7 @@ namespace Jenian.Infrastructure.Identity
 
       var authResultDto = new AuthResultDto {
         AccessToken = accessToken,
+        AccessTokenExpiresAtUtc = DateTimeOffset.UtcNow.AddMinutes(30),
         RefreshToken = command.RefreshToken,
         DeviceId = command.DeviceId.ToString(),
         User = new UserDto {
@@ -122,24 +123,47 @@ namespace Jenian.Infrastructure.Identity
           return ServiceResult<AuthResultDto>.Failure(
             ["Refresh Token Expired. Please log in again"]);
         }
-        // Update the last used time of the refresh token to extend its validity
-        // TODO: using the same refresh token -> securer if generate a new refresh token, implemented later
-        await _jwtTokenManager.UpdateDeviceAuthInfoAsync(command.RefreshToken, deviceIdGuid.Value, userId);
-
       }
-
-
 
       var user = await _userManager.FindByIdAsync(userId);
       if (user == null) return ServiceResult<AuthResultDto>.Failure(
           ["User no longer exists"]);
 
-      var newAccessToken = _jwtTokenManager.GenerateJwtToken(new JwtUserClaims(user.Id, user.UserName!, user.Email!), 30);
+      DateTimeOffset? demoExpiresAtUtc = null;
+
+      if (user.IsDemoUser) {
+        if (user.DemoStatus == DemoAccountStatus.PendingDeletion) {
+          return ServiceResult<AuthResultDto>.Failure(
+            ["Demo account is pending deletion"]);
+        }
+
+        if (!user.DemoExpiresAtUtc.HasValue ||
+            DateTimeOffset.UtcNow > user.DemoExpiresAtUtc.Value) {
+          return ServiceResult<AuthResultDto>.Failure(
+            ["Demo account has expired"]);
+        }
+
+        demoExpiresAtUtc = user.DemoExpiresAtUtc.Value;
+      }
+
+      // Update the last used time of the refresh token to extend its validity
+      // TODO: using the same refresh token -> securer if generate a new refresh token, implemented later
+      await _jwtTokenManager.UpdateDeviceAuthInfoAsync(command.RefreshToken, deviceIdGuid.Value, userId);
+
+      var normalExpiration = DateTimeOffset.UtcNow.AddMinutes(30);
+      var accessTokenExpiration = demoExpiresAtUtc.HasValue
+        ? new[] { normalExpiration, demoExpiresAtUtc.Value }.Min()
+        : normalExpiration;
+
+      var newAccessToken = _jwtTokenManager.GenerateJwtToken(
+        new JwtUserClaims(user.Id, user.UserName!, user.Email!, user.IsDemoUser),
+        accessTokenExpiration);
 
       var isTelegramConnected = await _jenainAuthRepository.IsTelegramConnectedAsync(user.Id);
 
       var AuthResultDto = new AuthResultDto {
         AccessToken = newAccessToken,
+        AccessTokenExpiresAtUtc = accessTokenExpiration,
         DeviceId = deviceIdGuid.Value.ToString(),
         User = new UserDto {
           Id = user.Id,

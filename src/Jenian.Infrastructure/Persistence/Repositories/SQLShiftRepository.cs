@@ -104,5 +104,13 @@ namespace Jenian.Infrastructure.Persistence.Repositories
     public async Task<IEnumerable<UserShift>> GetByDateAndUserAsync(string userId, DateOnly date, CancellationToken cancellationToken = default) {
       return await _dbContext.UserShifts.Where(s => s.UserId == userId && s.StartAt.Date == date.ToDateTime(TimeOnly.MinValue).Date).ToListAsync(cancellationToken);
     }
+
+    public async Task RemoveShiftsByUserIdAsync(string userId, CancellationToken cancellationToken = default) {
+      await _dbContext.UserShifts.Where(s => s.UserId == userId).ExecuteDeleteAsync(cancellationToken);
+    }
+
+    public async Task RemovePayCycleSettingsByUserIdAsync(string userId, CancellationToken cancellationToken = default) {
+      await _dbContext.PayCycleSettings.Where(s => s.UserId == userId).ExecuteDeleteAsync(cancellationToken);
+    }
   }
 }

@@ -64,11 +64,21 @@ namespace Jenian.API.Controllers
     public async Task<IActionResult> GenerateTelegramLinkToken() {
       // Get userId from accessToken
       var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+      var claimValue = User.FindFirst("IsDemoUser")?.Value;
+      var isDemoUser = bool.TryParse(claimValue, out var parsedValue)
+    && parsedValue;
       if (userId == null) return NotFound("Cannot Find User Information");
 
       // find user by userId
       var user = await _userManager.FindByIdAsync(userId);
       if (user == null) return NotFound("Cannot Find User Information");
+
+      // update telegramUserId to someValue if isDemoUser is true
+      if (isDemoUser) {
+        user.TelegramUserId = "DemoTelegramUserID";
+        await _userManager.UpdateAsync(user);
+        return Ok(ApiResponse<object>.Ok(new { linkToken = "demo-token" }));
+      }
 
       // Check if user has linkToken
       if (string.IsNullOrEmpty(user.TelegramLinkToken)) {

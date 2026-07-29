@@ -34,5 +34,9 @@ namespace Jenian.Infrastructure.Persistence.Repositories
     public async Task RemoveAsync(UserDailyPaySummary summary, CancellationToken cancellationToken = default) {
       await _dbContext.UserDailyPaySummaries.Where(s => s.Id == summary.Id).ExecuteDeleteAsync(cancellationToken);
     }
+
+    public async Task RemoveByUserIdAsync(string userId, CancellationToken cancellationToken = default) {
+      await _dbContext.UserDailyPaySummaries.Where(s => s.UserId == userId).ExecuteDeleteAsync(cancellationToken);
+    }
   }
 }

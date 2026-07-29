@@ -8,34 +8,16 @@ namespace Jenian.Infrastructure.Identity
     public List<RefreshToken> RefreshTokens { get; set; } = new();
 
 
-    /**
-     * TelegramLinkToken: Temporary one-time link token
-     * How it works:
-     * You generate a random token (e.g. f234abcd...)
-     * You send it to the frontend as part of the Connect Telegram flow
-     * The frontend opens:
-     * https://t.me/jenian_assistant_bot?start=f234abcd...
-     * When the bot receives /start f234abcd, it looks up the token in your DB
-     * if found → that tells you which Jenian user sent the message
-     * Store the Telegram ID (message.from.id) in TelegramUserId
-     * Remove the TelegramLinkToken (invalidate it)
-     * 
-     * 
-     * TelegramUserId: Long-term account association
-     * Why you need it:
-     * Once the bot receives a message from a user, you only get:
-     * "from": {
-          "id": 12345678,
-           "username": "jen"
-        }
-
-     * You need a way to know:
-     * "Ah, 12345678 belongs to user@example.com in Jenian!"
-     * That's what TelegramUserId is for. It becomes your permanent lookup key.
-     *
-     */
+    // Telegram user id, used to send messages to the user via Telegram bot
     public string? TelegramUserId { get; set; }
 
-    public string? TelegramLinkToken { get; set; } // user to identify telegram user
+    // token to identify the user when they click on the link in the Telegram bot message, used to link the Telegram user to the application user
+    public string? TelegramLinkToken { get; set; }
+
+    // Demo users
+    public bool IsDemoUser { get; set; }
+    public DateTimeOffset? DemoCreatedAtUtc { get; set; }
+    public DateTimeOffset? DemoExpiresAtUtc { get; set; }
+    public DemoAccountStatus? DemoStatus { get; set; }
   }
 }

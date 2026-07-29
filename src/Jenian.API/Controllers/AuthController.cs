@@ -2,6 +2,7 @@ using Jenian.API.Auth;
 using Jenian.API.Contracts.Auth;
 using Jenian.API.Contracts.Common;
 using Jenian.Application.Abstractions.Auth;
+using Jenian.Application.Abstractions.DemoAccount;
 using Jenian.Application.Abstractions.Persistence;
 using Jenian.Application.Features.Auth.Commands;
 using Microsoft.AspNetCore.Authorization;
@@ -19,19 +20,111 @@ namespace Jenian.API.Controllers
     private readonly IJwtTokenManager _jwtTokenManager;
     private readonly ILogger<AuthController> _logger;
     private readonly IOptions<AuthCookieSettings> _authCookieOptions;
+    private readonly IDemoAccountService _demoAccountService;
 
     public AuthController(IAuthService authService,
       IJwtTokenManager jwtTokenManager,
       ILogger<AuthController> logger,
       IJenianAuthRepository jenianAuthRepository,
-      IOptions<AuthCookieSettings> AuthCookieOptions
+      IOptions<AuthCookieSettings> AuthCookieOptions,
+      IDemoAccountService demoAccountService
       ) {
       _authService = authService;
       _jwtTokenManager = jwtTokenManager;
       _logger = logger;
       _authCookieOptions = AuthCookieOptions;
+      _demoAccountService = demoAccountService;
     }
 
+
+    [HttpDelete("demo-logout")]
+    [Authorize]
+    public async Task<IActionResult> DemoLogout(CancellationToken cancellationToken) {
+
+      var deviceIdCookie = Request.Cookies["deviceId"];
+      Guid deviceId = Guid.TryParse(deviceIdCookie, out var guid) ? guid : Guid.NewGuid();
+      var refreshToken = Request.Cookies["refreshToken"] ?? _jwtTokenManager.GenerateRefreshToken();
+      _logger.LogInformation("Cookie received: deviceId={DeviceId} refreshToken=[redacted]", deviceId);
+
+      var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+      if (string.IsNullOrEmpty(userId)) {
+        return Unauthorized();
+      }
+
+      var result = await _demoAccountService.EndDemoSessionAsync(userId, refreshToken, deviceId, cancellationToken);
+      if (!result.IsSuccess) {
+        return BadRequest(ApiResponse<object>.Fail(result.Errors));
+      }
+
+      // remove refreshToken cookie
+      Response.Cookies.Append(AuthCookieNames.RefreshToken, "", new CookieOptions {
+        HttpOnly = true,
+        Secure = true,
+        SameSite = SameSiteMode.Lax,
+        Expires = DateTime.UtcNow.AddDays(-1), // Set expiration in the past
+      });
+
+      // remove DeviceId cookie
+      Response.Cookies.Append(AuthCookieNames.DeviceId, "", new CookieOptions {
+        HttpOnly = true,
+        Secure = true,
+        SameSite = SameSiteMode.Lax,
+        Expires = DateTime.UtcNow.AddDays(-1), // Set expiration in the past
+      });
+
+      Response.Cookies.Append(AuthCookieNames.AccessToken, "", new CookieOptions {
+        HttpOnly = true,
+        Secure = true,
+        SameSite = SameSiteMode.Lax,
+        Expires = DateTime.UtcNow.AddDays(-1), // Set expiration in the past
+      });
+
+      return NoContent(); // 204 No Content
+    }
+
+    [HttpPost("demo-login")]
+    public async Task<IActionResult> DemoLogin(CancellationToken cancellationToken) {
+      var deviceIdCookie = Request.Cookies["deviceId"];
+      Guid deviceId = Guid.TryParse(deviceIdCookie, out var guid) ? guid : Guid.NewGuid();
+      var refreshToken = Request.Cookies["refreshToken"] ?? _jwtTokenManager.GenerateRefreshToken();
+      _logger.LogInformation("Cookie received: deviceId={DeviceId} refreshToken=[redacted]", deviceId);
+
+      var result = await _demoAccountService.CreateDemoSessionAsync(refreshToken, deviceId, cancellationToken);
+
+      if (!result.IsSuccess || result.Data == null) {
+        return BadRequest(ApiResponse<DemoLoginResult>.Fail(result.Errors));
+      }
+
+      var ONE_HOUR_EXPIRATION = DateTime.UtcNow.AddHours(1);
+
+      // set cookies for access token, refresh token, and device id
+      Response.Cookies.Append(AuthCookieNames.RefreshToken, result.Data.RefreshToken!, new CookieOptions {
+        HttpOnly = true,
+        Secure = Request.IsHttps, // Ensures cookies work on local HTTP dev
+        SameSite = SameSiteMode.Lax,
+        Expires = ONE_HOUR_EXPIRATION
+      });
+
+
+      Response.Cookies.Append(AuthCookieNames.DeviceId, deviceId.ToString(), new CookieOptions {
+        HttpOnly = true,
+        Secure = Request.IsHttps, // only over HTTPS
+        SameSite = SameSiteMode.Lax,
+        Expires = ONE_HOUR_EXPIRATION
+      });
+
+      Response.Cookies.Append(AuthCookieNames.AccessToken, result.Data.AccessToken, new CookieOptions {
+        HttpOnly = true,
+        Secure = Request.IsHttps, // only over HTTPS
+        SameSite = SameSiteMode.Lax,
+        Expires = result.Data.AccessTokenExpiresAtUtc
+      });
+
+      return NoContent();
+
+
+      //return Ok(ApiResponse<DemoLoginResult>.Ok(result.Data));
+    }
 
     [HttpPost("register")]
     public async Task<IActionResult> Register(RegisterRequest registerRequest) {
@@ -198,7 +291,7 @@ namespace Jenian.API.Controllers
         HttpOnly = true,
         Secure = true,
         SameSite = SameSiteMode.Lax,
-        Expires = DateTime.UtcNow.AddMinutes(_authCookieOptions.Value.AccessTokenMinutes),
+        Expires = tokenRes.Data.AccessTokenExpiresAtUtc,
       });
 
       return NoContent();
@@ -213,6 +306,7 @@ namespace Jenian.API.Controllers
 
       var userName = User.FindFirst(JwtRegisteredClaimNames.Name)?.Value;
       var email = User.FindFirst(JwtRegisteredClaimNames.Email)?.Value;
+      var isDemoUser = User.FindFirst("IsDemoUser")?.Value;
       var telegramConnectionResult = await _authService.HasTelegramConnectedAsync(userId, CancellationToken.None);
       if (!telegramConnectionResult.IsSuccess) {
         return BadRequest(ApiResponse<object>.Fail(telegramConnectionResult.Errors));
@@ -220,6 +314,7 @@ namespace Jenian.API.Controllers
       return Ok(ApiResponse<object>.Ok(new {
         UserName = userName,
         Email = email,
+        IsDemoUser = isDemoUser,
         IsTelegramConnected = telegramConnectionResult.Data
       }));
     }
