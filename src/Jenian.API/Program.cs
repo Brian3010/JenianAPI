@@ -12,7 +12,9 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Models;
 using Serilog;
+using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
+using System.Threading.RateLimiting;
 
 namespace Jenian.API
 {
@@ -122,6 +124,76 @@ namespace Jenian.API
       builder.Services.ConfigureOptions<JwtBearerConfigurationOptions>().AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
       /**************************************************************/
 
+
+      /* Rate limiting */
+      builder.Services.AddRateLimiter(options => {
+
+
+        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+        options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext => {
+          // Use the user's ID as the partition key if authenticated; otherwise, use IP address.
+          var userId = httpContext.User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+          var clientIp =
+              httpContext.Connection.RemoteIpAddress?.ToString()
+              ?? "anonymous";
+
+          var partitionKey =
+               !string.IsNullOrWhiteSpace(userId)
+                 ? $"user:{userId}"
+                 : $"ip:{clientIp}";
+          logger.Information("Rate limiting partition key: {PartitionKey}", partitionKey);
+          return RateLimitPartition.GetSlidingWindowLimiter(partitionKey, _ => new SlidingWindowRateLimiterOptions {
+            PermitLimit = 60, // max requests per window
+            Window = TimeSpan.FromMinutes(1), // window duration
+            SegmentsPerWindow = 6, // divide window into segments for smoother rate limiting
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            QueueLimit = 0, // no queuing; reject immediately if limit exceeded
+            AutoReplenishment = true
+          });
+        });
+
+        options.AddPolicy("login", httpContext => {
+          var ipAddress =
+            httpContext.Connection.RemoteIpAddress?.ToString()
+            ?? "anonymous";
+
+          return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: $"login:{ipAddress}",
+            factory: _ => new FixedWindowRateLimiterOptions {
+              PermitLimit = 30,
+              Window = TimeSpan.FromMinutes(1),
+
+              QueueProcessingOrder =
+                QueueProcessingOrder.OldestFirst,
+
+              QueueLimit = 0,
+              AutoReplenishment = true
+            }
+          );
+        });
+
+
+        options.OnRejected = async (context, cancellationToken) => {
+          if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter)) {
+            context.HttpContext.Response.Headers["Retry-After"] = Math.Ceiling(retryAfter.TotalSeconds)
+          .ToString(CultureInfo.InvariantCulture);
+
+          }
+
+          context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+          await context.HttpContext.Response.WriteAsJsonAsync(
+           new {
+             message = "Too many requests. Please try again later."
+           },
+           cancellationToken
+         );
+
+        };
+      });
+      /**************************************************************/
+
+
       // Customize the API's response for invalid model states (e.g., failed validation) to return a consistent error format.
       builder.Services.Configure<ApiBehaviorOptions>(options => {
         options.InvalidModelStateResponseFactory = context =>
@@ -180,14 +252,33 @@ namespace Jenian.API
         app.UseHttpsRedirection();
       }
 
-
+      app.UseRouting();
       // CORS
       if (app.Environment.IsDevelopment())
         app.UseCors("DevCors");
       else
         app.UseCors("ProdCors");
 
+      // check if different devices produce different IPs
+      //app.Use(async (httpContext, next) => {
+      //  app.Logger.LogInformation(
+      //      """
+      //        IP test:
+      //        RemoteIp={RemoteIp}
+      //        CF-Connecting-IP={CfConnectingIp}
+      //        X-Forwarded-For={XForwardedFor}
+      //      """,
+      //     httpContext.Connection.RemoteIpAddress?.ToString(),
+      //     httpContext.Request.Headers["CF-Connecting-IP"].ToString(),
+      //     httpContext.Request.Headers["X-Forwarded-For"].ToString()
+      //  );
+
+      //  await next();
+      //});
+
       app.UseAuthentication();
+
+      app.UseRateLimiter();
       app.UseAuthorization();
 
       app.MapControllers();

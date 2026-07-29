@@ -7,6 +7,7 @@ using Jenian.Application.Abstractions.Persistence;
 using Jenian.Application.Features.Auth.Commands;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using System.IdentityModel.Tokens.Jwt;
 
@@ -83,6 +84,7 @@ namespace Jenian.API.Controllers
     }
 
     [HttpPost("demo-login")]
+    [EnableRateLimiting("login")]
     public async Task<IActionResult> DemoLogin(CancellationToken cancellationToken) {
       var deviceIdCookie = Request.Cookies["deviceId"];
       Guid deviceId = Guid.TryParse(deviceIdCookie, out var guid) ? guid : Guid.NewGuid();
@@ -127,6 +129,7 @@ namespace Jenian.API.Controllers
     }
 
     [HttpPost("register")]
+    [EnableRateLimiting("login")]
     public async Task<IActionResult> Register(RegisterRequest registerRequest) {
 
       var command = new RegisterCommand {
