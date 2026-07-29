@@ -48,4 +48,8 @@ services:
       # --- Migrations (set to true on first run to create DB schema) ---
       RUN_MIGRATIONS: 'false'
 
+      AuthCookies__AccessTokenMinutes: '${AuthCookies__AccessTokenMinutes}'
+      AuthCookies__RefreshTokenDays: '${AuthCookies__RefreshTokenDays}'
+      AuthCookies__DeviceIdDays: '${AuthCookies__DeviceIdDays}'
+
     restart: unless-stopped

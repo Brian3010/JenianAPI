@@ -4,6 +4,7 @@ using Jenian.Infrastructure.Persistence.Auth;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Jenian.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(JenianAuthDbContext))]
-    partial class JenianAuthDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260723094106_addDemoUserCollumn")]
+    partial class addDemoUserCollumn
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

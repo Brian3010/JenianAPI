@@ -34,6 +34,16 @@ namespace Jenian.Infrastructure.Persistence.Auth
             .WithMany(u => u.RefreshTokens)
             .HasForeignKey(rt => rt.UserId)
             .OnDelete(DeleteBehavior.Cascade);
+
+
+      // using index to help clean up expired demo users efficiently
+      builder.Entity<ApplicationUser>()
+            .HasIndex(user => new {
+              user.IsDemoUser,
+              user.DemoExpiresAtUtc
+            });
+
+
     }
 
 

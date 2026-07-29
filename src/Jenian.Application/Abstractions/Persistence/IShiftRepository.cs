@@ -21,9 +21,14 @@ namespace Jenian.Application.Abstractions.Persistence
 
     Task RemoveByIdsForUserAsync(string userId, IEnumerable<Guid> shiftIds, CancellationToken cancellationToken = default);
 
+
+    Task RemoveShiftsByUserIdAsync(string userId, CancellationToken cancellationToken = default);
+
     /** PayCycleSetting  **/
     Task<PayCycleSetting?> GetPayCycleSettingByUserIdAsync(string userId, CancellationToken cancellationToken = default);
     Task UpdatePayCycleSettingsForUserAsync(string userId, PayCycleSetting payCycleSetting, CancellationToken cancellationToken = default);
+
+    Task RemovePayCycleSettingsByUserIdAsync(string userId, CancellationToken cancellationToken = default);
 
     //Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);  
   }

@@ -34,6 +34,10 @@ namespace Jenian.Infrastructure.Services.Auth
     /// <param name="TTLInMinute"></param>
     /// <returns>A string of jwt token</returns>
     public string GenerateJwtToken(JwtUserClaims user, int TTLInMinute = 5) {
+      return GenerateJwtToken(user, DateTimeOffset.UtcNow.AddMinutes(TTLInMinute));
+    }
+
+    public string GenerateJwtToken(JwtUserClaims user, DateTimeOffset expiresAtUtc) {
       _logger.LogInformation("GenerateJwtToken with userId: {0}", user.Id);
       var jwt = _configuration.GetSection("jwt");
       var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Key"]!));
@@ -47,9 +51,9 @@ namespace Jenian.Infrastructure.Services.Auth
             new Claim(JwtRegisteredClaimNames.Sub, user.Id), // NameIdentifier
             new Claim(JwtRegisteredClaimNames.Name, user.UserName!),
             new Claim(JwtRegisteredClaimNames.Email, user.Email!),
-
+            new Claim("IsDemoUser", user.IsDemoUser.ToString())
           ]),
-        Expires = DateTime.UtcNow.AddMinutes(TTLInMinute),
+        Expires = expiresAtUtc.UtcDateTime,
         SigningCredentials = credentials,
         Issuer = jwt["Issuer"],
         Audience = jwt["Audience"]
