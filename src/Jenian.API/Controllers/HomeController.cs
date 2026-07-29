@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Jenian.API.Controllers
 {
@@ -10,6 +11,7 @@ namespace Jenian.API.Controllers
 
 
     [HttpGet("health")]
+    [DisableRateLimiting]
     public IActionResult Get() {
       return NoContent();
     }
