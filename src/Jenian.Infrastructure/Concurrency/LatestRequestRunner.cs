@@ -48,15 +48,12 @@ namespace Jenian.Infrastructure.Concurrency
 
 
     }
-
     public void Cancel(long chatId) {
       if (_map.TryRemove(chatId, out var cts)) {
         try { cts.Cancel(); } finally { cts.Dispose(); }
       }
 
     }
-
-
   }
 
 }

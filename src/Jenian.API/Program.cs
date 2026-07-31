@@ -44,7 +44,6 @@ namespace Jenian.API
 
       /** CORS */
       builder.Services.AddCors(options => {
-        // Dev: wide-open (handy for docker + Postman + localhost:3000, 5173, etc.)
         options.AddPolicy("DevCors", p =>
           p.AllowAnyOrigin()
            .AllowAnyHeader()
@@ -54,8 +53,8 @@ namespace Jenian.API
         // Prod: lock to known frontends (from your original policy)
         options.AddPolicy("ProdCors", policy => {
           policy.WithOrigins(
-            "https://jenian-client.vercel.app",      // TODO: set real prod origin(s)
-            "http://localhost:3000"            // keep if you want local FE to hit prod API
+            "https://jenian-client.vercel.app",
+            "http://localhost:3000"            // keep if want local FE to hit prod API
           )
           .AllowAnyHeader()
           .AllowAnyMethod()

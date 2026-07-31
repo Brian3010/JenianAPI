@@ -67,11 +67,11 @@ namespace Jenian.API.Controllers
       var claimValue = User.FindFirst("IsDemoUser")?.Value;
       var isDemoUser = bool.TryParse(claimValue, out var parsedValue)
     && parsedValue;
-      if (userId == null) return NotFound("Cannot Find User Information");
+      if (userId == null) return NotFound(ApiResponse<object>.Fail(["Cannot find user information."]));
 
       // find user by userId
       var user = await _userManager.FindByIdAsync(userId);
-      if (user == null) return NotFound("Cannot Find User Information");
+      if (user == null) return NotFound(ApiResponse<object>.Fail(["Cannot find user information."]));
 
       // update telegramUserId to someValue if isDemoUser is true
       if (isDemoUser) {
@@ -95,12 +95,12 @@ namespace Jenian.API.Controllers
     [HttpGet("is-linked")]
     public async Task<IActionResult> CheckIfTelegramLinked() {
       var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
-      if (userId == null) return NotFound("Cannot Find User Information");
+      if (userId == null) return NotFound(ApiResponse<object>.Fail(["Cannot find user information."]));
 
       var user = await _userManager.FindByIdAsync(userId);
-      if (user == null) return NotFound("Cannot Find User Information");
+      if (user == null) return NotFound(ApiResponse<object>.Fail(["Cannot find user information."]));
 
-      return Ok(new { isLinked = !string.IsNullOrEmpty(user.TelegramUserId) });
+      return Ok(ApiResponse<object>.Ok(new { isLinked = !string.IsNullOrEmpty(user.TelegramUserId) }));
     }
 
 

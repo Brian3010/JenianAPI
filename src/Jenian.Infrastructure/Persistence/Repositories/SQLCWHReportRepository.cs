@@ -19,7 +19,7 @@ namespace Jenian.Infrastructure.Persistence.Repositories
     /**
      * Save delivery extractor job in database
      */
-    public async Task SaveBackgroundJobIdAsync(DeliveryExtractionJob JobDetails) {
+    public async Task SaveBackgroundJobIdAsync(DeliveryExtractionJob JobDetails, CancellationToken cancellationToken) {
       // save the job details to the database
       await _dbContext.DeliveryExtractionJobs.AddAsync(JobDetails);
       await _dbContext.SaveChangesAsync();
@@ -31,8 +31,8 @@ namespace Jenian.Infrastructure.Persistence.Repositories
      * 
      * Return: Background job status
      */
-    public async Task<JobStatus> GetBgJobStatusByIdAsync(Guid JobId) {
-      var job = await _dbContext.DeliveryExtractionJobs.FindAsync(JobId);
+    public async Task<JobStatus> GetBgJobStatusByIdAsync(Guid JobId, CancellationToken cancellationToken) {
+      var job = await _dbContext.DeliveryExtractionJobs.FindAsync(JobId, cancellationToken);
       if (job == null) {
         _logger.LogInformation("Background Job not found for id: {JobId}", JobId);
         return JobStatus.Failed;
@@ -45,9 +45,9 @@ namespace Jenian.Infrastructure.Persistence.Repositories
      * Retreive the delivery details
      * Return: delivery details from DeliveryExtractionJobs table including Id and Result
      */
-    public async Task<string> GetDeliveryResultById(Guid JobId) {
+    public async Task<string> GetDeliveryResultById(Guid JobId, CancellationToken cancellationToken) {
 
-      if (await GetBgJobStatusByIdAsync(JobId) != JobStatus.Succeeded) {
+      if (await GetBgJobStatusByIdAsync(JobId, cancellationToken) != JobStatus.Succeeded) {
         return "Stock update detail might not be ready yet";
       }
 
@@ -56,7 +56,7 @@ namespace Jenian.Infrastructure.Persistence.Repositories
         .Select(j => new {
           j.Id,
           j.Result
-        }).ToListAsync();
+        }).ToListAsync(cancellationToken);
 
       return deliveryDetails.FirstOrDefault()?.Result ?? "No result found";
     }
@@ -64,11 +64,11 @@ namespace Jenian.Infrastructure.Persistence.Repositories
     /** 
      * Add or Update End of day report
      */
-    public async Task<Guid> AddOrUpdateEodReportAsync(string userId, EodReport incommingReport) {
+    public async Task<Guid> AddOrUpdateEodReportAsync(string userId, EodReport incommingReport, CancellationToken cancellationToken) {
       Guid reportId;
 
       var existingReport = await _dbContext.EodReports
-        .FirstOrDefaultAsync(r => r.UserId == userId && r.SubmitedAt.Date == DateTime.UtcNow.Date);
+        .FirstOrDefaultAsync(r => r.UserId == userId && r.SubmitedAt.Date == DateTime.UtcNow.Date, cancellationToken);
 
 
       _logger.LogInformation("Message {existingReport}", existingReport);
@@ -76,7 +76,7 @@ namespace Jenian.Infrastructure.Persistence.Repositories
       if (existingReport is null) {
         // add
         reportId = incommingReport.Id;
-        await _dbContext.EodReports.AddAsync(incommingReport);
+        await _dbContext.EodReports.AddAsync(incommingReport, cancellationToken);
       } else {
         // update
         existingReport.Delivery = incommingReport.Delivery;
@@ -88,7 +88,7 @@ namespace Jenian.Infrastructure.Persistence.Repositories
         reportId = existingReport.Id;
       }
 
-      await _dbContext.SaveChangesAsync();
+      await _dbContext.SaveChangesAsync(cancellationToken);
 
       return reportId;
     }
@@ -96,13 +96,13 @@ namespace Jenian.Infrastructure.Persistence.Repositories
     /**
      * After the AI extraction done, this function is to Add the its answer to DeliveryExtractionJob table
      */
-    public async Task UpdateAnswerToDeliveryAsync(Guid jobId, string answer) {
+    public async Task UpdateAnswerToDeliveryAsync(Guid jobId, string answer, CancellationToken cancellationToken) {
 
       var existingReport = await _dbContext.DeliveryExtractionJobs
-        .FirstOrDefaultAsync(r => r.Id == jobId);
+        .FirstOrDefaultAsync(r => r.Id == jobId, cancellationToken);
       if (existingReport != null) {
         existingReport.Result = answer;
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(cancellationToken);
       } else {
         _logger.LogWarning("DeliveryExtractionJob with Id {jobId} not found for updating delivery extracted text.", jobId);
       }
@@ -111,17 +111,17 @@ namespace Jenian.Infrastructure.Persistence.Repositories
     /**
      * After the AI extraction done, this function is to Add the its answer to EodReports table
      */
-    public async Task UpdateAnswerToEodReportAsync(string userId, string answer) {
+    public async Task UpdateAnswerToEodReportAsync(string userId, string answer, CancellationToken cancellationToken) {
       var today = DateTime.UtcNow.Date;
 
       _logger.LogInformation("userId {userId}", userId);
 
       var existingReport = await _dbContext.EodReports
-        .FirstOrDefaultAsync(r => r.UserId == userId && r.SubmitedAt.Date == today);
+        .FirstOrDefaultAsync(r => r.UserId == userId && r.SubmitedAt.Date == today, cancellationToken);
 
       if (existingReport != null) {
         existingReport.Delivery = answer;
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(cancellationToken);
       } else {
         _logger.LogWarning("Cannot add AI answer to delivery field as report is not exist ");
       }
@@ -130,14 +130,14 @@ namespace Jenian.Infrastructure.Persistence.Repositories
     /** Use report Id to get detail of EodReport
      *  Return: details of the reprot
      */
-    private async Task<EodReport?> GetRawEodReportByIdAsync(Guid reportId, string userId) {
+    private async Task<EodReport?> GetRawEodReportByIdAsync(Guid reportId, string userId, CancellationToken cancellationToken) {
       var report = await _dbContext.EodReports
         .Include(r => r.StockUpdate)
         .Include(r => r.NightTasks)
         .Include(r => r.AislesFacing)
         .Include(r => r.Cleaning)
         .Include(r => r.GeneralCheck)
-        .FirstOrDefaultAsync(r => r.Id == reportId && r.UserId == userId);
+        .FirstOrDefaultAsync(r => r.Id == reportId && r.UserId == userId, cancellationToken);
 
 
       if (report == null || report.Delivery == null) {
@@ -151,9 +151,9 @@ namespace Jenian.Infrastructure.Persistence.Repositories
     /** Check if user submited the report today
      *  Return: Boolean
      */
-    public async Task<bool> IsReportSubmitedToday(string userId) {
+    public async Task<bool> IsReportSubmitedToday(string userId, CancellationToken cancellationToken) {
       var today = DateTime.UtcNow.Date;
-      var isAnyReport = await _dbContext.EodReports.Where(e => e.UserId == userId && e.SubmitedAt.Date == today).AnyAsync();
+      var isAnyReport = await _dbContext.EodReports.Where(e => e.UserId == userId && e.SubmitedAt.Date == today).AnyAsync(cancellationToken);
       if (!isAnyReport) {
         _logger.LogInformation("No EodReport has been submited today.");
         return false;
@@ -166,8 +166,8 @@ namespace Jenian.Infrastructure.Persistence.Repositories
      * assemble the report following the template before sending to Telegram 
      * Return: report in string format following the template
      */
-    public async Task<string?> PopulateReportTemplateAsync(Guid reportId, string userId) {
-      var rawReport = await GetRawEodReportByIdAsync(reportId, userId);
+    public async Task<string?> PopulateReportTemplateAsync(Guid reportId, string userId, CancellationToken cancellationToken) {
+      var rawReport = await GetRawEodReportByIdAsync(reportId, userId, cancellationToken);
       if (rawReport == null) {
         return null;
       }

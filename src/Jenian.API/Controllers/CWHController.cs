@@ -50,7 +50,7 @@ namespace Jenian.API.Controllers
     public async Task<IActionResult> HandleReport([FromForm] CWHReportRequest CWHReportRequest, CancellationToken cancellationToken) {
       _logger.LogInformation("EOD-REPORT POST API HIT");
       var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
-      if (userId == null) return NotFound("Cannot Find User Information");
+      if (userId == null) return NotFound(ApiResponse<object>.Fail(["User not found."]));
 
       if (CWHReportRequest == null) {
         return BadRequest("Invalid report data.");
@@ -129,10 +129,10 @@ namespace Jenian.API.Controllers
 
       _logger.LogInformation("backgroundJobDetails: {@backgroundJobDetails}", deliveryExtractionData);
       // Save background job ID to the database
-      await _CWHReportRepository.SaveBackgroundJobIdAsync(deliveryExtractionData);
+      await _CWHReportRepository.SaveBackgroundJobIdAsync(deliveryExtractionData, cancellationToken);
 
       // Save the initial report data to get the report ID for the background job
-      var reportId = await _CWHReportRepository.AddOrUpdateEodReportAsync(userId, eodReport);
+      var reportId = await _CWHReportRepository.AddOrUpdateEodReportAsync(userId, eodReport, cancellationToken);
 
       // Handle screenshots: Upload to blob storage and get blob names
       var blobNames = new List<string>();
@@ -170,18 +170,18 @@ namespace Jenian.API.Controllers
 
     [Authorize]
     [HttpGet("background-job-status/{jobId}")]
-    public async Task<IActionResult> GetBackgroundJobStatus(Guid jobId) {
-      var jobDetails = await _CWHReportRepository.GetBgJobStatusByIdAsync(jobId);
+    public async Task<IActionResult> GetBackgroundJobStatus(Guid jobId, CancellationToken cancellationToken) {
+      var jobDetails = await _CWHReportRepository.GetBgJobStatusByIdAsync(jobId, cancellationToken);
       return Ok(ApiResponse<object>.Ok(jobDetails));
     }
 
 
     [Authorize]
     [HttpGet("eod-report/{reportId}")]
-    public async Task<IActionResult> GetEodReport(Guid reportId) {
+    public async Task<IActionResult> GetEodReport(Guid reportId, CancellationToken cancellationToken) {
       var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
       if (userId == null) return NotFound(ApiResponse<object>.Fail(["User not found."]));
-      var report = await _CWHReportRepository.PopulateReportTemplateAsync(reportId, userId);
+      var report = await _CWHReportRepository.PopulateReportTemplateAsync(reportId, userId, cancellationToken);
       if (report == null) {
         return NotFound(ApiResponse<object>.Fail(["Report is not ready yet. Please try again later."]));
       }
@@ -192,10 +192,10 @@ namespace Jenian.API.Controllers
 
     [Authorize]
     [HttpGet("is-report-submitted")]
-    public async Task<IActionResult> IsReportSubmittedToday() {
+    public async Task<IActionResult> IsReportSubmittedToday(CancellationToken cancellationToken) {
       var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
       if (userId == null) return NotFound(ApiResponse<object>.Fail(["User not found."]));
-      var isSubmitted = await _CWHReportRepository.IsReportSubmitedToday(userId);
+      var isSubmitted = await _CWHReportRepository.IsReportSubmitedToday(userId, cancellationToken);
       return Ok(isSubmitted);
     }
 
@@ -223,7 +223,7 @@ namespace Jenian.API.Controllers
     public async Task<IActionResult> UpdatePayCycleSettings([FromBody] PayCycleSettingsUpdateRequest request, CancellationToken cancellationToken) {
       var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
       if (string.IsNullOrWhiteSpace(userId)) {
-        return Unauthorized(ApiResponse<object>.Fail(new[] { "Cannot find user information from token." }));
+        return Unauthorized(ApiResponse<object>.Fail(["Cannot find user information from token."]));
       }
 
       var command = new CreatePayCycleSettingsCommand {
@@ -253,12 +253,12 @@ namespace Jenian.API.Controllers
       CancellationToken cancellationToken) {
       var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
       if (string.IsNullOrWhiteSpace(userId)) {
-        return Unauthorized(ApiResponse<object>.Fail(new[] { "Cannot find user information from token." }));
+        return Unauthorized(ApiResponse<object>.Fail(["Cannot find user information from token."]));
       }
 
 
       if (cycleEndDate < cycleStartDate) {
-        return BadRequest(ApiResponse<object>.Fail(new[] { "Invalid date range. Start date must be before or equal to end date." }));
+        return BadRequest(ApiResponse<object>.Fail(["Invalid date range. Start date must be before or equal to end date."]));
       }
 
       var command = new SaveShiftsCommand {
@@ -286,7 +286,7 @@ namespace Jenian.API.Controllers
       CancellationToken cancellationToken) {
       var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
       if (string.IsNullOrWhiteSpace(userId)) {
-        return Unauthorized(ApiResponse<object>.Fail(new[] { "Cannot find user information from token." }));
+        return Unauthorized(ApiResponse<object>.Fail(["Cannot find user information from token."]));
 
       }
 
