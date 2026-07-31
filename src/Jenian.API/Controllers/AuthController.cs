@@ -100,7 +100,7 @@ namespace Jenian.API.Controllers
       // set cookies for access token, refresh token, and device id
       Response.Cookies.Append(AuthCookieNames.RefreshToken, result.Data.RefreshToken!, new CookieOptions {
         HttpOnly = true,
-        Secure = Request.IsHttps, // Ensures cookies work on local HTTP dev
+        Secure = true, // Ensures cookies work on local HTTP dev
         SameSite = SameSiteMode.Lax,
         Expires = ONE_HOUR_EXPIRATION
       });
@@ -108,14 +108,14 @@ namespace Jenian.API.Controllers
 
       Response.Cookies.Append(AuthCookieNames.DeviceId, deviceId.ToString(), new CookieOptions {
         HttpOnly = true,
-        Secure = Request.IsHttps, // only over HTTPS
+        Secure = true, // only over HTTPS
         SameSite = SameSiteMode.Lax,
         Expires = ONE_HOUR_EXPIRATION
       });
 
       Response.Cookies.Append(AuthCookieNames.AccessToken, result.Data.AccessToken, new CookieOptions {
         HttpOnly = true,
-        Secure = Request.IsHttps, // only over HTTPS
+        Secure = true, // only over HTTPS
         SameSite = SameSiteMode.Lax,
         Expires = result.Data.AccessTokenExpiresAtUtc
       });
@@ -171,7 +171,7 @@ namespace Jenian.API.Controllers
 
       Response.Cookies.Append(AuthCookieNames.RefreshToken, loginResult.Data!.RefreshToken!, new CookieOptions {
         HttpOnly = true,
-        Secure = Request.IsHttps, // only over HTTPS
+        Secure = true, // only over HTTPS
         SameSite = SameSiteMode.Lax,
         Expires = DateTime.UtcNow.AddDays(_authCookieOptions.Value.RefreshTokenDays)
       });
@@ -179,14 +179,14 @@ namespace Jenian.API.Controllers
 
       Response.Cookies.Append(AuthCookieNames.DeviceId, loginResult.Data.DeviceId, new CookieOptions {
         HttpOnly = true,
-        Secure = Request.IsHttps, // only over HTTPS
+        Secure = true, // only over HTTPS
         SameSite = SameSiteMode.Lax,
         Expires = DateTime.UtcNow.AddDays(_authCookieOptions.Value.DeviceIdDays)
       });
 
       Response.Cookies.Append(AuthCookieNames.AccessToken, loginResult.Data.AccessToken, new CookieOptions {
         HttpOnly = true,
-        Secure = Request.IsHttps, // only over HTTPS
+        Secure = true, // only over HTTPS
         SameSite = SameSiteMode.Lax,
         Expires = DateTime.UtcNow.AddMinutes(_authCookieOptions.Value.AccessTokenMinutes)
       });
@@ -216,7 +216,7 @@ namespace Jenian.API.Controllers
       // remove refreshToken cookie
       Response.Cookies.Append(AuthCookieNames.RefreshToken, "", new CookieOptions {
         HttpOnly = true,
-        Secure = Request.IsHttps,
+        Secure = true,
         SameSite = SameSiteMode.Lax,
         Expires = DateTime.UtcNow.AddDays(-1), // Set expiration in the past
       });
@@ -224,14 +224,14 @@ namespace Jenian.API.Controllers
       // remove DeviceId cookie
       Response.Cookies.Append(AuthCookieNames.DeviceId, "", new CookieOptions {
         HttpOnly = true,
-        Secure = Request.IsHttps,
+        Secure = true,
         SameSite = SameSiteMode.Lax,
         Expires = DateTime.UtcNow.AddDays(-1), // Set expiration in the past
       });
 
       Response.Cookies.Append(AuthCookieNames.AccessToken, "", new CookieOptions {
         HttpOnly = true,
-        Secure = Request.IsHttps,
+        Secure = true,
         SameSite = SameSiteMode.Lax,
         Expires = DateTime.UtcNow.AddDays(-1), // Set expiration in the past
       });
@@ -291,7 +291,7 @@ namespace Jenian.API.Controllers
 
       Response.Cookies.Append(AuthCookieNames.AccessToken, tokenRes.Data!.AccessToken, new CookieOptions {
         HttpOnly = true,
-        Secure = Request.IsHttps,
+        Secure = true,
         SameSite = SameSiteMode.Lax,
         Expires = tokenRes.Data.AccessTokenExpiresAtUtc,
       });

@@ -124,7 +124,7 @@ namespace Jenian.Infrastructure.Services.Telegram
       // Prevent unauthorized access: only allow messages from Telegram users who have linked their account (TelegramUserId matches)
       var fromTelegramId = (msg.From?.Id ?? 0).ToString();
       var linkedUser = await _dbContext.Users.FirstOrDefaultAsync(u => u.TelegramUserId == fromTelegramId, ct);
-      if (!string.IsNullOrWhiteSpace(msg.Text) || linkedUser == null) {
+      if (!string.IsNullOrWhiteSpace(msg.Text) && linkedUser == null) {
         _logger.LogInformation("Unauthorized Telegram user {TelegramId} tried to interact.", fromTelegramId);
         await _telegramMessenger.SendMessageAsync(chatId, "You're not authorized yet. Please connect Telegram from the Jenian app first.", ct);
         return;
@@ -159,7 +159,7 @@ namespace Jenian.Infrastructure.Services.Telegram
         }
 
         // Only process the latest photo, old photo will be cancelled if user sends multiple photos/documents in a row
-        var searchUserName = linkedUser.UserName; // safe to use ! because we already checked linkedUser != null above
+        var searchUserName = linkedUser!.UserName; // safe to use ! because we already checked linkedUser != null above
         _latestRequestRunner.StartOrRestart(chatId, async (sp, ct) => {
           var svc = sp.GetRequiredService<IRosterExtractor>();
           await svc.HandleMediaAsync(searchUserName!, msg, chatId, ct);
@@ -171,6 +171,12 @@ namespace Jenian.Infrastructure.Services.Telegram
         await _telegramMessenger.SendMessageAsync(chatId, "Please send the photo", ct);
         return;
       }
+
+
+
+
+
+
 
     }
 
