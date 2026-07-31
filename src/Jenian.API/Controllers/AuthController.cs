@@ -3,7 +3,6 @@ using Jenian.API.Contracts.Auth;
 using Jenian.API.Contracts.Common;
 using Jenian.Application.Abstractions.Auth;
 using Jenian.Application.Abstractions.DemoAccount;
-using Jenian.Application.Abstractions.Persistence;
 using Jenian.Application.Features.Auth.Commands;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -26,7 +25,6 @@ namespace Jenian.API.Controllers
     public AuthController(IAuthService authService,
       IJwtTokenManager jwtTokenManager,
       ILogger<AuthController> logger,
-      IJenianAuthRepository jenianAuthRepository,
       IOptions<AuthCookieSettings> AuthCookieOptions,
       IDemoAccountService demoAccountService
       ) {
@@ -86,9 +84,9 @@ namespace Jenian.API.Controllers
     [HttpPost("demo-login")]
     [EnableRateLimiting("login")]
     public async Task<IActionResult> DemoLogin(CancellationToken cancellationToken) {
-      var deviceIdCookie = Request.Cookies["deviceId"];
+      var deviceIdCookie = Request.Cookies[AuthCookieNames.DeviceId];
       Guid deviceId = Guid.TryParse(deviceIdCookie, out var guid) ? guid : Guid.NewGuid();
-      var refreshToken = Request.Cookies["refreshToken"] ?? _jwtTokenManager.GenerateRefreshToken();
+      var refreshToken = Request.Cookies[AuthCookieNames.RefreshToken] ?? _jwtTokenManager.GenerateRefreshToken();
       _logger.LogInformation("Cookie received: deviceId={DeviceId} refreshToken=[redacted]", deviceId);
 
       var result = await _demoAccountService.CreateDemoSessionAsync(refreshToken, deviceId, cancellationToken);
@@ -130,7 +128,7 @@ namespace Jenian.API.Controllers
 
     [HttpPost("register")]
     [EnableRateLimiting("login")]
-    public async Task<IActionResult> Register(RegisterRequest registerRequest) {
+    public async Task<IActionResult> Register(RegisterRequest registerRequest, CancellationToken cancellationToken) {
 
       var command = new RegisterCommand {
         ConfirmPassword = registerRequest.ConfirmPassword,
@@ -139,7 +137,7 @@ namespace Jenian.API.Controllers
         UserName = registerRequest.UserName,
         SecretToken = registerRequest.SecretToken
       };
-      var result = await _authService.RegisterAsync(command, CancellationToken.None);
+      var result = await _authService.RegisterAsync(command, cancellationToken);
 
       if (!result.IsSuccess) {
         return BadRequest(ApiResponse<object>.Fail(result.Errors));
@@ -149,11 +147,12 @@ namespace Jenian.API.Controllers
     }
 
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequest loginRequest) {
+    [EnableRateLimiting("login")]
+    public async Task<IActionResult> Login([FromBody] LoginRequest loginRequest, CancellationToken cancellationToken) {
 
-      var deviceIdCookie = Request.Cookies["deviceId"];
+      var deviceIdCookie = Request.Cookies[AuthCookieNames.DeviceId];
       Guid deviceId = Guid.TryParse(deviceIdCookie, out var guid) ? guid : Guid.NewGuid();
-      var refreshToken = Request.Cookies["refreshToken"] ?? _jwtTokenManager.GenerateRefreshToken();
+      var refreshToken = Request.Cookies[AuthCookieNames.RefreshToken] ?? _jwtTokenManager.GenerateRefreshToken();
       _logger.LogInformation("Cookie received: deviceId={DeviceId} refreshToken=[redacted]", deviceId);
 
       var loginCommand = new LoginCommand {
@@ -163,7 +162,7 @@ namespace Jenian.API.Controllers
         RefreshToken = refreshToken
       };
 
-      var loginResult = await _authService.LoginAsync(loginCommand, CancellationToken.None);
+      var loginResult = await _authService.LoginAsync(loginCommand, cancellationToken);
 
       if (!loginResult.IsSuccess) {
         return Unauthorized(ApiResponse<object>.Fail(loginResult.Errors));
@@ -172,7 +171,7 @@ namespace Jenian.API.Controllers
 
       Response.Cookies.Append(AuthCookieNames.RefreshToken, loginResult.Data!.RefreshToken!, new CookieOptions {
         HttpOnly = true,
-        Secure = true, // only over HTTPS
+        Secure = Request.IsHttps, // only over HTTPS
         SameSite = SameSiteMode.Lax,
         Expires = DateTime.UtcNow.AddDays(_authCookieOptions.Value.RefreshTokenDays)
       });
@@ -180,14 +179,14 @@ namespace Jenian.API.Controllers
 
       Response.Cookies.Append(AuthCookieNames.DeviceId, loginResult.Data.DeviceId, new CookieOptions {
         HttpOnly = true,
-        Secure = true, // only over HTTPS
+        Secure = Request.IsHttps, // only over HTTPS
         SameSite = SameSiteMode.Lax,
         Expires = DateTime.UtcNow.AddDays(_authCookieOptions.Value.DeviceIdDays)
       });
 
       Response.Cookies.Append(AuthCookieNames.AccessToken, loginResult.Data.AccessToken, new CookieOptions {
         HttpOnly = true,
-        Secure = true, // only over HTTPS
+        Secure = Request.IsHttps, // only over HTTPS
         SameSite = SameSiteMode.Lax,
         Expires = DateTime.UtcNow.AddMinutes(_authCookieOptions.Value.AccessTokenMinutes)
       });
@@ -201,8 +200,8 @@ namespace Jenian.API.Controllers
       _logger.LogInformation("Logout API hit");
 
       var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
-      var refreshTokenCookie = Request.Cookies["refreshToken"];
-      var deviceIdCookie = Request.Cookies["deviceId"];
+      var refreshTokenCookie = Request.Cookies[AuthCookieNames.RefreshToken];
+      var deviceIdCookie = Request.Cookies[AuthCookieNames.DeviceId];
       //Guid? deviceId = Guid.TryParse(deviceIdCookie, out var guid) ? guid : null;
 
       var logoutCommand = new LogoutCommand {
@@ -217,7 +216,7 @@ namespace Jenian.API.Controllers
       // remove refreshToken cookie
       Response.Cookies.Append(AuthCookieNames.RefreshToken, "", new CookieOptions {
         HttpOnly = true,
-        Secure = true,
+        Secure = Request.IsHttps,
         SameSite = SameSiteMode.Lax,
         Expires = DateTime.UtcNow.AddDays(-1), // Set expiration in the past
       });
@@ -225,14 +224,14 @@ namespace Jenian.API.Controllers
       // remove DeviceId cookie
       Response.Cookies.Append(AuthCookieNames.DeviceId, "", new CookieOptions {
         HttpOnly = true,
-        Secure = true,
+        Secure = Request.IsHttps,
         SameSite = SameSiteMode.Lax,
         Expires = DateTime.UtcNow.AddDays(-1), // Set expiration in the past
       });
 
       Response.Cookies.Append(AuthCookieNames.AccessToken, "", new CookieOptions {
         HttpOnly = true,
-        Secure = true,
+        Secure = Request.IsHttps,
         SameSite = SameSiteMode.Lax,
         Expires = DateTime.UtcNow.AddDays(-1), // Set expiration in the past
       });
@@ -255,7 +254,7 @@ namespace Jenian.API.Controllers
     }
 
     [HttpPost("reset-password")]
-    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest resetPasswordRequestDto) {
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest resetPasswordRequestDto, CancellationToken cancellationToken) {
 
 
       var command = new ResetPasswordCommand {
@@ -265,7 +264,7 @@ namespace Jenian.API.Controllers
         EmailToken = resetPasswordRequestDto.EmailToken
       };
 
-      var res = await _authService.ResetPasswordAsync(command, CancellationToken.None);
+      var res = await _authService.ResetPasswordAsync(command, cancellationToken);
 
       if (!res.IsSuccess)
         return BadRequest(ApiResponse<object>.Fail(res.Errors));
@@ -275,24 +274,24 @@ namespace Jenian.API.Controllers
     }
 
     [HttpPost("refresh-token")]
-    public async Task<IActionResult> RefreshToken() {
+    public async Task<IActionResult> RefreshToken(CancellationToken cancellationToken) {
 
-      var refreshTokenCookie = Request.Cookies["refreshToken"];
-      string? deviceIdCookie = Request.Cookies["deviceId"];
+      var refreshTokenCookie = Request.Cookies[AuthCookieNames.RefreshToken];
+      string? deviceIdCookie = Request.Cookies[AuthCookieNames.DeviceId];
 
       var refreshTokenCommand = new RefreshTokenCommand {
         DeviceId = deviceIdCookie,
         RefreshToken = refreshTokenCookie,
       };
 
-      var tokenRes = await _authService.RefreshTokenAsync(refreshTokenCommand, CancellationToken.None);
+      var tokenRes = await _authService.RefreshTokenAsync(refreshTokenCommand, cancellationToken);
 
       if (!tokenRes.IsSuccess)
         return Unauthorized(ApiResponse<object>.Fail(tokenRes.Errors ?? new[] { "Failed to refresh token." }));
 
       Response.Cookies.Append(AuthCookieNames.AccessToken, tokenRes.Data!.AccessToken, new CookieOptions {
         HttpOnly = true,
-        Secure = true,
+        Secure = Request.IsHttps,
         SameSite = SameSiteMode.Lax,
         Expires = tokenRes.Data.AccessTokenExpiresAtUtc,
       });
@@ -302,7 +301,7 @@ namespace Jenian.API.Controllers
 
     [Authorize]
     [HttpGet("get-me")]
-    public async Task<IActionResult> getMe() {
+    public async Task<IActionResult> GetMe(CancellationToken cancellationToken) {
       // JWT is already validated + "decoded" into claims
       var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
       if (userId == null) return NotFound(ApiResponse<object>.Fail(["User not found."]));
@@ -310,7 +309,7 @@ namespace Jenian.API.Controllers
       var userName = User.FindFirst(JwtRegisteredClaimNames.Name)?.Value;
       var email = User.FindFirst(JwtRegisteredClaimNames.Email)?.Value;
       var isDemoUser = User.FindFirst("IsDemoUser")?.Value;
-      var telegramConnectionResult = await _authService.HasTelegramConnectedAsync(userId, CancellationToken.None);
+      var telegramConnectionResult = await _authService.HasTelegramConnectedAsync(userId, cancellationToken);
       if (!telegramConnectionResult.IsSuccess) {
         return BadRequest(ApiResponse<object>.Fail(telegramConnectionResult.Errors));
       }
@@ -324,8 +323,6 @@ namespace Jenian.API.Controllers
 
 
     // GET /api/auth/sessions	- List all active sessions/devices (from refresh tokens)
-
-
 
 
   }

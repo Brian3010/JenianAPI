@@ -45,7 +45,7 @@ namespace Jenian.Infrastructure
         options.Password.RequireLowercase = true;
         options.Password.RequireNonAlphanumeric = true;
         options.Password.RequireUppercase = true;
-        options.Password.RequiredLength = 6;
+        options.Password.RequiredLength = 8;
         options.Password.RequiredUniqueChars = 1;
 
         options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";

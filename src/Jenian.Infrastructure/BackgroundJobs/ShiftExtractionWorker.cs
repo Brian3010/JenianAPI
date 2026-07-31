@@ -31,7 +31,7 @@ namespace Jenian.Infrastructure.BackgroundJobs
           var answer = await parser.ExtractShiftsAsync(job.OcrText, job.StaffName, stoppingToken);
           await telegramMessenger.SendMessageAsync(job.ChatId, $"You have shifts on: \n {answer}");
         } catch (OperationCanceledException) {
-
+          _logger.LogInformation("ShiftExtractionWorker operation was canceled for ChatId {ChatId}", job.ChatId);
         } catch (Exception e) {
           _logger.LogError(e, "Failed processing ShiftExtractionJob for ChatId {ChatId}", job.ChatId);
           await telegramMessenger.SendMessageAsync(job.ChatId,

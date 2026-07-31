@@ -30,8 +30,8 @@ services:
 
       # --- JWT ---
       jwt__Key: '${JWT_KEY}'
-      jwt__Issuer: 'http://localhost:8080'
-      jwt__Audience: 'http://localhost:3000'
+      jwt__Issuer: '${JWT_ISSUER}'
+      jwt__Audience: '${JWT_AUDIENCE}'
 
       # --- External services ---
       OpenAI__ApiKey: '${OPENAI_API_KEY}'

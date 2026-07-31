@@ -92,9 +92,6 @@ namespace Jenian.Infrastructure.Services.Demo
                       u.DemoExpiresAtUtc <= cutoffTime)).Take(50)
           .ToListAsync(cancellationToken);
 
-      if (!expiredUsers.Any()) {
-        return expiredUsers.Count;
-      }
 
       _logger.LogInformation("Found {Count} expired demo accounts to clean up.", expiredUsers.Count);
 
