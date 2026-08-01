@@ -174,8 +174,8 @@ sequenceDiagram
     API->>Application: Execute use case
     Application->>Infrastructure: Read/write data or call an external service
     Infrastructure-->>Application: Return result
-    Application-->>API: Return ServiceResult&lt;T&gt;
-    API-->>BFF: Return ApiResponse&lt;T&gt; or ProblemDetails
+    Application-->>API: Return ServiceResult#60;T#62;
+    API-->>BFF: Return ApiResponse#60;T#62; or ProblemDetails
     BFF-->>Frontend: Return JSON response
 ```
 
