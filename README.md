@@ -8,12 +8,10 @@
 [![Azure Container Apps](https://img.shields.io/badge/Azure-Container_Apps-0078D4?logo=microsoftazure&logoColor=white)](https://azure.microsoft.com/products/container-apps/)
 [![xUnit](https://img.shields.io/badge/tests-xUnit-5E2B97)](https://xunit.net/)
 
-ASP.NET Core (.NET 9) backend API for **Jenian**, a practical workplace productivity application that supports shift management, estimated pay calculations, and structured end-of-day (night) report workflows for retail/pharmacy staff.
+ASP.NET Core (.NET 9) backend API for **Jenian**, a practical workplace productivity application that supports shift management, estimated pay calculations, and structured end-of-day report workflows for retail/pharmacy staff.
 
 - **Live frontend:** https://jenian-client.vercel.app
-- **Frontend repository:** [Brian3010/jenian-client](https://github.com/Brian3010/jenian-client) (separate Next.js project)
-- **API / Swagger URL:** not publicly documented in this repository — Swagger UI is enabled only in the Development environment (see [Swagger](#swagger))
-- This repository contains **only the backend API**. UI, forms, and BFF (Backend-for-Frontend) logic live in the separate Next.js frontend repository.
+- **Frontend repository:** [Brian3010/jenian-client](https://github.com/Brian3010/jenian-client) 
 
 ## Table of Contents
 
@@ -45,7 +43,7 @@ ASP.NET Core (.NET 9) backend API for **Jenian**, a practical workplace producti
 
 Jenian helps shift workers track their rosters, estimate what they should be paid under an award-based pay structure, and submit structured end-of-day operational reports (stock levels, night tasks, aisle facing, cleaning, and general checks) — some of which can be filled in from a photographed roster via OCR.
 
-**Motivation:** `<WHY: your motivation here>`
+**Motivation:** Jenian was created to solve repetitive workplace tasks I experienced firsthand, including shift management, pay estimation, and night reporting. It also serves as a practical portfolio project demonstrating my ability to design, build, test, and deploy a real full-stack application.
 
 This API is responsible for:
 
@@ -59,8 +57,6 @@ This API is responsible for:
 It is consumed exclusively by a separate Next.js frontend, which is expected to call this API through its own Backend-for-Frontend (BFF) route handlers rather than directly from the browser.
 
 ## Main Features
-
-Confirmed in the codebase:
 
 - Email/username + password registration (gated by an invite token) and login
 - JWT access tokens with a configurable/short lifetime
@@ -84,11 +80,8 @@ Confirmed in the codebase:
 
 ## Tech Stack
 
-Determined from the `.csproj` files and `global.json`:
-
 - **.NET SDK 9.0.305** (`global.json`), all projects target **`net9.0`**
 - **ASP.NET Core 9** (`Microsoft.NET.Sdk.Web`) for the API and Infrastructure projects
-- **C#** with nullable reference types and implicit usings enabled
 - **Entity Framework Core 9.0.4** (SQL Server provider) — two `DbContext`s (see [Database](#database))
 - **ASP.NET Core Identity** (`Microsoft.AspNetCore.Identity.EntityFrameworkCore` 9.0.4) for user management
 - **JWT Bearer authentication** (`Microsoft.AspNetCore.Authentication.JwtBearer` 9.0.4)
@@ -100,7 +93,6 @@ Determined from the `.csproj` files and `global.json`:
 - **OpenAI** SDK (`OpenAI` 2.4.0)
 - **Azure AI Vision** (`Azure.AI.Vision.ImageAnalysis` 1.0.0) for OCR
 - Telegram Bot API (consumed via a plain `HttpClient`, no third-party Telegram SDK)
-- **Serilog** for console/file logging
 - **OpenCvSharp4** / **SixLabors.ImageSharp** for image pre-processing prior to OCR
 - **Azure.Storage.Blobs** + **Azure.Identity** for file storage
 
@@ -311,8 +303,6 @@ Schema changes are managed through EF Core migrations under `src/Jenian.Infrastr
   "traceId": "0HN...:00000001"
 }
 ```
-
-No stack traces are exposed outside of the Development environment.
 
 ## External Integrations
 
