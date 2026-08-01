@@ -1,15 +1,51 @@
 # Jenian API
 
+[![.NET 9](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
+[![ASP.NET Core](https://img.shields.io/badge/ASP.NET_Core-9.0-512BD4?logo=dotnet&logoColor=white)](https://learn.microsoft.com/aspnet/core/)
+[![Entity Framework Core](https://img.shields.io/badge/Entity_Framework_Core-9.0-512BD4?logo=dotnet&logoColor=white)](https://learn.microsoft.com/ef/core/)
+[![SQL Server](https://img.shields.io/badge/SQL_Server-database-CC2927?logo=microsoftsqlserver&logoColor=white)](https://www.microsoft.com/sql-server/)
+[![Docker](https://img.shields.io/badge/Docker-containerized-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![Azure Container Apps](https://img.shields.io/badge/Azure-Container_Apps-0078D4?logo=microsoftazure&logoColor=white)](https://azure.microsoft.com/products/container-apps/)
+[![xUnit](https://img.shields.io/badge/tests-xUnit-5E2B97)](https://xunit.net/)
+
 ASP.NET Core (.NET 9) backend API for **Jenian**, a practical workplace productivity application that supports shift management, estimated pay calculations, and structured end-of-day (night) report workflows for retail/pharmacy staff.
 
 - **Live frontend:** https://jenian-client.vercel.app
-- **Frontend repository:** [jenian-client](https://github.com/Brian3010/jenian-client)
+- **Frontend repository:** [Brian3010/jenian-client](https://github.com/Brian3010/jenian-client) (separate Next.js project)
 - **API / Swagger URL:** not publicly documented in this repository — Swagger UI is enabled only in the Development environment (see [Swagger](#swagger))
 - This repository contains **only the backend API**. UI, forms, and BFF (Backend-for-Frontend) logic live in the separate Next.js frontend repository.
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Main Features](#main-features)
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+- [Request Flow](#request-flow)
+- [Authentication and Session Management](#authentication-and-session-management)
+- [Demo Account Design](#demo-account-design)
+- [Rate Limiting](#rate-limiting)
+- [Shift and Pay-Calculation Design](#shift-and-pay-calculation-design)
+- [Main API Endpoints](#main-api-endpoints)
+- [Database](#database)
+- [Error Handling and API Responses](#error-handling-and-api-responses)
+- [External Integrations](#external-integrations)
+- [Testing](#testing)
+- [Local Development](#local-development)
+- [Environment Variables and Configuration](#environment-variables-and-configuration)
+- [Docker](#docker)
+- [Deployment](#deployment)
+- [Health Checks and Cold Starts](#health-checks-and-cold-starts)
+- [Security Considerations](#security-considerations)
+- [Related Repository](#related-repository)
+- [Project Status](#project-status)
+- [Author](#author)
 
 ## Overview
 
 Jenian helps shift workers track their rosters, estimate what they should be paid under an award-based pay structure, and submit structured end-of-day operational reports (stock levels, night tasks, aisle facing, cleaning, and general checks) — some of which can be filled in from a photographed roster via OCR.
+
+**Motivation:** `<WHY: your motivation here>`
 
 This API is responsible for:
 
@@ -47,6 +83,8 @@ Confirmed in the codebase:
 - Centralised exception handling using RFC 7807 `ProblemDetails` responses
 
 ## Tech Stack
+
+Determined from the `.csproj` files and `global.json`:
 
 - **.NET SDK 9.0.305** (`global.json`), all projects target **`net9.0`**
 - **ASP.NET Core 9** (`Microsoft.NET.Sdk.Web`) for the API and Infrastructure projects
@@ -123,15 +161,22 @@ tests/
 
 ## Request Flow
 
-```
-Next.js frontend
-   → Next.js BFF route handler (server-side, holds/forwards cookies)
-      → ASP.NET Core Controller (Jenian.API)
-         → Application Service (Jenian.Application)
-            → Infrastructure / EF Core / External APIs (Jenian.Infrastructure)
-         ← Result / ServiceResult<T>
-      ← ApiResponse<T> / ProblemDetails
-   ← JSON response
+```mermaid
+sequenceDiagram
+    participant Frontend as Next.js frontend
+    participant BFF as Next.js BFF route handler
+    participant API as ASP.NET Core Controller (Jenian.API)
+    participant Application as Application Service (Jenian.Application)
+    participant Infrastructure as Infrastructure / EF Core / External APIs
+
+    Frontend->>BFF: Send request
+    BFF->>API: Forward request and cookies
+    API->>Application: Execute use case
+    Application->>Infrastructure: Read/write data or call an external service
+    Infrastructure-->>Application: Return result
+    Application-->>API: Return ServiceResult&lt;T&gt;
+    API-->>BFF: Return ApiResponse&lt;T&gt; or ProblemDetails
+    BFF-->>Frontend: Return JSON response
 ```
 
 The frontend is expected to talk to this API through its own Next.js BFF layer (e.g. Route Handlers) rather than calling it directly from client-side code, which keeps `HttpOnly` cookies scoped correctly and centralises error handling on the frontend side.
@@ -440,7 +485,7 @@ This is a factual summary of implemented mechanisms, not a claim of complete or 
 
 ## Related Repository
 
-The Next.js frontend — including UI, forms, and the BFF layer that this API is designed to be called through — is maintained in a separate repository not included here.
+The Next.js frontend — including UI, forms, and the BFF layer that this API is designed to be called through — is maintained in the [Brian3010/jenian-client](https://github.com/Brian3010/jenian-client) repository.
 
 ## Project Status
 
