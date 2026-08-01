@@ -3,7 +3,7 @@
 ASP.NET Core (.NET 9) backend API for **Jenian**, a practical workplace productivity application that supports shift management, estimated pay calculations, and structured end-of-day (night) report workflows for retail/pharmacy staff.
 
 - **Live frontend:** https://jenian-client.vercel.app
-- **Frontend repository:** not included in this repository (separate Next.js project)
+- **Frontend repository:** [jenian-client](https://github.com/Brian3010/jenian-client)
 - **API / Swagger URL:** not publicly documented in this repository — Swagger UI is enabled only in the Development environment (see [Swagger](#swagger))
 - This repository contains **only the backend API**. UI, forms, and BFF (Backend-for-Frontend) logic live in the separate Next.js frontend repository.
 
@@ -47,8 +47,6 @@ Confirmed in the codebase:
 - Centralised exception handling using RFC 7807 `ProblemDetails` responses
 
 ## Tech Stack
-
-Determined from the `.csproj` files and `global.json`:
 
 - **.NET SDK 9.0.305** (`global.json`), all projects target **`net9.0`**
 - **ASP.NET Core 9** (`Microsoft.NET.Sdk.Web`) for the API and Infrastructure projects
