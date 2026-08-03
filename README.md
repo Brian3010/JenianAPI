@@ -1,15 +1,49 @@
 # Jenian API
 
-ASP.NET Core (.NET 9) backend API for **Jenian**, a practical workplace productivity application that supports shift management, estimated pay calculations, and structured end-of-day (night) report workflows for retail/pharmacy staff.
+[![.NET 9](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
+[![ASP.NET Core](https://img.shields.io/badge/ASP.NET_Core-9.0-512BD4?logo=dotnet&logoColor=white)](https://learn.microsoft.com/aspnet/core/)
+[![Entity Framework Core](https://img.shields.io/badge/Entity_Framework_Core-9.0-512BD4?logo=dotnet&logoColor=white)](https://learn.microsoft.com/ef/core/)
+[![SQL Server](https://img.shields.io/badge/SQL_Server-database-CC2927?logo=microsoftsqlserver&logoColor=white)](https://www.microsoft.com/sql-server/)
+[![Docker](https://img.shields.io/badge/Docker-containerized-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![Azure Container Apps](https://img.shields.io/badge/Azure-Container_Apps-0078D4?logo=microsoftazure&logoColor=white)](https://azure.microsoft.com/products/container-apps/)
+[![xUnit](https://img.shields.io/badge/tests-xUnit-5E2B97)](https://xunit.net/)
 
-- **Live frontend:** https://jenian-client.vercel.app
-- **Frontend repository:** not included in this repository (separate Next.js project)
-- **API / Swagger URL:** not publicly documented in this repository — Swagger UI is enabled only in the Development environment (see [Swagger](#swagger))
-- This repository contains **only the backend API**. UI, forms, and BFF (Backend-for-Frontend) logic live in the separate Next.js frontend repository.
+ASP.NET Core (.NET 9) backend API for **Jenian**, a practical workplace productivity application that supports shift management, estimated pay calculations, and structured end-of-day report workflows for retail/pharmacy staff.
+
+- **Live frontend:** <https://jenian-client.vercel.app>
+- **Frontend repository:** [Brian3010/jenian-client](https://github.com/Brian3010/jenian-client) 
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Main Features](#main-features)
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+- [Request Flow](#request-flow)
+- [Authentication and Session Management](#authentication-and-session-management)
+- [Demo Account Design](#demo-account-design)
+- [Rate Limiting](#rate-limiting)
+- [Shift and Pay-Calculation Design](#shift-and-pay-calculation-design)
+- [Main API Endpoints](#main-api-endpoints)
+- [Database](#database)
+- [Error Handling and API Responses](#error-handling-and-api-responses)
+- [External Integrations](#external-integrations)
+- [Testing](#testing)
+- [Local Development](#local-development)
+- [Environment Variables and Configuration](#environment-variables-and-configuration)
+- [Docker](#docker)
+- [Deployment](#deployment)
+- [Health Checks and Cold Starts](#health-checks-and-cold-starts)
+- [Security Considerations](#security-considerations)
+- [Related Repository](#related-repository)
+- [Project Status](#project-status)
+- [Author](#author)
 
 ## Overview
 
 Jenian helps shift workers track their rosters, estimate what they should be paid under an award-based pay structure, and submit structured end-of-day operational reports (stock levels, night tasks, aisle facing, cleaning, and general checks) — some of which can be filled in from a photographed roster via OCR.
+
+**Motivation:** Jenian was created to solve repetitive workplace tasks I experienced firsthand, including shift management, pay estimation, and night reporting. It also serves as a practical portfolio project demonstrating my ability to design, build, test, and deploy a real full-stack application.
 
 This API is responsible for:
 
@@ -23,8 +57,6 @@ This API is responsible for:
 It is consumed exclusively by a separate Next.js frontend, which is expected to call this API through its own Backend-for-Frontend (BFF) route handlers rather than directly from the browser.
 
 ## Main Features
-
-Confirmed in the codebase:
 
 - Email/username + password registration (gated by an invite token) and login
 - JWT access tokens with a configurable/short lifetime
@@ -48,11 +80,8 @@ Confirmed in the codebase:
 
 ## Tech Stack
 
-Determined from the `.csproj` files and `global.json`:
-
 - **.NET SDK 9.0.305** (`global.json`), all projects target **`net9.0`**
 - **ASP.NET Core 9** (`Microsoft.NET.Sdk.Web`) for the API and Infrastructure projects
-- **C#** with nullable reference types and implicit usings enabled
 - **Entity Framework Core 9.0.4** (SQL Server provider) — two `DbContext`s (see [Database](#database))
 - **ASP.NET Core Identity** (`Microsoft.AspNetCore.Identity.EntityFrameworkCore` 9.0.4) for user management
 - **JWT Bearer authentication** (`Microsoft.AspNetCore.Authentication.JwtBearer` 9.0.4)
@@ -64,7 +93,6 @@ Determined from the `.csproj` files and `global.json`:
 - **OpenAI** SDK (`OpenAI` 2.4.0)
 - **Azure AI Vision** (`Azure.AI.Vision.ImageAnalysis` 1.0.0) for OCR
 - Telegram Bot API (consumed via a plain `HttpClient`, no third-party Telegram SDK)
-- **Serilog** for console/file logging
 - **OpenCvSharp4** / **SixLabors.ImageSharp** for image pre-processing prior to OCR
 - **Azure.Storage.Blobs** + **Azure.Identity** for file storage
 
@@ -73,12 +101,16 @@ Determined from the `.csproj` files and `global.json`:
 The solution follows a layered/Clean Architecture split into four projects plus one test project. Project references only point inward (`API` → `Application` + `Infrastructure`; `Infrastructure` → `Application` + `Domain`; `Application` → `Domain`), so `Domain` has no dependency on any other project and `Application` has no dependency on ASP.NET Core, EF Core, or any external SDK.
 
 ### Domain (`Jenian.Domain`)
+
 Framework-independent entities and enums with no external dependencies:
+
 - `UserShift`, `PayCycleSetting`, `UserDailyPaySummary`, `EodReport`, `DeliveryExtractionJob`
 - Enums: `ShiftEntryType`, `EmploymentType`, `ShiftSource`, `PayCycleType`
 
 ### Application (`Jenian.Application`)
+
 Use cases, orchestration, and abstractions — no direct dependency on EF Core, ASP.NET Core, or external SDKs:
+
 - Feature folders: `Auth`, `Shifts`, `PaySummaries`, `Payroll`, `Telegram`
 - Commands and DTOs per feature (e.g. `SaveShiftsCommand`, `LoginCommand`, `ShiftDto`)
 - Service interfaces (`IShiftService`, `IAuthService`, `IPayCalculator`, `IAwardRateService`)
@@ -86,7 +118,9 @@ Use cases, orchestration, and abstractions — no direct dependency on EF Core, 
 - Application-specific exceptions (`AppException`, `DuplicateShiftException`)
 
 ### Infrastructure (`Jenian.Infrastructure`)
+
 Implementations of the abstractions defined in `Application`:
+
 - EF Core `DbContext`s, entity configuration, and migrations
 - ASP.NET Core Identity (`ApplicationUser`, `RefreshToken`)
 - `AuthService`, `JwtTokenManager`, `DemoAccount` service
@@ -95,7 +129,9 @@ Implementations of the abstractions defined in `Application`:
 - Azure Blob Storage service and background job queue
 
 ### API (`Jenian.API`)
+
 The ASP.NET Core host:
+
 - Controllers (`AuthController`, `CWHController`, `TelegramController`, `HomeController`)
 - `GlobalExceptionHandler` middleware
 - Dependency injection wiring, Swagger, CORS, JWT, and rate-limiting configuration in `Program.cs`
@@ -125,15 +161,22 @@ tests/
 
 ## Request Flow
 
-```
-Next.js frontend
-   → Next.js BFF route handler (server-side, holds/forwards cookies)
-      → ASP.NET Core Controller (Jenian.API)
-         → Application Service (Jenian.Application)
-            → Infrastructure / EF Core / External APIs (Jenian.Infrastructure)
-         ← Result / ServiceResult<T>
-      ← ApiResponse<T> / ProblemDetails
-   ← JSON response
+```mermaid
+sequenceDiagram
+    participant Frontend as Next.js frontend
+    participant BFF as Next.js BFF route handler
+    participant API as ASP.NET Core Controller (Jenian.API)
+    participant Application as Application Service (Jenian.Application)
+    participant Infrastructure as Infrastructure / EF Core / External APIs
+
+    Frontend->>BFF: Send request
+    BFF->>API: Forward request and cookies
+    API->>Application: Execute use case
+    Application->>Infrastructure: Read/write data or call an external service
+    Infrastructure-->>Application: Return result
+    Application-->>API: Return ServiceResult#60;T#62;
+    API-->>BFF: Return ApiResponse#60;T#62; or ProblemDetails
+    BFF-->>Frontend: Return JSON response
 ```
 
 The frontend is expected to talk to this API through its own Next.js BFF layer (e.g. Route Handlers) rather than calling it directly from client-side code, which keeps `HttpOnly` cookies scoped correctly and centralises error handling on the frontend side.
@@ -269,23 +312,25 @@ Schema changes are managed through EF Core migrations under `src/Jenian.Infrastr
 }
 ```
 
-No stack traces are exposed outside of the Development environment.
-
 ## External Integrations
 
 ### OpenAI
+
 Used to post-process raw OCR text — e.g. extracting structured delivery entries from a photographed chat/roster screenshot (`OpenAiService.DeliveryTextExtractor`) — via the `OpenAI` .NET SDK's `ChatClient`. The model name is configurable (`OpenAI:Model`, currently defaulting to `gpt-5-nano` in `appsettings.json`).
 
 ### Azure Vision OCR
+
 `AzureVisionParserService` calls Azure AI Vision's `ImageAnalysisClient` (`VisualFeatures.Read`) to extract raw text from uploaded images/screenshots (e.g. rosters, delivery photos), which is then normalised further by OpenAI and/or dedicated roster-parsing helpers (`RosterOcrParser`, `RosterShiftMapper`, `RosterStaffMatcher`).
 
 ### Telegram
+
 - Users link their Telegram account to their Jenian account by sending `/start <token>` to the bot, where `<token>` is a one-time link token generated via `GET /api/telegram/link-token`. Once linked, the token is invalidated and the Telegram user ID is stored on the `ApplicationUser`.
 - A `/roster` command is also supported, backed by `RosterSessionManager`, which tracks a short-lived (default 60-second) pending session per Telegram chat while the bot waits for the user to send a roster photo.
 - The webhook controller receives updates at `POST /api/telegram/webhook` (intended to be registered with Telegram via `setWebhook`) and always returns `200 OK` so Telegram does not retry delivery.
 - A `LatestRequestRunner` concurrency helper exists to cancel an in-flight background job per chat ID in favour of the newest one ("latest request wins"); at the time of writing it is wired into `TelegramController` but the active call site is commented out, so webhook processing currently runs synchronously via `ITelegramService.HandleUpdateAsync`.
 
 ### File Storage
+
 Uploaded images (e.g. end-of-day report screenshots) are stored in **Azure Blob Storage** via `AzureBlobStorageService`, authenticated with `DefaultAzureCredential`. A hosted service (`BlobContainerInitialiser`) ensures the configured container exists at startup.
 
 ## Testing
@@ -435,6 +480,7 @@ Implemented, verifiable protections:
 - Isolated, time-boxed demo accounts with server-side ownership scoping and lazy cleanup of expired sessions.
 
 Known, current limitations (not fixed by this section, described for transparency):
+
 - The refresh token itself is not rotated on every use — the same token value is extended, rather than replaced (a TODO in `AuthService.RefreshTokenAsync`).
 - Registration is gated by a single, shared invite token (configured, not hardcoded), not a per-user invite mechanism.
 
@@ -442,11 +488,12 @@ This is a factual summary of implemented mechanisms, not a claim of complete or 
 
 ## Related Repository
 
-The Next.js frontend — including UI, forms, and the BFF layer that this API is designed to be called through — is maintained in a separate repository not included here.
+The Next.js frontend — including UI, forms, and the BFF layer that this API is designed to be called through — is maintained in the [Brian3010/jenian-client](https://github.com/Brian3010/jenian-client) repository.
 
 ## Project Status
 
 **Completed / working today:**
+
 - Registration, login, refresh, logout, and demo-login/logout flows
 - Bulk shift save with server-side Pharmacy Award pay calculation and daily/cycle summaries
 - Structured end-of-day report submission with photo upload and background OCR/extraction job status polling
@@ -454,11 +501,13 @@ The Next.js frontend — including UI, forms, and the BFF layer that this API is
 - Rate limiting, global exception handling, and health-check endpoint
 
 **Experimental / partially implemented:**
+
 - Overtime minute tracking (field exists, calculation currently always returns 0)
 - Telegram "latest request wins" cancellation helper (implemented, but not currently wired into the active webhook code path)
 - Ollama configuration is present but no corresponding service registration was found wired into `Program.cs`'s DI container
 
 **Not yet implemented:**
+
 - Refresh-token rotation
 - Configurable base pay rate / user-specific award profile
 - Dynamic public-holiday lookup (currently a hardcoded 2026 Victorian calendar)

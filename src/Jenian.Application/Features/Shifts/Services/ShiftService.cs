@@ -129,7 +129,7 @@ namespace Jenian.Application.Features.Shifts.Services
 
     }
 
-
+    // Calculate daily pay and save shifts
     public async Task<ServiceResult<ShiftSummaryResult>> SaveShiftsAsync(SaveShiftsCommand command, CancellationToken cancellationToken) {
 
       var newShifts = new List<UserShift>();
@@ -298,7 +298,6 @@ namespace Jenian.Application.Features.Shifts.Services
     /* Pay Cycle Settings */
 
     public async Task<ServiceResult<PayCycleSettingsDto>> UpdatePayCycleSettingsForUserAsync(CreatePayCycleSettingsCommand command, CancellationToken cancellationToken) {
-
       var payCycleSetting = new PayCycleSetting {
         UserId = command.UserId,
         AnchorStartDate = command.AnchorStartDate,
@@ -364,7 +363,7 @@ namespace Jenian.Application.Features.Shifts.Services
       }
 
       // when user has set up pay cycle settings
-      // TODO: these 2 callers can be optimized
+      // TODO: these 2 callers can be optimized by combining them into a single query to reduce database calls
       var paySummary = await _paySummaryRepository.GetByIdAndRangeAsync(userId, cycleStartDate, cycleEndDate, cancellationToken);
       var shifts = await _shiftRepository.GetByIdsAndRangeAsync(userId, cycleStartDate, cycleEndDate, cancellationToken);
 
