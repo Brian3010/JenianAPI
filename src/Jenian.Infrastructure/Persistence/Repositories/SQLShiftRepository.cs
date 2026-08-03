@@ -1,4 +1,5 @@
 ﻿using Jenian.Application.Abstractions.Persistence;
+using Jenian.Application.Common;
 using Jenian.Domain.Entities;
 using Jenian.Infrastructure.Persistence.App;
 using Microsoft.EntityFrameworkCore;
@@ -38,24 +39,12 @@ namespace Jenian.Infrastructure.Persistence.Repositories
       throw new NotImplementedException();
     }
 
-    private static DateTimeOffset ToDateTimeOffsetStartOfDay(
-    DateOnly date,
-    string timeZoneId) {
-      var timeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
-
-      var localDateTime = date.ToDateTime(TimeOnly.MinValue);
-
-      var offset = timeZone.GetUtcOffset(localDateTime);
-
-      return new DateTimeOffset(localDateTime, offset);
-    }
-
     public async Task<IEnumerable<UserShift>> GetByIdsAndRangeAsync(string userId, DateOnly from, DateOnly to, CancellationToken cancellationToken = default) {
       const string timeZoneId = "Australia/Melbourne";
-      var fromDateTimeOffset = ToDateTimeOffsetStartOfDay(from, timeZoneId);
+      var fromDateTimeOffset = ShiftDateHelper.ToDateTimeOffsetStartOfDay(from, timeZoneId);
 
       // Add 1 day because the upper boundary should usually be exclusive.
-      var toDateTimeOffset = ToDateTimeOffsetStartOfDay(to.AddDays(1), timeZoneId);
+      var toDateTimeOffset = ShiftDateHelper.ToDateTimeOffsetStartOfDay(to.AddDays(1), timeZoneId);
       var shifts = await _dbContext.UserShifts
        .Where(x => x.UserId == userId)
        .Where(x => x.StartAt >= fromDateTimeOffset && x.StartAt < toDateTimeOffset).OrderBy(x => x.StartAt)

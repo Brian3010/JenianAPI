@@ -10,30 +10,35 @@ namespace Jenian.Application.Features.Shifts.Validations
       HashSet<(DateTimeOffset, DateTimeOffset endTime)>
          seenShifts = [];
 
+
       foreach (var shift in shitfs) {
         var key = (shift.StartAt, shift.EndAt);
+        var workDate = ShiftDateHelper.GetWorkDate(shift.StartAt, shift.TimeZoneId);
         if (!seenShifts.Add(key)) {
-          errors.Add($"Duplicate shift found, starting at {shift.StartAt.Date:d}.");
+          errors.Add($"Duplicate shift found, starting on {workDate}.");
         }
 
         if (shift.StartAt >= shift.EndAt) {
-          errors.Add($"Shift with Id {shift.Id} has StartAt greater than or equal to EndAt.");
+          errors.Add($"Shift starting on {workDate} has StartAt greater than or equal to EndAt.");
         }
         if (string.IsNullOrEmpty(shift.TimeZoneId)) {
-          errors.Add($"Shift with Id {shift.Id} has an empty TimeZoneId.");
+          errors.Add($"Shift starting on {workDate} has an empty TimeZoneId.");
         }
         var durationMinutes = (shift.EndAt - shift.StartAt).TotalMinutes;
         var totalBreakMinutes = shift.UnpaidBreakMinutes + shift.PaidBreakMinutes;
 
         if (totalBreakMinutes > durationMinutes) {
-          errors.Add($"Shift starting at {shift.StartAt.Date:d} has break minutes exceeding shift duration.");
+          errors.Add($"Shift starting on {workDate} has break minutes exceeding shift duration.");
         }
 
-        var startDate = DateOnly.FromDateTime(shift.StartAt.DateTime);
-        var endDate = DateOnly.FromDateTime(shift.EndAt.DateTime);
+        DateOnly startDate = ShiftDateHelper.GetWorkDate(shift.StartAt, shift.TimeZoneId);
+        DateOnly endDate = ShiftDateHelper.GetWorkDate(shift.EndAt, shift.TimeZoneId);
+
+        //NOTE: The following is temporary fix. startDate and endDate should be in the same timezone as the cycleStartDate and cycleEndDate. Currently, they are in MelbourneTimezone.
+
 
         if (startDate < cycleStartDate || endDate > cycleEndDate) {
-          errors.Add($"Shift starting at {shift.StartAt.Date:d} has StartAt or EndAt outside of the cycle date range.");
+          errors.Add($"Shift starting at {workDate} has StartAt or EndAt outside of the cycle date range.");
         }
 
       }

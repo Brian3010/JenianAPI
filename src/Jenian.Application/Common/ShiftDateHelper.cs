@@ -28,5 +28,17 @@
           : timeZoneId;
       return TimeZoneInfo.FindSystemTimeZoneById(resolvedTimeZoneId);
     }
+
+    public static DateTimeOffset ToDateTimeOffsetStartOfDay(
+    DateOnly date,
+    string timeZoneId) {
+      var timeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+
+      var localDateTime = date.ToDateTime(TimeOnly.MinValue);
+
+      var offset = timeZone.GetUtcOffset(localDateTime);
+
+      return new DateTimeOffset(localDateTime, offset);
+    }
   }
 }
