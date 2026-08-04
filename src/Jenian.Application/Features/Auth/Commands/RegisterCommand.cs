@@ -8,7 +8,7 @@
 
     public required string ConfirmPassword { get; set; }
     //public required string DeviveId { get; set; }
-    public required string SecretToken { get; set; }
+    public required string InviteToken { get; set; }
 
   }
 }
