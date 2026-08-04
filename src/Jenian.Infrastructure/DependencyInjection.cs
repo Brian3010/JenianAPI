@@ -10,6 +10,7 @@ using Jenian.Infrastructure.BackgroundJobs;
 using Jenian.Infrastructure.BackgroundJobs.JobPayloads;
 using Jenian.Infrastructure.Concurrency;
 using Jenian.Infrastructure.Identity;
+using Jenian.Infrastructure.Identity.Options;
 using Jenian.Infrastructure.Persistence;
 using Jenian.Infrastructure.Persistence.App;
 using Jenian.Infrastructure.Persistence.Auth;
@@ -100,6 +101,9 @@ namespace Jenian.Infrastructure
       services.AddScoped<IPaySummaryRepository, SQLPaySummaryRepository>();
       services.AddScoped<IUnitOfWork, UnitOfWork>();
 
+      // Bind RegistrationOptions from configuration
+      services.Configure<RegistrationOptions>(
+        configuration.GetSection(RegistrationOptions.SectionName));
 
       return services;
     }

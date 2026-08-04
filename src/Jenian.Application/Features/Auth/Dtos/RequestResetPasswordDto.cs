@@ -2,6 +2,6 @@
 {
   public class RequestResetPasswordDto
   {
-    public string? EncodedToken { get; set; }
+    public string? Message { get; set; }
   }
 }
