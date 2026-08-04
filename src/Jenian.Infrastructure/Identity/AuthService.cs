@@ -4,7 +4,11 @@ using Jenian.Application.Abstractions.Persistence;
 using Jenian.Application.Common;
 using Jenian.Application.Features.Auth.Commands;
 using Jenian.Application.Features.Auth.Dtos;
+using Jenian.Infrastructure.Identity.Options;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
+using System.Security.Cryptography;
+using System.Text;
 using System.Web;
 
 namespace Jenian.Infrastructure.Identity
@@ -15,16 +19,20 @@ namespace Jenian.Infrastructure.Identity
     private readonly IJwtTokenManager _jwtTokenManager;
     private readonly IJenianAuthRepository _jenainAuthRepository;
     private readonly ILogger<AuthService> _logger;
+    private readonly RegistrationOptions _registrationOptions;
 
     public AuthService(UserManager<ApplicationUser> userManager,
       IJwtTokenManager jwtTokenManager,
       IJenianAuthRepository jenainAuthRepository,
-      ILogger<AuthService> logger
+      ILogger<AuthService> logger,
+      IOptions<RegistrationOptions> registrationOptions
+
       ) {
       _userManager = userManager;
       _jwtTokenManager = jwtTokenManager;
       _jenainAuthRepository = jenainAuthRepository;
       _logger = logger;
+      _registrationOptions = registrationOptions.Value;
     }
 
     public async Task<ServiceResult<bool>> HasTelegramConnectedAsync(string userId, CancellationToken cancellationToken) {
@@ -180,9 +188,10 @@ namespace Jenian.Infrastructure.Identity
 
     public async Task<ServiceResult<RegisterResultDto>> RegisterAsync(RegisterCommand command, CancellationToken cancellationToken) {
 
-      // I know it shouldnt be hardcoded, but for now, this is the only way to register a user
-      if (command.SecretToken != "***REMOVED***") {
-        return ServiceResult<RegisterResultDto>.Failure(["Invalid secret token"]);
+      if (!IsValidInviteToken(
+        command.InviteToken,
+        _registrationOptions.InviteToken)) {
+        return ServiceResult<RegisterResultDto>.Failure(["Invalid invite token"]);
       }
 
       if (command.Password != command.ConfirmPassword) {
@@ -212,16 +221,15 @@ namespace Jenian.Infrastructure.Identity
 
     public async Task<ServiceResult<RequestResetPasswordDto>> RequestPasswordResetAsync(string email, CancellationToken cancellationToken) {
       var user = await _userManager.FindByEmailAsync(email);
-      // Always return the same response to prevent email enumeration
-      if (user == null) {
-        return ServiceResult<RequestResetPasswordDto>.Failure(["If an account with that email exists, a password reset link has been sent."]);
+      if (user is null) {
+        return ServiceResult<RequestResetPasswordDto>.Success(new RequestResetPasswordDto { Message = string.Empty });
       }
 
       var token = await _userManager.GeneratePasswordResetTokenAsync(user);
 
-      var encodedToken = HttpUtility.UrlEncode(token);
+      // will need to send token to user via email using {token}
 
-      return ServiceResult<RequestResetPasswordDto>.Success(new RequestResetPasswordDto { EncodedToken = encodedToken });
+      return ServiceResult<RequestResetPasswordDto>.Success(new RequestResetPasswordDto { Message = "If an account with that email exists, a password reset link has been sent." });
     }
 
     public async Task<ServiceResult<bool>> ResetPasswordAsync(ResetPasswordCommand command, CancellationToken cancellationToken) {
@@ -245,6 +253,27 @@ namespace Jenian.Infrastructure.Identity
         ? ServiceResult<bool>.Success(true)
         : ServiceResult<bool>.Failure(res.Errors.Select(e => e.Description).ToList());
 
+    }
+
+
+
+    private static bool IsValidInviteToken(
+    string? suppliedToken,
+    string? configuredToken) {
+      if (string.IsNullOrWhiteSpace(suppliedToken) ||
+          string.IsNullOrWhiteSpace(configuredToken)) {
+        return false;
+      }
+
+      byte[] suppliedHash = SHA256.HashData(
+          Encoding.UTF8.GetBytes(suppliedToken));
+
+      byte[] configuredHash = SHA256.HashData(
+          Encoding.UTF8.GetBytes(configuredToken));
+
+      return CryptographicOperations.FixedTimeEquals(
+          suppliedHash,
+          configuredHash);
     }
   }
 }
