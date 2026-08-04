@@ -22,6 +22,6 @@ namespace Jenian.API.Contracts.Auth
 
     [Required]
     [DataType(DataType.Text)]
-    public required string SecretToken { get; set; }
+    public required string InviteToken { get; set; }
   }
 }
