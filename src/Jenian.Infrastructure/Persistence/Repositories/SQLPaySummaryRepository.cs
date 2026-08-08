@@ -27,7 +27,8 @@ namespace Jenian.Infrastructure.Persistence.Repositories
 
     public async Task<IEnumerable<UserDailyPaySummary>> GetByIdAndRangeAsync(string userId, DateOnly from, DateOnly to, CancellationToken cancellationToken = default) {
       var fromDateTimeOffSet = DateOnly.FromDateTime(ShiftDateHelper.ToDateTimeOffsetStartOfDay(from, "Australia/Melbourne").UtcDateTime);
-      var toDateTimeOffSet = DateOnly.FromDateTime(ShiftDateHelper.ToDateTimeOffsetStartOfDay(to, "Australia/Melbourne").UtcDateTime);
+      // Add 1 day because the upper boundary should usually be exclusive.
+      var toDateTimeOffSet = DateOnly.FromDateTime(ShiftDateHelper.ToDateTimeOffsetStartOfDay(to.AddDays(1), "Australia/Melbourne").UtcDateTime);
       return await _dbContext.UserDailyPaySummaries
         .Where(s => s.UserId == userId && s.WorkDate >= fromDateTimeOffSet && s.WorkDate <= toDateTimeOffSet)
         .AsNoTracking()

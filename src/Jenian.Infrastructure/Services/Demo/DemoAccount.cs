@@ -74,7 +74,6 @@ namespace Jenian.Infrastructure.Services.Demo
           IsTelegramConnected = false
         }
       };
-      _logger.LogInformation("Demo session created {@demoLoginResult}", demoLoginResult);
       return ServiceResult<DemoLoginResult>.Success(demoLoginResult);
     }
 
