@@ -51,5 +51,6 @@ services:
       AuthCookies__AccessTokenMinutes: '${AuthCookies__AccessTokenMinutes}'
       AuthCookies__RefreshTokenDays: '${AuthCookies__RefreshTokenDays}'
       AuthCookies__DeviceIdDays: '${AuthCookies__DeviceIdDays}'
+      Registration__InviteToken: '${Registration__InviteToken}'
 
     restart: unless-stopped
