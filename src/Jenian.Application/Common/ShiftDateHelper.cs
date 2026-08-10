@@ -36,9 +36,11 @@
 
       var localDateTime = date.ToDateTime(TimeOnly.MinValue);
 
-      var offset = timeZone.GetUtcOffset(localDateTime);
+      var utcDateTime = TimeZoneInfo.ConvertTimeToUtc(
+       localDateTime,
+       timeZone);
 
-      return new DateTimeOffset(localDateTime, offset);
+      return new DateTimeOffset(utcDateTime);
     }
   }
 }

@@ -1,5 +1,4 @@
 ﻿using Jenian.Application.Abstractions.Persistence;
-using Jenian.Application.Common;
 using Jenian.Domain.Entities;
 using Jenian.Infrastructure.Persistence.App;
 using Microsoft.EntityFrameworkCore;
@@ -26,11 +25,9 @@ namespace Jenian.Infrastructure.Persistence.Repositories
     }
 
     public async Task<IEnumerable<UserDailyPaySummary>> GetByIdAndRangeAsync(string userId, DateOnly from, DateOnly to, CancellationToken cancellationToken = default) {
-      var fromDateTimeOffSet = DateOnly.FromDateTime(ShiftDateHelper.ToDateTimeOffsetStartOfDay(from, "Australia/Melbourne").UtcDateTime);
-      // Add 1 day because the upper boundary should usually be exclusive.
-      var toDateTimeOffSet = DateOnly.FromDateTime(ShiftDateHelper.ToDateTimeOffsetStartOfDay(to.AddDays(1), "Australia/Melbourne").UtcDateTime);
+      var exclusiveTo = to.AddDays(1);
       return await _dbContext.UserDailyPaySummaries
-        .Where(s => s.UserId == userId && s.WorkDate >= fromDateTimeOffSet && s.WorkDate <= toDateTimeOffSet)
+        .Where(s => s.UserId == userId && s.WorkDate >= from && s.WorkDate < exclusiveTo)
         .AsNoTracking()
         .ToListAsync(cancellationToken);
     }
