@@ -16,6 +16,7 @@ namespace Jenian.Application
       services.AddScoped<IAwardRateService, PharmacyAwardRateService>();
       services.AddScoped<IPublicHolidayService, PublicHolidayService>();
       services.AddScoped<IPayCalculator, PayCalculator>();
+      services.AddSingleton<TimeProvider>(TimeProvider.System);
 
       return services;
     }

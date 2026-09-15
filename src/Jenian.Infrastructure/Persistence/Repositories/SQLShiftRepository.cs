@@ -40,16 +40,26 @@ namespace Jenian.Infrastructure.Persistence.Repositories
     }
 
     public async Task<IEnumerable<UserShift>> GetByIdsAndRangeAsync(string userId, DateOnly from, DateOnly to, CancellationToken cancellationToken = default) {
-      const string timeZoneId = "Australia/Melbourne";
-      var fromDateTimeOffset = ShiftDateHelper.ToDateTimeOffsetStartOfDay(from, timeZoneId);
+      var candidates = await GetRangeCandidatesAsync(userId, from, to, cancellationToken);
 
-      // Add 1 day because the upper boundary should usually be exclusive.
-      var toDateTimeOffset = ShiftDateHelper.ToDateTimeOffsetStartOfDay(to.AddDays(1), timeZoneId);
-      var shifts = await _dbContext.UserShifts
-       .Where(x => x.UserId == userId)
-       .Where(x => x.StartAt >= fromDateTimeOffset && x.StartAt < toDateTimeOffset).OrderBy(x => x.StartAt)
-       .ToListAsync(cancellationToken);
-      return shifts;
+      return candidates
+        .Where(shift => ShiftDateHelper.IsWorkDateInRange(
+          shift.StartAt,
+          shift.TimeZoneId,
+          from,
+          to))
+        .OrderBy(shift => shift.StartAt)
+        .ToList();
+    }
+
+    public async Task<int> CountByUserAndRangeAsync(string userId, DateOnly from, DateOnly to, CancellationToken cancellationToken = default) {
+      var candidates = await GetRangeCandidatesAsync(userId, from, to, cancellationToken);
+
+      return candidates.Count(shift => ShiftDateHelper.IsWorkDateInRange(
+        shift.StartAt,
+        shift.TimeZoneId,
+        from,
+        to));
     }
 
     public Task<IEnumerable<UserShift>> GetByUserAndDateRangeAsync(string userId, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default) {
@@ -91,7 +101,11 @@ namespace Jenian.Infrastructure.Persistence.Repositories
     }
 
     public async Task<IEnumerable<UserShift>> GetByDateAndUserAsync(string userId, DateOnly date, CancellationToken cancellationToken = default) {
-      return await _dbContext.UserShifts.Where(s => s.UserId == userId && s.StartAt.Date == date.ToDateTime(TimeOnly.MinValue).Date).ToListAsync(cancellationToken);
+      var candidates = await GetRangeCandidatesAsync(userId, date, date, cancellationToken);
+
+      return candidates
+        .Where(shift => ShiftDateHelper.GetWorkDate(shift.StartAt, shift.TimeZoneId) == date)
+        .ToList();
     }
 
     public async Task RemoveShiftsByUserIdAsync(string userId, CancellationToken cancellationToken = default) {
@@ -100,6 +114,19 @@ namespace Jenian.Infrastructure.Persistence.Repositories
 
     public async Task RemovePayCycleSettingsByUserIdAsync(string userId, CancellationToken cancellationToken = default) {
       await _dbContext.PayCycleSettings.Where(s => s.UserId == userId).ExecuteDeleteAsync(cancellationToken);
+    }
+
+    private async Task<List<UserShift>> GetRangeCandidatesAsync(
+      string userId,
+      DateOnly from,
+      DateOnly to,
+      CancellationToken cancellationToken) {
+      var (fromUtc, toUtc) = ShiftDateHelper.GetUtcCandidateRange(from, to);
+
+      return await _dbContext.UserShifts
+        .Where(shift => shift.UserId == userId)
+        .Where(shift => shift.StartAt >= fromUtc && shift.StartAt < toUtc)
+        .ToListAsync(cancellationToken);
     }
   }
 }

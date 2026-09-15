@@ -122,6 +122,7 @@ namespace Jenian.Application.Features.Shifts.Services
           TotalEveningPenaltyMinutes = summary.TotalEveningPenaltyMinutes,
           TotalOvertimeMinutes = summary.TotalOvertimeMinutes,
           TotalPayableMinutes = summary.TotalPayableMinutes,
+          TotalPaidBreakMinutes = summary.TotalPaidBreakMinutes,
           TotalUnpaidBreakMinutes = summary.TotalUnpaidBreakMinutes
         })
       });

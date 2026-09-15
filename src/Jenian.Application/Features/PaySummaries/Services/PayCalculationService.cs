@@ -59,7 +59,9 @@ namespace Jenian.Application.Features.PaySummaries.Services
         shiftsToCalculate.AddRange(shiftsForDate.Select(s => new ShiftDto {
           StartAt = s.StartAt,
           EndAt = s.EndAt,
+          TimeZoneId = s.TimeZoneId,
           UnpaidBreakMinutes = s.UnpaidBreakMinutes,
+          PaidBreakMinutes = s.PaidBreakMinutes,
           EmploymentType = s.EmploymentType,
           EntryType = s.EntryType
         }));
@@ -76,6 +78,7 @@ namespace Jenian.Application.Features.PaySummaries.Services
         summary.TotalEveningPenaltyMinutes = calculatedDailySummary.TotalEveningPenaltyMinutes;
         summary.TotalOvertimeMinutes = calculatedDailySummary.TotalOvertimeMinutes;
         summary.TotalPayableMinutes = calculatedDailySummary.TotalPayableMinutes;
+        summary.TotalPaidBreakMinutes = calculatedDailySummary.TotalPaidBreakMinutes ?? 0;
         summary.TotalUnpaidBreakMinutes = calculatedDailySummary.TotalUnpaidBreakMinutes;
         summary.CalculatedAtUtc = DateTimeOffset.UtcNow;
 
