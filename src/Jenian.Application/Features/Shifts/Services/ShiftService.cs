@@ -14,6 +14,7 @@ namespace Jenian.Application.Features.Shifts.Services
   {
     private readonly IShiftRepository _shiftRepository;
     private readonly IShiftValidator _shiftValidator;
+    private readonly IShiftMutationService _shiftMutationService;
     private readonly IPayCalculationService _payCalculationService;
     private readonly IPaySummaryRepository _paySummaryRepository;
     private readonly IUnitOfWork _unitOfWork;
@@ -22,6 +23,7 @@ namespace Jenian.Application.Features.Shifts.Services
     public ShiftService(
       IShiftRepository shiftRepository,
       IShiftValidator shiftValidator,
+      IShiftMutationService shiftMutationService,
       IPayCalculationService payCalculationService,
       IPaySummaryRepository paySummaryRepository,
       IUnitOfWork unitOfWork,
@@ -30,61 +32,14 @@ namespace Jenian.Application.Features.Shifts.Services
       ) {
       _shiftRepository = shiftRepository;
       _shiftValidator = shiftValidator;
+      _shiftMutationService = shiftMutationService;
       _payCalculationService = payCalculationService;
       _paySummaryRepository = paySummaryRepository;
       _unitOfWork = unitOfWork;
       _payCalculator = payCalculator;
     }
 
-
     /* Shift Management */
-    public async Task<ServiceResult<IEnumerable<ShiftDto>>> CreateShiftsAsync(CreateShiftsCommand command, CancellationToken cancellationToken) {
-
-      if (!command.ShiftDtos.Any()) {
-        return ServiceResult<IEnumerable<ShiftDto>>.Failure(["At least one shift must be provided."]);
-      }
-
-      var shifts = command.ShiftDtos.Select(item => new UserShift {
-        UserId = command.UserId,
-        StartAt = item.StartAt,
-        EndAt = item.EndAt,
-        TimeZoneId = item.TimeZoneId,
-        UnpaidBreakMinutes = item.UnpaidBreakMinutes,
-        PaidBreakMinutes = item.PaidBreakMinutes,
-        EntryType = item.EntryType,
-        EmploymentType = item.EmploymentType,
-        Source = item.Source,
-
-      });
-
-      await _shiftRepository.AddRangeAsync(shifts, cancellationToken);
-
-      return ServiceResult<IEnumerable<ShiftDto>>.Success(shifts.Select(shift => new ShiftDto {
-        Id = shift.Id,
-        StartAt = shift.StartAt,
-        EndAt = shift.EndAt,
-        TimeZoneId = shift.TimeZoneId,
-        UnpaidBreakMinutes = shift.UnpaidBreakMinutes,
-        PaidBreakMinutes = shift.PaidBreakMinutes,
-        EntryType = shift.EntryType,
-        EmploymentType = shift.EmploymentType,
-        Source = shift.Source
-      }));
-
-    }
-
-    public async Task<ServiceResult<bool>> DeleteShiftsAsync(DeleteShiftsCommand command, CancellationToken cancellationToken) {
-
-      if (!command.ShiftIds.Any()) {
-        return ServiceResult<bool>.Failure(["At least one shift ID must be provided."]);
-      }
-      await _shiftRepository.RemoveByIdsForUserAsync(command.UserId, command.ShiftIds, cancellationToken);
-      return ServiceResult<bool>.Success(true);
-
-    }
-
-
-
     public async Task<ServiceResult<ShiftSummaryResult>> GetShiftsByUserAndDateRangeAsync(GetShiftsForUserByDateRangeCommand command, CancellationToken cancellationToken) {
 
       // validate the payUserCycle param, making sure it match the user's pay cycle settings
@@ -130,169 +85,66 @@ namespace Jenian.Application.Features.Shifts.Services
 
     }
 
-    // Calculate daily pay and save shifts
+    // Save shift changes and their derived daily summaries as one atomic operation.
     public async Task<ServiceResult<ShiftSummaryResult>> SaveShiftsAsync(SaveShiftsCommand command, CancellationToken cancellationToken) {
-
-      var newShifts = new List<UserShift>();
-      var resultShifts = new List<UserShift>();
-      var shiftSummaries = new List<UserDailyPaySummaryDto>();
-      var affectedWorkDates = new HashSet<DateOnly>(); // making sure other untouched shifts on the same day will also have their pay recalculated
-
-      affectedWorkDates.UnionWith(command.ShiftDtos.Select(shift => DateOnly.FromDateTime(shift.StartAt.Date)));
-
-      // Validate shifts
       var validationResult = _shiftValidator.ValidateSaveShifts(command.ShiftDtos, command.RangeStartDate, command.RangeEndDate);
       if (!validationResult.IsValid) {
         return ServiceResult<ShiftSummaryResult>.Failure(validationResult.Errors);
       }
 
-      // Get all ids that need updating
-      var idsToUpdate = command.ShiftDtos
-          .Where(x => x.Id.HasValue)
-          .Select(x => x.Id!.Value)
-          .ToList();
-
-      var allChangedShiftIds = idsToUpdate.Union(command.DeletedShiftIds).ToList();
-
-      // Load existing shifts for this user, note: included deleting ids as well
-      var existingShifts = await _shiftRepository.GetByIdsForUserAsync(
-          command.UserId,
-          allChangedShiftIds,
-          cancellationToken);
-
-      // Collect existing shifts' work dates
-      if (existingShifts.Any())
-        affectedWorkDates.UnionWith(existingShifts.Select(shift => DateOnly.FromDateTime(shift.StartAt.Date)));
-
-
-      // Create lookup for updates only
-      var shiftsToUpdateMap = existingShifts
-        .Where(shift => idsToUpdate.Contains(shift.Id))
-        .ToDictionary(shift => shift.Id);
-
-      // Delete shifts if any
-      if (command.DeletedShiftIds.Count != 0) {
-        await _shiftRepository.RemoveByIdsForUserAsync(command.UserId, command.DeletedShiftIds, cancellationToken);
-      }
-
-      foreach (var item in command.ShiftDtos) {
-        if (item.Id is null) {
-          // CREATE
-          var newShift = new UserShift {
-            UserId = command.UserId,
-            StartAt = item.StartAt,
-            EndAt = item.EndAt,
-            TimeZoneId = item.TimeZoneId,
-            UnpaidBreakMinutes = item.UnpaidBreakMinutes,
-            PaidBreakMinutes = item.PaidBreakMinutes,
-            EntryType = item.EntryType,
-            EmploymentType = item.EmploymentType,
-            Source = ShiftSource.Manual
-          };
-
-          newShifts.Add(newShift);
-          resultShifts.Add(newShift);
-        } else {
-          // UPDATE
-          if (!shiftsToUpdateMap.TryGetValue(item.Id.Value, out var existingShift))
-            return ServiceResult<ShiftSummaryResult>.Failure(
-                    [$"Shift '{item.Id.Value}' was not found."]);
-
-          existingShift.StartAt = item.StartAt;
-          existingShift.EndAt = item.EndAt;
-          existingShift.TimeZoneId = item.TimeZoneId;
-          existingShift.UnpaidBreakMinutes = item.UnpaidBreakMinutes;
-          existingShift.PaidBreakMinutes = item.PaidBreakMinutes;
-          existingShift.EntryType = item.EntryType;
-          existingShift.EmploymentType = item.EmploymentType;
-          existingShift.UpdatedAtUtc = DateTimeOffset.UtcNow;
-
-          resultShifts.Add(existingShift);
+      return await _unitOfWork.ExecuteInTransactionAsync(async transactionCancellationToken => {
+        var mutationResult = await _shiftMutationService.ApplyAsync(
+          command,
+          transactionCancellationToken);
+        if (!mutationResult.IsSuccess || mutationResult.Data == null) {
+          return ServiceResult<ShiftSummaryResult>.Failure(mutationResult.Errors);
         }
-      }
 
-      // Add new shifts
-      if (newShifts.Count > 0) {
-        await _shiftRepository.AddRangeAsync(newShifts, cancellationToken);
-      }
-      await _unitOfWork.SaveChangesAsync(cancellationToken);
+        // The recalculation queries the database, so shift changes must be flushed
+        // first. The enclosing transaction keeps both flushes atomic.
+        await _unitOfWork.SaveChangesAsync(transactionCancellationToken);
+        await _payCalculationService.RecalculateForDatesAsync(
+          command.UserId,
+          mutationResult.Data.AffectedWorkDates,
+          transactionCancellationToken);
+        await _unitOfWork.SaveChangesAsync(transactionCancellationToken);
 
-      // calculate/re-calculate the affected work days' pay after shifts have been added/updated/deleted
-      await _payCalculationService.RecalculateForDatesAsync(command.UserId, affectedWorkDates, cancellationToken);
-      await _unitOfWork.SaveChangesAsync(cancellationToken);
+        var shifts = await _shiftRepository.GetByIdsAndRangeAsync(
+          command.UserId,
+          command.RangeStartDate,
+          command.RangeEndDate,
+          transactionCancellationToken);
+        var summaries = await _paySummaryRepository.GetByIdAndRangeAsync(
+          command.UserId,
+          command.RangeStartDate,
+          command.RangeEndDate,
+          transactionCancellationToken);
 
-
-      var shifts = await _shiftRepository.GetByIdsAndRangeAsync(
-        command.UserId,
-        command.RangeStartDate,
-        command.RangeEndDate,
-        cancellationToken
-        );
-      var summaries = await _paySummaryRepository.GetByIdAndRangeAsync(
-        command.UserId,
-        command.RangeStartDate,
-        command.RangeEndDate,
-        cancellationToken
-        );
-
-
-      return ServiceResult<ShiftSummaryResult>.Success(new ShiftSummaryResult {
-        Shifts = shifts.Select(shift => new ShiftDto {
-          Id = shift.Id,
-          StartAt = shift.StartAt,
-          EndAt = shift.EndAt,
-          TimeZoneId = shift.TimeZoneId,
-          UnpaidBreakMinutes = shift.UnpaidBreakMinutes,
-          PaidBreakMinutes = shift.PaidBreakMinutes,
-          EntryType = shift.EntryType,
-          EmploymentType = shift.EmploymentType,
-          Source = shift.Source
-        }),
-        DailySummaries = summaries.Select(summary => new UserDailyPaySummaryDto {
-          UserId = summary.UserId,
-          WorkDate = summary.WorkDate,
-          BaseRateUsed = summary.BaseRateUsed,
-          GrossPay = summary.GrossPay,
-          TotalEveningPenaltyMinutes = summary.TotalEveningPenaltyMinutes,
-          TotalOvertimeMinutes = summary.TotalOvertimeMinutes,
-          TotalPayableMinutes = summary.TotalPayableMinutes,
-          TotalUnpaidBreakMinutes = summary.TotalUnpaidBreakMinutes
-        })
-      });
-    }
-
-    public async Task<ServiceResult<IEnumerable<ShiftDto>>> UpdateShiftsAsync(UpdateShiftsCommand command, CancellationToken cancellationToken) {
-      if (!command.ShiftDtos.Any()) {
-        return ServiceResult<IEnumerable<ShiftDto>>.Failure(["At least one shift must be provided."]);
-      }
-
-      var shiftsToUpdate = command.ShiftDtos.Select(item => new UserShift {
-        UserId = command.UserId,
-        StartAt = item.StartAt,
-        EndAt = item.EndAt,
-        TimeZoneId = item.TimeZoneId,
-        UnpaidBreakMinutes = item.UnpaidBreakMinutes,
-        PaidBreakMinutes = item.PaidBreakMinutes,
-        EntryType = item.EntryType,
-        EmploymentType = item.EmploymentType,
-        Source = item.Source,
-      });
-
-      foreach (var shift in shiftsToUpdate) {
-        await _shiftRepository.UpdateAsync(shift, cancellationToken);
-      }
-      return ServiceResult<IEnumerable<ShiftDto>>.Success(shiftsToUpdate.Select(shift => new ShiftDto {
-        Id = shift.Id,
-        StartAt = shift.StartAt,
-        EndAt = shift.EndAt,
-        TimeZoneId = shift.TimeZoneId,
-        UnpaidBreakMinutes = shift.UnpaidBreakMinutes,
-        PaidBreakMinutes = shift.PaidBreakMinutes,
-        EntryType = shift.EntryType,
-        EmploymentType = shift.EmploymentType,
-        Source = shift.Source
-      }));
-
+        return ServiceResult<ShiftSummaryResult>.Success(new ShiftSummaryResult {
+          Shifts = shifts.Select(shift => new ShiftDto {
+            Id = shift.Id,
+            StartAt = shift.StartAt,
+            EndAt = shift.EndAt,
+            TimeZoneId = shift.TimeZoneId,
+            UnpaidBreakMinutes = shift.UnpaidBreakMinutes,
+            PaidBreakMinutes = shift.PaidBreakMinutes,
+            EntryType = shift.EntryType,
+            EmploymentType = shift.EmploymentType,
+            Source = shift.Source
+          }).ToList(),
+          DailySummaries = summaries.Select(summary => new UserDailyPaySummaryDto {
+            UserId = summary.UserId,
+            WorkDate = summary.WorkDate,
+            BaseRateUsed = summary.BaseRateUsed,
+            GrossPay = summary.GrossPay,
+            TotalEveningPenaltyMinutes = summary.TotalEveningPenaltyMinutes,
+            TotalOvertimeMinutes = summary.TotalOvertimeMinutes,
+            TotalPayableMinutes = summary.TotalPayableMinutes,
+            TotalPaidBreakMinutes = summary.TotalPaidBreakMinutes,
+            TotalUnpaidBreakMinutes = summary.TotalUnpaidBreakMinutes
+          }).ToList()
+        });
+      }, cancellationToken);
     }
 
 
