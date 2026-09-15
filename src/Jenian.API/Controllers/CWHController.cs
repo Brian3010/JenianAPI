@@ -301,5 +301,43 @@ namespace Jenian.API.Controllers
       return Ok(ApiResponse<ShiftSummaryResult>.Ok(result.Data));
 
     }
+
+    [Authorize]
+    [HttpGet("shifts/current-pay-cycle")]
+    public async Task<IActionResult> GetCurrentPayCycleShifts(CancellationToken cancellationToken) {
+      var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+      if (string.IsNullOrWhiteSpace(userId)) {
+        return Unauthorized(ApiResponse<object>.Fail(["Cannot find user information from token."]));
+      }
+
+      var result = await _shiftService.GetCurrentPayCycleShiftsAsync(
+        new GetCurrentPayCycleShiftsCommand { UserId = userId },
+        cancellationToken);
+
+      if (!result.IsSuccess) {
+        return BadRequest(ApiResponse<CurrentPayCycleShiftSummaryResult>.Fail(result.Errors));
+      }
+
+      return Ok(ApiResponse<CurrentPayCycleShiftSummaryResult>.Ok(result.Data));
+    }
+
+    [Authorize]
+    [HttpGet("shifts/current-pay-cycle/summary")]
+    public async Task<IActionResult> GetCurrentPayCycleSummary(CancellationToken cancellationToken) {
+      var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+      if (string.IsNullOrWhiteSpace(userId)) {
+        return Unauthorized(ApiResponse<object>.Fail(["Cannot find user information from token."]));
+      }
+
+      var result = await _shiftService.GetCurrentPayCycleSummaryAsync(
+        new GetCurrentPayCycleSummaryCommand { UserId = userId },
+        cancellationToken);
+
+      if (!result.IsSuccess) {
+        return BadRequest(ApiResponse<CurrentPayCycleSummaryResult>.Fail(result.Errors));
+      }
+
+      return Ok(ApiResponse<CurrentPayCycleSummaryResult>.Ok(result.Data));
+    }
   }
 }

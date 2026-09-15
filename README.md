@@ -258,6 +258,8 @@ Displayed pay figures are **estimates based on the rules implemented above**, no
 | **Shifts** | | | |
 | PUT | `/shifts/bulks` | `[Authorize]` | Bulk create/update/delete shifts for a date range |
 | GET | `/api/cwh/shifts/by-cycle-date` | `[Authorize]` | Shifts + daily pay summaries for the current cycle |
+| GET | `/api/cwh/shifts/current-pay-cycle` | `[Authorize]` | Current-cycle shifts and daily summaries, or a setup-required state |
+| GET | `/api/cwh/shifts/current-pay-cycle/summary` | `[Authorize]` | Lightweight current-cycle shift count and estimated gross pay |
 | **Night / End-of-Day Reports** | | | |
 | POST | `/api/cwh/eod-report` | `[Authorize]` | Submit a structured end-of-day report with photo uploads |
 | GET | `/api/cwh/eod-report/{reportId}` | `[Authorize]` | Retrieve a populated report (owned by the caller) |

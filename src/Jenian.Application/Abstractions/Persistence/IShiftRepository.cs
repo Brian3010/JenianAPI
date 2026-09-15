@@ -13,6 +13,7 @@ namespace Jenian.Application.Abstractions.Persistence
     Task<UserShift?> GetByIdForUserAsync(string userId, Guid shiftId, CancellationToken cancellationToken = default);
 
     Task<IEnumerable<UserShift>> GetByIdsAndRangeAsync(string userId, DateOnly from, DateOnly to, CancellationToken cancellationToken = default);
+    Task<int> CountByUserAndRangeAsync(string userId, DateOnly from, DateOnly to, CancellationToken cancellationToken = default);
     Task<IEnumerable<UserShift>> GetByIdsForUserAsync(string userId, IEnumerable<Guid> shiftIds, CancellationToken cancellationToken = default);
 
     Task<IEnumerable<UserShift>> GetByDateAndUserAsync(string userId, DateOnly date, CancellationToken cancellationToken = default);

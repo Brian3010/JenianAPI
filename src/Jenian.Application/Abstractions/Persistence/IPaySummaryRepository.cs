@@ -12,5 +12,6 @@ namespace Jenian.Application.Abstractions.Persistence
     Task RemoveByUserIdAsync(string userId, CancellationToken cancellationToken = default);
 
     Task<IEnumerable<UserDailyPaySummary>> GetByIdAndRangeAsync(string userId, DateOnly from, DateOnly to, CancellationToken cancellationToken = default);
+    Task<decimal> SumGrossPayByUserAndRangeAsync(string userId, DateOnly from, DateOnly to, CancellationToken cancellationToken = default);
   }
 }

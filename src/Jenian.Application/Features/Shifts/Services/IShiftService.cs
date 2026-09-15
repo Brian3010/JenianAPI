@@ -13,6 +13,15 @@ namespace Jenian.Application.Features.Shifts.Services
         CancellationToken cancellationToken);
     Task<ServiceResult<ShiftSummaryResult>> GetShiftsByUserAndDateRangeAsync(GetShiftsForUserByDateRangeCommand command, CancellationToken cancellationToken);
 
+    Task<ServiceResult<CurrentPayCycleShiftSummaryResult>> GetCurrentPayCycleShiftsAsync(
+      GetCurrentPayCycleShiftsCommand command,
+      CancellationToken cancellationToken);
+
+    Task<ServiceResult<CurrentPayCycleSummaryResult>> GetCurrentPayCycleSummaryAsync(
+      GetCurrentPayCycleSummaryCommand command,
+      CancellationToken cancellationToken);
+
+
     /* Pay Cycle Settings */
     Task<ServiceResult<PayCycleSettingsDto>> GetCurrentPayCycleSettingsForUserAsync(string userId, CancellationToken cancellationToken);
 

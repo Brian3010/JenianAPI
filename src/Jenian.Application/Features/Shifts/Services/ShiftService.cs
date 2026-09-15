@@ -85,6 +85,101 @@ namespace Jenian.Application.Features.Shifts.Services
 
     }
 
+    public async Task<ServiceResult<CurrentPayCycleShiftSummaryResult>> GetCurrentPayCycleShiftsAsync(
+      GetCurrentPayCycleShiftsCommand command,
+      CancellationToken cancellationToken) {
+      var payCycleSetting = await _shiftRepository.GetPayCycleSettingByUserIdAsync(command.UserId, cancellationToken);
+      if (payCycleSetting == null) {
+        return ServiceResult<CurrentPayCycleShiftSummaryResult>.Success(
+          new CurrentPayCycleShiftSummaryResult {
+            HasPayCycleSettings = false
+          });
+      }
+
+      var cycle = _payCalculator.CalculatePayCycleDateRange(
+        payCycleSetting.PayCycleType,
+        payCycleSetting.AnchorStartDate);
+
+      var shifts = await _shiftRepository.GetByIdsAndRangeAsync(
+        command.UserId,
+        cycle.StartDate,
+        cycle.EndDate,
+        cancellationToken);
+      var summaries = await _paySummaryRepository.GetByIdAndRangeAsync(
+        command.UserId,
+        cycle.StartDate,
+        cycle.EndDate,
+        cancellationToken);
+
+      return ServiceResult<CurrentPayCycleShiftSummaryResult>.Success(
+        new CurrentPayCycleShiftSummaryResult {
+          HasPayCycleSettings = true,
+          PayCycle = payCycleSetting.PayCycleType.ToString(),
+          StartDate = cycle.StartDate,
+          EndDate = cycle.EndDate,
+          Shifts = shifts.Select(shift => new ShiftDto {
+            Id = shift.Id,
+            StartAt = shift.StartAt,
+            EndAt = shift.EndAt,
+            TimeZoneId = shift.TimeZoneId,
+            UnpaidBreakMinutes = shift.UnpaidBreakMinutes,
+            PaidBreakMinutes = shift.PaidBreakMinutes,
+            EntryType = shift.EntryType,
+            EmploymentType = shift.EmploymentType,
+            Source = shift.Source
+          }),
+          DailySummaries = summaries.Select(summary => new UserDailyPaySummaryDto {
+            UserId = summary.UserId,
+            WorkDate = summary.WorkDate,
+            BaseRateUsed = summary.BaseRateUsed,
+            GrossPay = summary.GrossPay,
+            TotalEveningPenaltyMinutes = summary.TotalEveningPenaltyMinutes,
+            TotalOvertimeMinutes = summary.TotalOvertimeMinutes,
+            TotalPayableMinutes = summary.TotalPayableMinutes,
+            TotalPaidBreakMinutes = summary.TotalPaidBreakMinutes,
+            TotalUnpaidBreakMinutes = summary.TotalUnpaidBreakMinutes
+          })
+        });
+    }
+
+    public async Task<ServiceResult<CurrentPayCycleSummaryResult>> GetCurrentPayCycleSummaryAsync(
+      GetCurrentPayCycleSummaryCommand command,
+      CancellationToken cancellationToken) {
+      var payCycleSetting = await _shiftRepository.GetPayCycleSettingByUserIdAsync(command.UserId, cancellationToken);
+      if (payCycleSetting == null) {
+        return ServiceResult<CurrentPayCycleSummaryResult>.Success(
+          new CurrentPayCycleSummaryResult {
+            HasPayCycleSettings = false,
+            ShiftCount = 0,
+            EstimatedGrossPay = 0m
+          });
+      }
+
+      var cycle = _payCalculator.CalculatePayCycleDateRange(
+        payCycleSetting.PayCycleType,
+        payCycleSetting.AnchorStartDate);
+      var shiftCount = await _shiftRepository.CountByUserAndRangeAsync(
+        command.UserId,
+        cycle.StartDate,
+        cycle.EndDate,
+        cancellationToken);
+      var estimatedGrossPay = await _paySummaryRepository.SumGrossPayByUserAndRangeAsync(
+        command.UserId,
+        cycle.StartDate,
+        cycle.EndDate,
+        cancellationToken);
+
+      return ServiceResult<CurrentPayCycleSummaryResult>.Success(
+        new CurrentPayCycleSummaryResult {
+          HasPayCycleSettings = true,
+          PayCycle = payCycleSetting.PayCycleType.ToString(),
+          StartDate = cycle.StartDate,
+          EndDate = cycle.EndDate,
+          ShiftCount = shiftCount,
+          EstimatedGrossPay = estimatedGrossPay
+        });
+    }
+
     // Save shift changes and their derived daily summaries as one atomic operation.
     public async Task<ServiceResult<ShiftSummaryResult>> SaveShiftsAsync(SaveShiftsCommand command, CancellationToken cancellationToken) {
       var validationResult = _shiftValidator.ValidateSaveShifts(command.ShiftDtos, command.RangeStartDate, command.RangeEndDate);

@@ -28,8 +28,16 @@ namespace Jenian.Infrastructure.Persistence.Repositories
       var exclusiveTo = to.AddDays(1);
       return await _dbContext.UserDailyPaySummaries
         .Where(s => s.UserId == userId && s.WorkDate >= from && s.WorkDate < exclusiveTo)
+        .OrderBy(s => s.WorkDate)
         .AsNoTracking()
         .ToListAsync(cancellationToken);
+    }
+
+    public async Task<decimal> SumGrossPayByUserAndRangeAsync(string userId, DateOnly from, DateOnly to, CancellationToken cancellationToken = default) {
+      var exclusiveTo = to.AddDays(1);
+      return await _dbContext.UserDailyPaySummaries
+        .Where(s => s.UserId == userId && s.WorkDate >= from && s.WorkDate < exclusiveTo)
+        .SumAsync(s => (decimal?)s.GrossPay, cancellationToken) ?? 0m;
     }
 
     public async Task RemoveAsync(UserDailyPaySummary summary, CancellationToken cancellationToken = default) {
