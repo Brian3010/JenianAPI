@@ -1,6 +1,5 @@
 using Jenian.API.Contracts.Common;
 using Jenian.API.Contracts.Cwh;
-using Jenian.Application.Abstractions.AI;
 using Jenian.Application.Abstractions.BackgroundJobs;
 using Jenian.Application.Abstractions.Persistence;
 using Jenian.Application.Abstractions.Storage;
@@ -20,16 +19,12 @@ namespace Jenian.API.Controllers
   public class CWHController : ControllerBase
   {
     private readonly ILogger<CWHController> _logger;
-    private readonly IParserService _parserService;
-    private readonly IOpenAiService _openAiService;
     private readonly IBackgroundJobQueue<DeliveryWorkerJob> _jobQueue;
     private readonly ICWHReportRepository _CWHReportRepository;
     private readonly IBlobStorageService _blobStorageService;
     private readonly IShiftService _shiftService;
 
     public CWHController(ILogger<CWHController> logger,
-      IParserService parserService,
-      IOpenAiService openAiService,
       IBackgroundJobQueue<DeliveryWorkerJob> jobQueue,
       ICWHReportRepository CWHReportRepository,
       IBlobStorageService blobStorageService,
@@ -37,8 +32,6 @@ namespace Jenian.API.Controllers
 
       ) {
       _logger = logger;
-      _parserService = parserService;
-      _openAiService = openAiService;
       _jobQueue = jobQueue;
       _CWHReportRepository = CWHReportRepository;
       _blobStorageService = blobStorageService;
@@ -62,8 +55,6 @@ namespace Jenian.API.Controllers
 
       // create data for DeliveryExtractionJob table
       var deliveryExtractionData = new DeliveryExtractionJob {
-
-        JobType = nameof(DeliveryExtractionJob),
         UserId = userId
       };
 
@@ -157,7 +148,7 @@ namespace Jenian.API.Controllers
       // Enqueue the job
       var deliveryWorker = new DeliveryWorkerJob(
         reportId,
-        deliveryExtractionData.Id,
+        deliveryExtractionData.Id, // = JobId
         userId,
         blobNames
       );
@@ -165,7 +156,10 @@ namespace Jenian.API.Controllers
 
       _logger.LogInformation("EOD Report to be saved: {@EodReport}", eodReport);
 
-      return Ok(ApiResponse<object>.Ok(new { reportId = eodReport.Id }));
+      return Ok(ApiResponse<object>.Ok(new {
+        reportId,
+        jobId = deliveryExtractionData.Id
+      }));
     }
 
     [Authorize]

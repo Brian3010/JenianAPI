@@ -8,16 +8,14 @@ namespace Jenian.Domain.Entities
     Pending = 0,
     Processing = 1,
     Succeeded = 2,
-    Failed = 3
+    Failed = 3,
+    Canceled = 4
   }
   public class DeliveryExtractionJob
   {
 
     public Guid Id { get; set; } = Guid.NewGuid();
 
-    // Optional: a short name/type to know what this job does
-    // e.g. "PhotoExtraction", "ShiftExtraction", "DeliveryParsing"
-    public string JobType { get; set; } = null!;
     // Output data (usually JSON you'll send back to frontend)
     public string? Result { get; set; }
 

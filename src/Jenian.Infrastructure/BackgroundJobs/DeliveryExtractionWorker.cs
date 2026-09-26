@@ -65,58 +65,125 @@ namespace Jenian.Infrastructure.BackgroundJobs
 
       while (!stoppingToken.IsCancellationRequested) {
         var job = await _backgroundJobQueue.DequeueAsync(stoppingToken);
-        _logger.LogInformation("Enqueueing background Job: {@job}", job);
-        // Create a scope for each job (or each batch/iteration)
-        using var scope = _scopeFactory.CreateScope();
-        var openAi = scope.ServiceProvider.GetRequiredService<IOpenAiService>();
+        _logger.LogInformation("Dequeued background Job: {@job}", job);
+        await ProcessJobAsync(job, stoppingToken);
+      }
+
+    }
+
+    private async Task ProcessJobAsync(DeliveryWorkerJob job, CancellationToken stoppingToken) {
+      try {
+        await using var scope = _scopeFactory.CreateAsyncScope();
         var jenianDbContext = scope.ServiceProvider.GetRequiredService<JenianDbContext>();
+
+        var bgJob = await jenianDbContext.DeliveryExtractionJobs
+          .FirstOrDefaultAsync(d => d.Id == job.JobId, cancellationToken: stoppingToken);
+
+        if (bgJob is null) {
+          _logger.LogWarning("DeliveryExtractionJob with JobId {JobId} was not found; skipping it", job.JobId);
+          return;
+        }
+
+        bgJob.Status = JobStatus.Processing;
+        bgJob.AttemptCount++;
+        bgJob.StartedAtUtc = DateTime.UtcNow;
+        bgJob.CompletedAtUtc = null;
+        await jenianDbContext.SaveChangesAsync(cancellationToken: stoppingToken);
+
+        var openAi = scope.ServiceProvider.GetRequiredService<IOpenAiService>();
         var reportRepository = scope.ServiceProvider.GetRequiredService<ICWHReportRepository>();
-        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-        var telegramMessenger = scope.ServiceProvider.GetRequiredService<ITelegramMessenger>();
         var blobStorage = scope.ServiceProvider.GetRequiredService<IBlobStorageService>();
         var parserService = scope.ServiceProvider.GetRequiredService<IParserService>();
 
-        try {
-
-          var ocrText = string.Empty;
-          if (job.BlobNames is { Count: > 0 }) {
-            ocrText = await BuildOcrTextAsync(job.BlobNames, blobStorage, parserService, stoppingToken);
-          }
-
-          // read OCR text and extract delivery information using OpenAI service  
-          var answer = await openAi.DeliveryTextExtractor(ocrText, stoppingToken);
-          _logger.LogInformation("DeliveryExtractorWorker processed job. Result: {Result}", answer);
-          // update job status
-          var bgJob = await jenianDbContext.DeliveryExtractionJobs.FirstAsync(d => d.Id == job.JobId, cancellationToken: stoppingToken);
-          bgJob.Status = JobStatus.Succeeded;
-          bgJob.Result = answer;
-          _logger.LogInformation("BackgroundJob to save in the database {@bgJob}", bgJob);
-          await jenianDbContext.SaveChangesAsync(cancellationToken: stoppingToken);
-
-          // Add answer to DeliveryExtractionJob table
-          await reportRepository.UpdateAnswerToDeliveryAsync(job.JobId, answer, stoppingToken);
-          // Add answer to delivey column in EodReports table
-          await reportRepository.UpdateAnswerToEodReportAsync(job.UserId, answer, stoppingToken);
-
-          // Check if user account is linked to telegram account yet
-          var telegramUserId = await userManager.Users.Where(u => u.Id == job.UserId).Select(u => u.TelegramUserId).SingleOrDefaultAsync(cancellationToken: stoppingToken);
-
-          if (telegramUserId != null && long.TryParse(telegramUserId, out var telegramChatId)) {
-            var r = await reportRepository.PopulateReportTemplateAsync(job.ReportId, job.UserId, stoppingToken);
-            if (r != null) {
-              _logger.LogInformation("Background worker r = {r}", r);
-              await telegramMessenger.SendMessageAsync(telegramChatId, r, stoppingToken);
-            }
-          }
-
-
-        } catch (OperationCanceledException) {
-          _logger.LogInformation("DeliveryExtractorWorker operation was canceled for JobId {JobId}", job.JobId);
-        } catch (Exception e) {
-          _logger.LogError(e, "Failed processing DeliveryExtractorJob for JobId {JobId}", job.JobId);
+        var ocrText = string.Empty;
+        if (job.BlobNames is { Count: > 0 }) {
+          ocrText = await BuildOcrTextAsync(job.BlobNames, blobStorage, parserService, stoppingToken);
         }
-      }
 
+        // Format the assembled OCR text
+        var answer = await openAi.DeliveryFormatter(ocrText, stoppingToken);
+        _logger.LogInformation("DeliveryExtractorWorker processed job. Result: {Result}", answer);
+
+        await reportRepository.UpdateAnswerToDeliveryAsync(job.JobId, answer, stoppingToken);
+        var updated = await reportRepository.UpdateAnswerToEodReportAsync(job.UserId, job.ReportId, answer, stoppingToken);
+
+        if (!updated) throw new DbUpdateException("EOD report was not found");
+
+        bgJob.Status = JobStatus.Succeeded;
+        bgJob.Result = answer;
+        bgJob.CompletedAtUtc = DateTime.UtcNow;
+        await jenianDbContext.SaveChangesAsync(cancellationToken: stoppingToken);
+
+        _logger.LogInformation("DeliveryExtractionJob {JobId} completed successfully", job.JobId);
+
+        await TrySendTelegramNotificationAsync(job, scope.ServiceProvider, stoppingToken);
+      } catch (OperationCanceledException e) when (stoppingToken.IsCancellationRequested) {
+        _logger.LogInformation(e, "DeliveryExtractorWorker operation was canceled for JobId {JobId}", job.JobId);
+        await TrySetTerminalStatusAsync(job.JobId, JobStatus.Canceled);
+      } catch (OperationCanceledException e) {
+        _logger.LogError(e, "DeliveryExtractorWorker timed out for JobId {JobId}", job.JobId);
+        await TrySetTerminalStatusAsync(job.JobId, JobStatus.Failed);
+      } catch (Exception e) {
+        _logger.LogError(e, "Failed processing DeliveryExtractorJob for JobId {JobId}", job.JobId);
+        await TrySetTerminalStatusAsync(job.JobId, JobStatus.Failed);
+      }
+    }
+
+    private async Task TrySetTerminalStatusAsync(Guid jobId, JobStatus status) {
+      try {
+        using var statusTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await using var scope = _scopeFactory.CreateAsyncScope();
+        var jenianDbContext = scope.ServiceProvider.GetRequiredService<JenianDbContext>();
+
+        var bgJob = await jenianDbContext.DeliveryExtractionJobs
+          .FirstOrDefaultAsync(d => d.Id == jobId, cancellationToken: statusTimeout.Token);
+
+        if (bgJob is null) {
+          _logger.LogWarning("Cannot set status {Status}; DeliveryExtractionJob {JobId} was not found", status, jobId);
+          return;
+        }
+
+        if (bgJob.Status == JobStatus.Succeeded) {
+          _logger.LogWarning("DeliveryExtractionJob {JobId} already succeeded; status will not be changed to {Status}", jobId, status);
+          return;
+        }
+
+        bgJob.Status = status;
+        bgJob.CompletedAtUtc = DateTime.UtcNow;
+        await jenianDbContext.SaveChangesAsync(statusTimeout.Token);
+      } catch (Exception e) {
+        _logger.LogError(e, "Failed to persist status {Status} for DeliveryExtractionJob {JobId}", status, jobId);
+      }
+    }
+
+    private async Task TrySendTelegramNotificationAsync(
+      DeliveryWorkerJob job,
+      IServiceProvider serviceProvider,
+      CancellationToken cancellationToken) {
+      try {
+        var userManager = serviceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var telegramMessenger = serviceProvider.GetRequiredService<ITelegramMessenger>();
+        var reportRepository = serviceProvider.GetRequiredService<ICWHReportRepository>();
+
+        var telegramUserId = await userManager.Users
+          .Where(u => u.Id == job.UserId)
+          .Select(u => u.TelegramUserId)
+          .SingleOrDefaultAsync(cancellationToken: cancellationToken);
+
+        if (telegramUserId != null && long.TryParse(telegramUserId, out var telegramChatId)) {
+          var report = await reportRepository.PopulateReportTemplateAsync(job.ReportId, job.UserId, cancellationToken);
+          if (report != null) {
+            _logger.LogInformation("Background worker report = {Report}", report);
+            await telegramMessenger.SendMessageAsync(telegramChatId, report, cancellationToken);
+          }
+        }
+      } catch (OperationCanceledException e) when (cancellationToken.IsCancellationRequested) {
+        //TODO: Figure out where to let user know - Telegram bot or in-app notification
+        _logger.LogInformation(e, "Telegram notification was canceled for completed JobId {JobId}", job.JobId);
+      } catch (Exception e) {
+        //TODO: Figure out where to let user know - Telegram bot or in-app notification
+        _logger.LogError(e, "Telegram notification failed for completed JobId {JobId}", job.JobId);
+      }
     }
   }
 }

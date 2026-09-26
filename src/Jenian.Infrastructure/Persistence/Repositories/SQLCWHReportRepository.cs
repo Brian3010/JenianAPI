@@ -64,33 +64,35 @@ namespace Jenian.Infrastructure.Persistence.Repositories
     /** 
      * Add or Update End of day report
      */
-    public async Task<Guid> AddOrUpdateEodReportAsync(string userId, EodReport incommingReport, CancellationToken cancellationToken) {
-      Guid reportId;
+    public async Task<Guid> AddOrUpdateEodReportAsync(string userId, EodReport incomingReport, CancellationToken cancellationToken) {
+      var today = DateTime.UtcNow.Date;
+      var tomorrow = today.AddDays(1);
 
       var existingReport = await _dbContext.EodReports
-        .FirstOrDefaultAsync(r => r.UserId == userId && r.SubmitedAt.Date == DateTime.UtcNow.Date, cancellationToken);
-
+        .FirstOrDefaultAsync(
+          r => r.UserId == userId &&
+               r.SubmitedAt >= today &&
+               r.SubmitedAt < tomorrow,
+          cancellationToken);
 
       _logger.LogInformation("Message {existingReport}", existingReport);
 
       if (existingReport is null) {
         // add
-        reportId = incommingReport.Id;
-        await _dbContext.EodReports.AddAsync(incommingReport, cancellationToken);
+        await _dbContext.EodReports.AddAsync(incomingReport, cancellationToken);
       } else {
         // update
-        existingReport.Delivery = incommingReport.Delivery;
-        existingReport.StockUpdate = incommingReport.StockUpdate;
-        existingReport.NightTasks = incommingReport.NightTasks;
-        existingReport.AislesFacing = incommingReport.AislesFacing;
-        existingReport.Cleaning = incommingReport.Cleaning;
-        existingReport.GeneralCheck = incommingReport.GeneralCheck;
-        reportId = existingReport.Id;
+        existingReport.Delivery = incomingReport.Delivery;
+        existingReport.StockUpdate = incomingReport.StockUpdate;
+        existingReport.NightTasks = incomingReport.NightTasks;
+        existingReport.AislesFacing = incomingReport.AislesFacing;
+        existingReport.Cleaning = incomingReport.Cleaning;
+        existingReport.GeneralCheck = incomingReport.GeneralCheck;
       }
 
       await _dbContext.SaveChangesAsync(cancellationToken);
 
-      return reportId;
+      return existingReport?.Id ?? incomingReport.Id;
     }
 
     /**
@@ -111,20 +113,26 @@ namespace Jenian.Infrastructure.Persistence.Repositories
     /**
      * After the AI extraction done, this function is to Add the its answer to EodReports table
      */
-    public async Task UpdateAnswerToEodReportAsync(string userId, string answer, CancellationToken cancellationToken) {
+    public async Task<bool> UpdateAnswerToEodReportAsync(string userId, Guid reportId, string answer, CancellationToken cancellationToken) {
       var today = DateTime.UtcNow.Date;
+      var tomorrow = today.AddDays(1);
 
       _logger.LogInformation("userId {userId}", userId);
 
-      var existingReport = await _dbContext.EodReports
-        .FirstOrDefaultAsync(r => r.UserId == userId && r.SubmitedAt.Date == today, cancellationToken);
+      var report = await _dbContext.EodReports
+        .FirstOrDefaultAsync(
+            x => x.Id == reportId &&
+                 x.UserId == userId &&
+                 x.SubmitedAt >= today &&
+                 x.SubmitedAt < tomorrow,
+            cancellationToken);
 
-      if (existingReport != null) {
-        existingReport.Delivery = answer;
-        await _dbContext.SaveChangesAsync(cancellationToken);
-      } else {
-        _logger.LogWarning("Cannot add AI answer to delivery field as report is not exist ");
+      if (report is null) {
+        return false;
       }
+      report.Delivery = answer;
+      await _dbContext.SaveChangesAsync(cancellationToken);
+      return true;
     }
 
     /** Use report Id to get detail of EodReport

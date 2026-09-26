@@ -17,7 +17,7 @@ namespace Jenian.Infrastructure.Services.AI
     }
 
     // takes a raw OCR text from Telegram and extracts delivery entries using the LLM, following the specified rules and format.
-    public async Task<string> DeliveryTextExtractor(string ocrText, CancellationToken ct = default) {
+    public async Task<string> DeliveryFormatter(string ocrText, CancellationToken cancellationToken) {
       var CleanedDeliveryText = TelegramOcrTextProcess.Clean(ocrText);
       _logger.LogInformation("CleanedDeliveryText {Value}", CleanedDeliveryText);
 

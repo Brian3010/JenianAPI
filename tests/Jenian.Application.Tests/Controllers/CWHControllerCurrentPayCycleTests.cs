@@ -21,7 +21,7 @@ public class CWHControllerCurrentPayCycleTests
         new CurrentPayCycleShiftSummaryResult { HasPayCycleSettings = false })
     };
     var controller = new CWHController(
-      null!, null!, null!, null!, null!, null!, shiftService) {
+      null!, null!, null!, null!, shiftService) {
       ControllerContext = new ControllerContext {
         HttpContext = new DefaultHttpContext {
           User = new ClaimsPrincipal(new ClaimsIdentity(
@@ -58,7 +58,7 @@ public class CWHControllerCurrentPayCycleTests
         })
     };
     var controller = new CWHController(
-      null!, null!, null!, null!, null!, null!, shiftService) {
+      null!, null!, null!, null!, shiftService) {
       ControllerContext = new ControllerContext {
         HttpContext = new DefaultHttpContext {
           User = new ClaimsPrincipal(new ClaimsIdentity(

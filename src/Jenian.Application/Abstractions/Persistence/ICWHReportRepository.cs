@@ -9,7 +9,7 @@ namespace Jenian.Application.Abstractions.Persistence
     Task<string> GetDeliveryResultById(Guid jobId, CancellationToken cancellationToken);
     Task<Guid> AddOrUpdateEodReportAsync(string userId, EodReport incomingReport, CancellationToken cancellationToken);
     Task UpdateAnswerToDeliveryAsync(Guid jobId, string answer, CancellationToken cancellationToken);
-    Task UpdateAnswerToEodReportAsync(string userId, string answer, CancellationToken cancellationToken);
+    Task<bool> UpdateAnswerToEodReportAsync(string userId, Guid reportId, string answer, CancellationToken cancellationToken);
     Task<bool> IsReportSubmitedToday(string userId, CancellationToken cancellationToken);
     Task<string?> PopulateReportTemplateAsync(Guid reportId, string userId, CancellationToken cancellationToken);
   }
