@@ -14,3 +14,7 @@ appsettings.*.Local.json
 *.db
 *.suo
 *.user
+# Local planning and development documents
+/docs/
+/plans/
+/tasks/
