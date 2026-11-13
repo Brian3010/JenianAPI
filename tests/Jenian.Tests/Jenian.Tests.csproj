@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
@@ -26,6 +26,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Jenian.API\Jenian.API.csproj" />
     <ProjectReference Include="..\..\src\Jenian.Application\Jenian.Application.csproj" />
+    <ProjectReference Include="..\..\src\Jenian.Infrastructure\Jenian.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Jenian.Domain\Jenian.Domain.csproj" />
   </ItemGroup>
 

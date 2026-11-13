@@ -37,7 +37,5 @@
 				<!-- Linux container / Azure -->
 				<PackageReference Include="OpenCvSharp4.official.runtime.linux-x64" Version="4.13.0.20260329" Condition="'$(OS)' != 'Windows_NT'" />
 
-				<PackageReference Include="SixLabors.ImageSharp" Version="3.1.11" />
-				<PackageReference Include="SixLabors.ImageSharp.Drawing" Version="2.1.7" />
 		</ItemGroup>
 </Project>

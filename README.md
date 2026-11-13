@@ -93,7 +93,7 @@ It is consumed exclusively by a separate Next.js frontend, which is expected to 
 - **OpenAI** SDK (`OpenAI` 2.4.0)
 - **Azure AI Vision** (`Azure.AI.Vision.ImageAnalysis` 1.0.0) for OCR
 - Telegram Bot API (consumed via a plain `HttpClient`, no third-party Telegram SDK)
-- **OpenCvSharp4** / **SixLabors.ImageSharp** for image pre-processing prior to OCR
+- **OpenCvSharp4** for roster image pre-processing prior to OCR
 - **Azure.Storage.Blobs** + **Azure.Identity** for file storage
 
 ## Architecture
@@ -156,7 +156,7 @@ src/
 │   └── BackgroundJobs/
 └── Jenian.Domain/          # Entities & enums only
 tests/
-└── Jenian.Application.Tests/   # xUnit tests (currently: pay-rate calculation logic)
+└── Jenian.Tests/   # xUnit tests grouped by application, API, and infrastructure
 ```
 
 ## Request Flow
@@ -338,19 +338,16 @@ Uploaded images (e.g. end-of-day report screenshots) are stored in **Azure Blob 
 ## Testing
 
 - **Framework:** xUnit (`xunit` 2.9.3), with `Microsoft.NET.Test.Sdk` and `coverlet.collector` for the test SDK/coverage collector.
-- **Project:** a single test project, `tests/Jenian.Application.Tests`, referencing `Jenian.Application` and `Jenian.Domain` directly (no database or HTTP dependency).
-- **Coverage:** currently focused entirely on `PharmacyAwardRateServiceTests` — parameterised (`[Theory]`/`[InlineData]`) tests covering weekday, Saturday, Sunday, and public-holiday multipliers for both permanent (full-time/part-time) and casual employment types, and both `Worked` and `Leave` entry types.
-- **Test naming:** `MethodUnderTest_Scenario_ExpectedOutcome` (e.g. `GetMultiplier_Weekday_PermanentEmployees_ReturnsCorrectMultiplier`).
-- **Mocking:** none observed in this test project — it exercises `PharmacyAwardRateService` directly with real inputs.
-- **Scope:** there are currently no authentication tests, no integration tests, and no test project for the Infrastructure or API layers.
+- **Project:** `tests/Jenian.Tests`, grouped into `Application`, `API`, `Infrastructure`, and `TestSupport`.
+- **Conventions:** xUnit assertions, typed theory data, strict Moq dependencies, non-null service setup helpers, and fixed clocks. Keep meaningful inputs and expected values visible in tests.
+- **Coverage:** award rates, time segments, pay calculations, local work dates, pay cycles, shift mutation/save orchestration, current-cycle queries, direct controller responses, and report create/update behavior.
+- **Limits:** controller tests do not exercise authentication middleware. EF InMemory and mocked transaction callbacks do not prove SQL Server behavior or database rollback.
 
-Run the tests with:
-
-```bash
-dotnet test tests/Jenian.Application.Tests/Jenian.Application.Tests.csproj
+```powershell
+dotnet test tests/Jenian.Tests/Jenian.Tests.csproj --no-restore
 ```
 
-At the time of writing this runs 70 tests, all passing. This does not represent full coverage of the application — most Infrastructure and API-layer code (auth, Telegram, OCR, controllers) is currently untested by automated tests.
+See [the test guide](tests/README.md) for scenario mapping and setup conventions.
 
 ## Local Development
 

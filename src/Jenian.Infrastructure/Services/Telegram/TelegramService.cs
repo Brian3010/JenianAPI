@@ -11,14 +11,14 @@ namespace Jenian.Infrastructure.Services.Telegram
   /// Responsibilities:
   /// - Verify /start <token> and link a Telegram user to a Jenian account
   /// - Authorize subsequent messages (must come from a linked TelegramUserId)
-  /// - Fetch photos/docs, compress to JPEG, and dispatch to the parser (Azure Vision, etc.)
+  /// - Dispatch photos/docs to the roster extraction handler
   ///
   /// Key fixes vs. your version:
   /// 1) Defensive parsing for "/start" to avoid IndexOutOfRange on split.
   /// 2) Don't crash on Telegram outages (no EnsureSuccessStatusCode without try/catch).
   /// 3) Stronger validation + logging in getFile/sendMessage flows.
   /// 4) Null-safe photo/document selection + prefer largest photo size.
-  /// 5) Ensure MemoryStreams have Position reset (paired with ImageHelper fix).
+  /// 5) Ensure MemoryStreams have Position reset.
   /// 6) Consistent UTC timestamps (if you add any here later).
   /// 7) Respect CancellationToken where sensible.
   /// </summary>
